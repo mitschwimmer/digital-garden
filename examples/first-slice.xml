@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<incus project="garden">
+  <secret name="session" bytes="32"/>
+  <volume pool="pool" name="demo-data">
+    <config><entry key="initial.mode" value="0700"/></config>
+    <file path="/service.conf" source="examples/service.conf" uid="1000" gid="1000" mode="0644"/>
+    <file path="/session" secret="session" uid="1000" gid="1000" mode="0400"/>
+  </volume>
+  <instance name="demo" fingerprint="aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa">
+    <config><entry key="environment.DEMO" value="one"/></config>
+    <device name="root" type="disk"><config><entry key="path" value="/"/><entry key="pool" value="pool"/></config></device>
+    <device name="data" type="disk"><config><entry key="path" value="/data"/><entry key="pool" value="pool"/><entry key="source" value="demo-data"/></config></device>
+  </instance>
+</incus>
+
