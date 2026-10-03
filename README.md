@@ -6,9 +6,11 @@ Experimental XML desired state for [Tend](https://github.com/archaic-java/tend),
 Tend monitors `main` and reads `incus.xml` plus referenced files from one immutable commit.
 The active declaration is initially empty: no instances or volumes are requested.
 
-`examples/first-slice.xml` demonstrates a custom filesystem volume, a configuration file, a
-controller-generated secret and a running instance with explicit disk devices. It is illustrative,
-not an operational application deployment. Its repeated `a` fingerprint is a placeholder.
+`examples/first-slice.xml` demonstrates a named Configuration and controller-generated Secret,
+consumed as read-only mounts beside a persistent data volume and explicit Incus disk devices.
+`examples/requirements.xml` adds Caddy/Authelia ingress with two-factor group authorization and
+an OVN NIC egress allowlist. Both are review fixtures with placeholder image fingerprints.
+Neither example supplies a complete application configuration or working service image.
 
 To exercise it later in a disposable Incus project:
 
@@ -17,10 +19,21 @@ To exercise it later in a disposable Incus project:
 3. Copy `examples/first-slice.xml` to `incus.xml`, retaining the `examples/service.conf` reference.
 4. Commit to `main`; the separately bootstrapped Tend controller reconciles that commit.
 
-The example uses a root disk and mounts `demo-data` at `/data`. The chosen image determines whether
-anything consumes the example configuration or secret. Neither file makes an arbitrary image into
-a service. Tend's controller state volume stores the stable generated `session` secret; Git contains
-only its declaration and reference.
+The first example mounts data at `/data`, configuration at `/etc/demo/service.conf` and the secret
+at `/run/secrets/session/value`. The chosen image must consume those files. Tend stores the stable
+named secret on its own persistent state volume; Git contains its generator and reference only.
+
+The requirements example additionally needs a separately bootstrapped managed OVN network named
+`garden-net`, cached service images and their startup configuration. The current homelab bridge is
+not accepted by the experimental egress adapter. Caddy must load `/etc/caddy/Caddyfile`; Authelia
+must load its separately provided base configuration, followed by Tend's access-control JSON via
+`X_AUTHELIA_CONFIG`. That base configuration must supply authentication, sessions, storage and
+notifier settings and must not define competing access-control rules. Image command-line arguments
+must not override the binding. DNS, TLS reachability and protection from direct backend access are
+operator concerns. This is not a complete replacement of the current OIDC-enabled homelab.
+
+Read Tend's [resource model](https://github.com/archaic-java/tend/blob/offline-proof-of-concept/docs/resource-model.md)
+for the exact model, enforcement boundaries and remaining requirements.
 
 The schema and supported semantics live in Tend's `schema/tend.xsd` and README. The first slice
 retains removed resources, rejects image/type replacement and uses stop/start configuration activation.
