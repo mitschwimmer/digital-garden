@@ -254,7 +254,7 @@ level = warn
     caddy = instance('caddy',0,0,{'environment.XDG_CONFIG_HOME':'/config','environment.XDG_DATA_HOME':'/data'},'caddy run --config /etc/caddy/Caddyfile --adapter caddyfile')
     device(caddy,'lan','nic', s['lan'] | {'name':'eth1'})
     disk(caddy,'data','caddy-data','/data'); disk(caddy,'config','caddy-config','/config')
-    authenv = {'environment.X_AUTHELIA_CONFIG_FILTERS':'template','environment.AUTHELIA_SESSION_SECRET_FILE':'/etc/tend-session/value','environment.AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE':'/etc/tend-storage/value','environment.AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE':'/etc/tend-reset/value','environment.AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET_FILE':'/etc/tend-hmac/value'}
+    authenv = {'environment.X_AUTHELIA_CONFIG':'/etc/tend-base/configuration.json,/etc/tend-oidc/oidc.yml,/etc/tend-authorization/access-control.json','environment.X_AUTHELIA_CONFIG_FILTERS':'template','environment.AUTHELIA_SESSION_SECRET_FILE':'/etc/tend-session/value','environment.AUTHELIA_STORAGE_ENCRYPTION_KEY_FILE':'/etc/tend-storage/value','environment.AUTHELIA_IDENTITY_VALIDATION_RESET_PASSWORD_JWT_SECRET_FILE':'/etc/tend-reset/value','environment.AUTHELIA_IDENTITY_PROVIDERS_OIDC_HMAC_SECRET_FILE':'/etc/tend-hmac/value'}
     if 'smtp' in s:
         authenv['environment.AUTHELIA_NOTIFIER_SMTP_PASSWORD_FILE'] = '/etc/private-smtp/password'
     auth = instance('authelia',1000,1000,authenv,'/app/authelia --config /etc/tend-base/configuration.json --config /etc/tend-oidc/oidc.yml --config /etc/tend-authorization/access-control.json')
