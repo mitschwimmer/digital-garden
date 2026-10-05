@@ -68,7 +68,7 @@ such replacement separately; no old llama or other guest should be replaced.
 ```fish
 tofu -chdir=tofu apply inference.tfplan
 bash scripts/deploy-llama.sh "$GARDEN_REMOTE"
-incus exec "$GARDEN_REMOTE:garden-llama" --project default -- /app/llama-server --list-devices
+incus exec "$GARDEN_REMOTE:garden-llama" --project default -- env LD_LIBRARY_PATH=/app /app/llama-server --list-devices
 bash scripts/deploy-webui.sh "$GARDEN_REMOTE"
 ```
 
@@ -76,7 +76,9 @@ The deploy script builds the Nix artifact, backs up prior files in an ignored lo
 rollback directory, transfers via Incus custom-volume file operations, verifies
 bytes, then starts the official image and checks health/catalog. Failure restores
 a complete prior configuration; otherwise the router stays stopped for inspection.
-`--list-devices` must list the AMD GPU. No model download is required during prep.
+`--list-devices` must list the AMD GPU. The explicit library path is needed for this separate Incus exec process; the upstream service starts in its image working directory. No model download is required during prep.
+On the first deployment, a missing prior config file and a brief connection-refused
+health retry are expected; the final health/catalog checks must succeed.
 
 ## Verify
 
