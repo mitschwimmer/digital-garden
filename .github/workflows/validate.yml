@@ -25,3 +25,7 @@ jobs:
         run: cat flake.lock tofu/.terraform.lock.hcl
       - name: Build edge closure and split image
         run: nix build .#edge-image --no-link
+      - name: Bootstrap plan and output regression
+        run: |
+          export TF_VAR_image_directory="$(nix build .#edge-image --no-link --print-out-paths)"
+          nix develop --command tofu -chdir=tofu test
