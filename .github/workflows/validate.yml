@@ -16,6 +16,8 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
       - name: Shell syntax
         run: bash -n scripts/inventory.sh scripts/prepare-edge.sh
+      - name: Fish development shell
+        run: nix develop --command fish -c 'type -q tofu; and type -q incus; and type -q python3'
       - name: OpenTofu formatting and schema
         run: |
           nix develop --command tofu -chdir=tofu fmt -check
