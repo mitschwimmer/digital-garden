@@ -12,7 +12,10 @@ let
       password_reset.disable = true;
       file = { path = runtime "users"; watch = false; };
     };
-    access_control.default_policy = "deny";
+    access_control = {
+      default_policy = "deny";
+      rules = [ { domain = "*.archaic.work"; policy = "two_factor"; } ];
+    };
     session = {
       name = "garden_session";
       same_site = "lax";

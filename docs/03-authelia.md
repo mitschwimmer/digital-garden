@@ -7,7 +7,7 @@ and retain the account's second factor through a guest restart.
 
 Authelia listens only on 127.0.0.1:9091 behind Caddy. Guest ingress remains TCP 80/443 on eth1.
 The test site stays public; no application is protected or integrated via OIDC yet.
-Authelia access-control defaults to deny. Public auth DNS/routing is manual, just as for test.
+Authelia access-control defaults to deny, with an explicit two-factor rule for *.archaic.work. Public auth DNS/routing is manual, just as for test.
 Publish AAAA only if edge has working global IPv6 and the router permits that traffic.
 
 Use an SMTP provider with authenticated TLS submission (587/STARTTLS or 465/TLS),
