@@ -14,6 +14,17 @@ SELECTED = {
 def main():
     path = Path(__file__).resolve().parents[1] / "llama/models.lock.json"
     if path.exists():
+        locked = json.loads(path.read_text())
+        if set(locked) != set(SELECTED):
+            raise ValueError("Model lock and selected presets differ")
+        for name, (repo, filename) in SELECTED.items():
+            entry = locked[name]
+            if (entry["repository"], entry["file"]) != (repo, filename):
+                raise ValueError("Unexpected model source")
+            if (not re.fullmatch(r"[0-9a-f]{40}", entry["revision"])
+                    or not re.fullmatch(r"[0-9a-f]{64}", entry["sha256"])
+                    or not isinstance(entry["size"], int) or entry["size"] <= 0):
+                raise ValueError("Invalid locked model metadata")
         print("Existing model lock retained; upgrades require an explicit reviewed edit.")
         return
     result = {}
