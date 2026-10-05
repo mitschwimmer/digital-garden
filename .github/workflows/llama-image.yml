@@ -1,0 +1,55 @@
+name: Build configured llama image
+on:
+  push:
+    branches: [main, homelab/inference]
+    paths:
+      - llama/Dockerfile
+      - llama/models.ini
+      - llama/image.lock.json
+      - llama/models.lock.json
+      - scripts/check-llama-image.sh
+      - .github/workflows/llama-image.yml
+  pull_request:
+    paths:
+      - llama/Dockerfile
+      - llama/models.ini
+      - llama/image.lock.json
+      - llama/models.lock.json
+      - scripts/check-llama-image.sh
+      - .github/workflows/llama-image.yml
+permissions:
+  contents: read
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Build configuration layer on the immutable ROCm base
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: llama
+          platforms: linux/amd64
+          load: true
+          push: false
+          provenance: false
+          sbom: false
+          tags: ghcr.io/mitschwimmer/digital-garden-llama:sha-${{ github.sha }}
+      - name: Verify real router catalog without downloading models
+        run: bash scripts/check-llama-image.sh ghcr.io/mitschwimmer/digital-garden-llama:sha-${{ github.sha }}
+      - name: Publish accepted build and print immutable deployment reference
+        if: github.event_name == 'push'
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          IMAGE: ghcr.io/mitschwimmer/digital-garden-llama:sha-${{ github.sha }}
+        run: |
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin
+          docker push "$IMAGE"
+          docker image inspect --format '{{join .RepoDigests "\n"}}' "$IMAGE" | tee -a "$GITHUB_STEP_SUMMARY"
