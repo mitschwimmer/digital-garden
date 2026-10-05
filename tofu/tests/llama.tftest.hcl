@@ -7,8 +7,9 @@ mock_provider "incus" {
 }
 
 variables {
-  incus_remote = "test"
-  storage_pool = "test"
+  incus_remote  = "test"
+  storage_pool  = "test"
+  llama_gpu_pci = null
 }
 
 run "gpu_is_explicit_before_enabling_inference" {

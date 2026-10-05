@@ -111,7 +111,6 @@ This new database has no prior schema to roll back; take a database backup befor
 
 ## Validation and next iteration
 
-CI builds the guest and image, checks Caddy and Authelia configuration using synthetic test
-secrets without network calls, validates OpenTofu and runs mocked plan regressions.
+CI runs fast static checks only. Run `bash scripts/verify-workstation.sh` on the workstation for Caddy and Authelia configuration checks using synthetic test secrets, OpenTofu validation and mocked plan regressions. Changed guest closures are built on the workstation by the deployment scripts.
 Real SOPS decryption, SMTP delivery, public HTTPS and enrollment require the live checks above.
 Next: add one application and its native OIDC integration in its own iteration.

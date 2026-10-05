@@ -30,8 +30,12 @@ git switch homelab/inference
 git pull --ff-only
 nix develop --command fish
 python3 scripts/configure-llama.py "$GARDEN_REMOTE"
-nix build .#llama-config --no-link
+bash scripts/verify-workstation.sh
 ```
+
+CI runs only quick syntax/static checks. The workstation verification performs
+full Nix builds and OpenTofu/configuration checks once, before applying; deployment
+reuses the same build outputs. Model/GPU/browser acceptance runs on the host.
 
 The optional GPU helper discovers local infrastructure inputs; with multiple AMD
 GPUs, specify `--gpu-pci PCI_ADDRESS`. It preserves existing seed/LAN settings and
@@ -54,8 +58,9 @@ cache, and config volume. The router is initially **stopped**. Pool space must
 cover the ROCm root and up to about 21 GB of models; root limit 32 GiB, cache quota
 64 GiB. If the first revision was already applied, expect existing volumes retained
 and an instance/config update, not an edge/WebUI replacement or data deletion.
-Removing the old Tofu-managed file should not delete its physical contents; the
-Nix deployment explicitly replaces the configuration after saving previous files.
+The config volume ignores externally managed file contents, retaining any file
+uploaded by an earlier Tofu revision. The Nix deployment saves prior files before
+installing the new configuration.
 If a derived-image revision was actually applied, returning to the upstream image
 requires replacement of only garden-llama, with both volumes retained. Review any
 such replacement separately; no old llama or other guest should be replaced.

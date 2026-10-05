@@ -9,7 +9,8 @@ volumes it needs. Keep secrets out of ordinary configuration artifacts.
 Ownership:
 
 - OpenTofu: image identity, volumes, mounts, instance/device/limit settings, and
-  the OCI launch entrypoint. It does not store or transfer application file contents.
+  the OCI launch entrypoint. It does not store or transfer application file contents. Its config-volume resource
+  ignores changes to the externally managed `file` field.
 - Nix: the configuration artifact, including an optional POSIX launch script when
   runtime options must be supplied independently of the upstream entrypoint.
 - Deployment script: build the artifact, back up prior configuration, stop the
@@ -33,3 +34,11 @@ script; no application configuration values or file contents pass through Tofu.
 Incus supports [custom-volume file transfers](https://linuxcontainers.org/incus/docs/main/reference/manpages/incus/storage/volume/file/push/),
 so configuration can be installed before a container is started. This pattern
 needs neither a derived image nor a registry publication workflow.
+
+## Verification policy
+
+CI contains only fast shell/Python syntax and lightweight declarative checks.
+Run `bash scripts/verify-workstation.sh` in the repository Nix shell for full Nix
+builds, configuration validation, and mocked infrastructure plans before applying.
+Reuse those build outputs during deployment; test live service/browser behavior
+on the homelab. CI never builds/pulls OCI images or builds Nix system closures.

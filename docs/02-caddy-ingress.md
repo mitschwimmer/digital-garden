@@ -125,8 +125,7 @@ Removing LAN attachment later is an explicit infrastructure change; retain the C
 
 ## Validation and next iteration
 
-CI builds the seed image and new edge closure, validates Caddy configuration, checks provider schema,
-and runs mocked first-plan and LAN-identity regressions without applying or destroying protected storage. Live mount, activation and public routing still require these checks.
+CI runs fast static checks only. Run `bash scripts/verify-workstation.sh` for configuration checks, provider validation and mocked plan regressions. Build a changed edge closure on the workstation through `scripts/deploy-edge.sh`; live mount, activation and public routing require the checks above.
 After success, merge this iteration; next add Authelia independently.
 
 ## Repair an already attached macvlan NIC

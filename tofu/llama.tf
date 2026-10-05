@@ -48,9 +48,12 @@ resource "incus_storage_volume" "llama_config" {
 
   lifecycle {
     prevent_destroy = true
+    # File contents are deployed externally; retain earlier Tofu-uploaded files.
+    ignore_changes = [file]
   }
 }
 
+# Install the Nix-built configuration before the deployment script starts this instance.
 resource "incus_instance" "llama" {
   count       = local.llama_enabled ? 1 : 0
   name        = "garden-llama"
@@ -60,7 +63,6 @@ resource "incus_instance" "llama" {
   project     = "default"
   remote      = var.incus_remote
   profiles    = []
-  # The deployment script installs Nix-built configuration before first start.
   running     = false
 
   lifecycle {
@@ -135,7 +137,6 @@ resource "incus_instance" "llama" {
       mode   = "0660"
     }
   }
-
 }
 
 output "llama_ipv4" {
