@@ -9,7 +9,7 @@ and service/certificate state survives an edge restart.
 NixOS configures Caddy, dual-interface DHCP, IPv6 RA, and a firewall permitting only TCP 80/443 on eth1.
 eth0 retains private backend networking; no inbound backend service ports are opened.
 HTTP/3 is disabled for now. Caddy's administration API remains loopback-only.
-OpenTofu adds one protected custom volume and attaches it plus an optional macvlan LAN NIC to edge.
+OpenTofu adds one protected custom volume and attaches it plus an optional bridged LAN NIC to edge.
 No old resource is removed. Moving router forwarding to edge will make old public routes unavailable:
 this edge currently serves only the test site.
 
@@ -31,8 +31,10 @@ you can inspect the former Caddy's expanded NIC configuration from your workstat
 incus config show "$GARDEN_REMOTE:caddy" --project default --expanded
 ```
 
-Use its macvlan parent for the same LAN; do not copy its MAC or address.
-Macvlan prevents host-to-LAN-guest communication, so management continues through Incus and eth0.
+IncusOS exposes configured interfaces as bridges. Use the existing LAN bridge as parent;
+the old Caddy macvlan parent can identify that bridge, but do not copy its NIC type, MAC or address.
+The bridge must have the IncusOS instances role. Management continues through authenticated Incus.
+See https://linuxcontainers.org/incus-os/docs/main/tutorials/network-direct-attach/.
 
 Public HTTPS is blocked until DNS and router routing deliver traffic to this new edge:
 - Reserve the new IPv4 for the generated MAC; forward public TCP 80/443 to that reservation.
@@ -126,3 +128,34 @@ Removing LAN attachment later is an explicit infrastructure change; retain the C
 CI builds the seed image and new edge closure, validates Caddy configuration, checks provider schema,
 and runs mocked first-plan and LAN-identity regressions without applying or destroying protected storage. Live mount, activation and public routing still require these checks.
 After success, merge this iteration; next add Authelia independently.
+
+## Repair an already attached macvlan NIC
+
+Runtime tracing showed HTTPS SYN-ACK replies arriving untracked and being dropped by the guest input
+firewall. The tracking failure's full cause is not yet confirmed. Use IncusOS's documented bridged
+attachment instead of macvlan; retain the same local parent and MAC. Do not weaken the firewall.
+
+```fish
+git pull --ff-only
+tofu -chdir=tofu validate
+tofu -chdir=tofu plan -out=lan-repair.tfplan
+```
+
+For an already applied iteration, expect zero additions, one edge update, zero destroys/replacements:
+only eth1 nictype changes from macvlan to bridged. Apply the reviewed plan:
+
+```fish
+tofu -chdir=tofu apply lan-repair.tfplan
+incus restart "$GARDEN_REMOTE:edge" --project default
+incus exec "$GARDEN_REMOTE:edge" --project default -- curl -4 --fail --connect-timeout 10 --max-time 20 https://acme-v02.api.letsencrypt.org/directory
+incus exec "$GARDEN_REMOTE:edge" --project default -- journalctl -u caddy -n 50 --no-pager
+```
+
+The restart briefly interrupts edge. No guest rebuild or certificate-volume replacement is needed.
+Expected: ACME directory JSON, then certificate issuance once inbound DNS/routing prerequisites work.
+Repeat external HTTPS and confirm tofu plan -detailed-exitcode returns zero before merging.
+
+To roll back only this repair, restore nictype = "macvlan" in tofu/main.tf, review a new plan,
+apply the single NIC update and restart edge. This restores the previous attachment but also the
+observed connectivity failure. Keep the volume and local inputs intact. Delete any remaining
+garden_diag table with nft delete table inet garden_diag inside edge; absent means already cleaned up.
