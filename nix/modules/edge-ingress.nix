@@ -38,12 +38,18 @@
       }
     '';
     virtualHosts = {
-      "test.archaic.work".extraConfig = ''
-        respond "Digital Garden edge is ready.\n" 200
-      '';
-      "http://127.0.0.1:8080".extraConfig = ''
-        respond /healthz "ok\n" 200
-      '';
+      "test.archaic.work" = {
+        logFormat = "output stderr";
+        extraConfig = ''
+          respond "Digital Garden edge is ready.\n" 200
+        '';
+      };
+      "http://127.0.0.1:8080" = {
+        logFormat = null;
+        extraConfig = ''
+          respond /healthz "ok\n" 200
+        '';
+      };
     };
   };
 
