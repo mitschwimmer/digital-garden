@@ -7,6 +7,11 @@ if [[ $# -ne 1 || ! $1 =~ ^[[:alnum:]][[:alnum:]_.-]*$ ]]; then
 fi
 cd "$(dirname "$0")/.."
 target="$1:edge"
+[[ -f secrets/edge.yaml ]] || { echo "Run prepare-auth.py and stage encrypted configuration first." >&2; exit 1; }
+git ls-files --error-unmatch secrets/edge.yaml >/dev/null
+incus exec "$target" --project default -- mountpoint -q /var/lib/authelia-main
+incus exec "$target" --project default -- mountpoint -q /var/lib/garden-secrets
+incus exec "$target" --project default -- test -s /var/lib/garden-secrets/age.key
 incus exec "$target" --project default -- mountpoint -q /var/lib/caddy
 previous="$(incus exec "$target" --project default -- readlink -f /nix/var/nix/profiles/system)"
 closure="$(nix build .#nixosConfigurations.edge.config.system.build.toplevel --out-link result-edge-system --print-out-paths)"
@@ -21,7 +26,9 @@ nix-store --export "${store_paths[@]}" |
 incus exec "$target" --project default -- nix-env --profile /nix/var/nix/profiles/system --set "$closure"
 if incus exec "$target" --project default -- "$closure/bin/switch-to-configuration" switch &&
    incus exec "$target" --project default -- systemctl is-active caddy &&
-   incus exec "$target" --project default -- curl --fail --max-time 15 http://127.0.0.1:8080/healthz; then
+   incus exec "$target" --project default -- curl --fail --max-time 15 http://127.0.0.1:8080/healthz &&
+   incus exec "$target" --project default -- systemctl is-active authelia-main &&
+   incus exec "$target" --project default -- curl --fail --retry 10 --retry-connrefused --retry-delay 2 --max-time 15 http://127.0.0.1:9091/api/health; then
   printf '\nPrevious system for rollback: %s\n' "$previous"
 else
   echo "Activation failed; restoring previous system $previous." >&2

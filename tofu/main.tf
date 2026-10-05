@@ -116,6 +116,36 @@ resource "incus_storage_volume" "caddy" {
   }
 }
 
+resource "incus_storage_volume" "authelia" {
+  name    = "garden-authelia-state"
+  pool    = data.incus_storage_pool.root.name
+  project = "default"
+  remote  = var.incus_remote
+
+  config = {
+    "initial.mode" = "0700"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "incus_storage_volume" "edge_secrets" {
+  name    = "garden-edge-secrets"
+  pool    = data.incus_storage_pool.root.name
+  project = "default"
+  remote  = var.incus_remote
+
+  config = {
+    "initial.mode" = "0700"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "incus_instance" "edge" {
   name        = "edge"
   description = "Digital Garden NixOS edge; private bootstrap"
@@ -161,6 +191,26 @@ resource "incus_instance" "edge" {
       path   = "/var/lib/caddy"
       pool   = incus_storage_volume.caddy.pool
       source = incus_storage_volume.caddy.name
+    }
+  }
+
+  device {
+    name = "authelia-state"
+    type = "disk"
+    properties = {
+      path   = "/var/lib/authelia-main"
+      pool   = incus_storage_volume.authelia.pool
+      source = incus_storage_volume.authelia.name
+    }
+  }
+
+  device {
+    name = "edge-secrets"
+    type = "disk"
+    properties = {
+      path   = "/var/lib/garden-secrets"
+      pool   = incus_storage_volume.edge_secrets.pool
+      source = incus_storage_volume.edge_secrets.name
     }
   }
 
