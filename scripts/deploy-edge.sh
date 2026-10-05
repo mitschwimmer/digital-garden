@@ -19,12 +19,13 @@ mapfile -t store_paths < "$paths_file"
 nix-store --export "${store_paths[@]}" |
   incus exec "$target" --project default -T -- nix-store --import >/dev/null
 incus exec "$target" --project default -- nix-env --profile /nix/var/nix/profiles/system --set "$closure"
-if ! incus exec "$target" --project default -- "$closure/bin/switch-to-configuration" switch; then
+if incus exec "$target" --project default -- "$closure/bin/switch-to-configuration" switch &&
+   incus exec "$target" --project default -- systemctl is-active caddy &&
+   incus exec "$target" --project default -- curl --fail --max-time 15 http://127.0.0.1:8080/healthz; then
+  printf '\nPrevious system for rollback: %s\n' "$previous"
+else
   echo "Activation failed; restoring previous system $previous." >&2
   incus exec "$target" --project default -- nix-env --profile /nix/var/nix/profiles/system --set "$previous"
   incus exec "$target" --project default -- "$previous/bin/switch-to-configuration" switch
   exit 1
 fi
-incus exec "$target" --project default -- systemctl is-active caddy
-incus exec "$target" --project default -- curl --fail --max-time 15 http://127.0.0.1:8080/healthz
-printf '\nPrevious system for rollback: %s\n' "$previous"

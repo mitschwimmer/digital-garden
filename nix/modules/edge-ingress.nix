@@ -9,7 +9,10 @@
         DHCP = "ipv4";
         IPv6AcceptRA = false;
       };
-      dhcpV4Config.RouteMetric = 1024;
+      dhcpV4Config = {
+        RouteMetric = 1024;
+        ClientIdentifier = "mac";
+      };
     };
     "10-lan" = {
       matchConfig.Name = "eth1";
@@ -17,7 +20,10 @@
         DHCP = "yes";
         IPv6AcceptRA = true;
       };
-      dhcpV4Config.RouteMetric = 100;
+      dhcpV4Config = {
+        RouteMetric = 100;
+        ClientIdentifier = "mac";
+      };
       ipv6AcceptRAConfig.RouteMetric = 100;
     };
   };
