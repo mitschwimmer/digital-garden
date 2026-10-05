@@ -27,7 +27,7 @@ Run on the NixOS workstation, in fish, from this checkout:
 ```fish
 git fetch origin
 git switch homelab/open-webui
-nix develop
+nix develop --command fish
 tofu -chdir=tofu init
 tofu -chdir=tofu validate
 tofu -chdir=tofu plan -out=webui.tfplan
