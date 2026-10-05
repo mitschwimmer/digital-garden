@@ -124,5 +124,5 @@ Removing LAN attachment later is an explicit infrastructure change; retain the C
 ## Validation and next iteration
 
 CI builds the seed image and new edge closure, validates Caddy configuration, checks provider schema,
-and runs the existing mocked plan/output regressions. Live mount, activation and public routing still require these checks.
+and runs mocked first-plan and LAN-identity regressions without applying or destroying protected storage. Live mount, activation and public routing still require these checks.
 After success, merge this iteration; next add Authelia independently.

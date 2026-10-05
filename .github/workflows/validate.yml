@@ -2,7 +2,7 @@ name: Validate bootstrap
 on:
   pull_request:
   push:
-    branches: [main, homelab/caddy-ingress]
+    branches: [main]
 permissions:
   contents: read
 jobs:
@@ -23,6 +23,11 @@ jobs:
           nix develop --command tofu -chdir=tofu fmt -check
           nix develop --command tofu -chdir=tofu init -backend=false -input=false
           nix develop --command tofu -chdir=tofu validate
+      - name: Build edge guest and validate Caddy
+        run: |
+          nix build .#checks.x86_64-linux.caddy-config --no-link
+          nix build .#nixosConfigurations.edge.config.system.build.toplevel --no-link
+          python3 -m py_compile scripts/configure-edge-lan.py
       - name: Dependency lockfiles
         run: cat flake.lock tofu/.terraform.lock.hcl
       - name: Build edge closure and split image
@@ -31,7 +36,3 @@ jobs:
         run: |
           export TF_VAR_image_directory="$(nix build .#edge-image --no-link --print-out-paths)"
           nix develop --command tofu -chdir=tofu test
-      - name: Build edge guest and validate Caddy
-        run: |
-          nix build .#nixosConfigurations.edge.config.system.build.toplevel .#checks.x86_64-linux.caddy-config --no-link
-          python3 -m py_compile scripts/configure-edge-lan.py
