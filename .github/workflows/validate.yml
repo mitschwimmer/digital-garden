@@ -18,6 +18,8 @@ jobs:
         run: bash -n scripts/inventory.sh scripts/prepare-edge.sh scripts/deploy-edge.sh
       - name: Fish development shell
         run: nix develop --command fish -c 'type -q tofu; and type -q incus; and type -q python3; and type -q age-keygen; and type -q sops'
+      - name: Encrypted preparation and identity recovery
+        run: nix develop --command python3 tests/test_prepare_auth.py
       - name: OpenTofu formatting and schema
         run: |
           nix develop --command tofu -chdir=tofu fmt -check
