@@ -129,6 +129,14 @@ output "edge_ipv4" {
   value = incus_instance.edge.ipv4_address
 }
 
+# Read server-generated values only after the managed bridge exists.
+data "incus_network" "private" {
+  name       = incus_network.private.name
+  project    = "default"
+  remote     = var.incus_remote
+  depends_on = [incus_network.private]
+}
+
 output "private_bridge_ipv4" {
-  value = incus_network.private.config["ipv4.address"]
+  value = data.incus_network.private.config["ipv4.address"]
 }
