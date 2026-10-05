@@ -23,7 +23,7 @@
         cp ${edge.config.system.build.tarball}/tarball/*.tar.xz "$out/rootfs.tar.xz"
       '';
       devShells.${system}.default = pkgs.mkShell {
-        packages = [ pkgs.opentofu pkgs.incus pkgs.python3 ];
+        packages = [ pkgs.opentofu pkgs.incus pkgs.python3 pkgs.fish ];
       };
     };
 }
