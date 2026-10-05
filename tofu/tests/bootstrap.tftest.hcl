@@ -29,8 +29,9 @@ run "new_lan_identity_is_explicit" {
   assert {
     condition = (
       [for nic in incus_instance.edge.device : nic if nic.name == "eth1"][0].properties["parent"] == "test0" &&
+      [for nic in incus_instance.edge.device : nic if nic.name == "eth1"][0].properties["nictype"] == "bridged" &&
       [for nic in incus_instance.edge.device : nic if nic.name == "eth1"][0].properties["hwaddr"] == "02:00:00:00:00:01"
     )
-    error_message = "The edge LAN NIC must use the configured parent and new persistent MAC."
+    error_message = "The edge LAN NIC must use the configured bridge, bridged NIC type and new persistent MAC."
   }
 }
