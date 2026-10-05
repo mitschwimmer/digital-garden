@@ -2,7 +2,7 @@ name: Validate bootstrap
 on:
   pull_request:
   push:
-    branches: [main, homelab/bootstrap-inventory]
+    branches: [main]
 permissions:
   contents: read
 jobs:
@@ -15,7 +15,7 @@ jobs:
           persist-credentials: false
       - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
       - name: Shell syntax
-        run: bash -n scripts/inventory.sh scripts/prepare-edge.sh
+        run: bash -n scripts/inventory.sh scripts/prepare-edge.sh scripts/deploy-edge.sh
       - name: Fish development shell
         run: nix develop --command fish -c 'type -q tofu; and type -q incus; and type -q python3'
       - name: OpenTofu formatting and schema
@@ -23,6 +23,11 @@ jobs:
           nix develop --command tofu -chdir=tofu fmt -check
           nix develop --command tofu -chdir=tofu init -backend=false -input=false
           nix develop --command tofu -chdir=tofu validate
+      - name: Build edge guest and validate Caddy
+        run: |
+          nix build .#checks.x86_64-linux.caddy-config --no-link
+          nix build .#nixosConfigurations.edge.config.system.build.toplevel --no-link
+          python3 -m py_compile scripts/configure-edge-lan.py
       - name: Dependency lockfiles
         run: cat flake.lock tofu/.terraform.lock.hcl
       - name: Build edge closure and split image
