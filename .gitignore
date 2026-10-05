@@ -1,0 +1,9 @@
+# Local inventory and operator configuration
+inventory*.txt
+*.auto.tfvars
+*.tfstate*
+*.tfplan
+.terraform/
+.env
+*.agekey
+result
