@@ -61,7 +61,7 @@ in {
   };
   systemd.services.authelia-main = {
     unitConfig.ConditionPathIsMountPoint = "/var/lib/authelia-main";
-    requiresMountsFor = [ "/var/lib/authelia-main" "/var/lib/garden-secrets" ];
+    unitConfig.RequiresMountsFor = [ "/var/lib/authelia-main" "/var/lib/garden-secrets" ];
     # Incus already supplies user isolation; nested user namespaces are unnecessary.
     serviceConfig.PrivateUsers = lib.mkForce false;
   };
