@@ -28,7 +28,7 @@ A separate bridge is not a firewall isolation boundary: Incus can route between 
 The guest firewall admits no inbound service ports, though Incus management can execute commands.
 
 Incus chooses an unused IPv4 subnet at creation, rather than guessing a range from incomplete LAN/VPN routing information.
-OpenTofu preserves the chosen subnet. Once applied, record the assigned range before adding static service addresses.
+The address is omitted from configuration and tracked as a provider-computed value, preserving it on later plans. Once applied, record the assigned range before adding static service addresses.
 
 ## Validation status
 

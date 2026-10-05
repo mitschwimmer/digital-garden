@@ -60,7 +60,6 @@ resource "incus_network" "private" {
   remote      = var.incus_remote
 
   config = {
-    "ipv4.address"  = "auto"
     "ipv4.dhcp"     = "true"
     "ipv4.nat"      = "true"
     "ipv4.firewall" = "true"
@@ -69,18 +68,14 @@ resource "incus_network" "private" {
     "dns.mode"      = "managed"
   }
 
-  # Incus replaces 'auto' with the chosen subnet after creation.
-  # Preserve that assigned subnet across plans and guest rebuilds.
-  lifecycle {
-    ignore_changes = [config["ipv4.address"]]
-  }
+  # Omit the address so Incus allocates a subnet. The provider tracks it as computed.
 }
 
 resource "incus_image" "edge" {
   project = "default"
   remote  = var.incus_remote
 
-  source_file {
+  source_file = {
     metadata_path = "${var.image_directory}/metadata.tar.xz"
     data_path     = "${var.image_directory}/rootfs.tar.xz"
   }
