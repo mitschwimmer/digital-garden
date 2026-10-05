@@ -19,7 +19,7 @@ def run(command, **kwargs):
 
 
 def encrypt(document, recipients):
-    return run(["sops", "--encrypt", "--age", ",".join(recipients),
+    return run(["sops", "--config", "/dev/null", "--encrypt", "--age", ",".join(recipients),
                 "--input-type", "json", "--output-type", "yaml", "/dev/stdin"],
                input=json.dumps(document).encode())
 

@@ -3,6 +3,12 @@ let
   encrypted = ../../secrets/edge.yaml;
   oidcEncrypted = ../../secrets/edge-oidc.yaml;
   oidcClient = import ./oidc-client.nix;
+  clientConfig = pkgs.writeText "oidc-client.yaml" (builtins.replaceStrings
+    [ "\"GARDEN_CLIENT_SECRET\"" ]
+    [ "{{ secret \"/run/secrets/authelia-oidc-client\" | msquote }}" ]
+    (builtins.toJSON { identity_providers.oidc.clients = [
+      (oidcClient // { client_secret = "GARDEN_CLIENT_SECRET"; })
+    ]; }));
   ready = builtins.pathExists encrypted;
   runtime = name: "/run/secrets/authelia-" + name;
   settings = {
@@ -29,9 +35,6 @@ let
       } ];
     };
     storage.local.path = "/var/lib/authelia-main/db.sqlite3";
-    identity_providers.oidc.clients = [ (oidcClient // {
-      client_secret = "{{ secret \"/run/secrets/authelia-oidc-client\" | msquote }}";
-    }) ];
     totp.issuer = "Digital Garden";
     regulation = { max_retries = 5; find_time = "2m"; ban_time = "5m"; };
   };
@@ -69,7 +72,7 @@ in {
   services.authelia.instances.main = {
     enable = true;
     inherit settings;
-    settingsFiles = [ (runtime "smtp") ];
+    settingsFiles = [ (runtime "smtp") clientConfig ];
     secrets = {
       oidcHmacSecretFile = runtime "oidc-hmac";
       oidcIssuerPrivateKeyFile = runtime "oidc-signing";
@@ -99,6 +102,12 @@ in {
   # Validate real settings with clearly synthetic secrets, without contacting SMTP.
   system.build.autheliaConfigCheck = let
     yaml = pkgs.formats.yaml { };
+    jwksConfig = pkgs.writeText "ci-oidc-jwks.yaml" ''
+      identity_providers:
+        oidc:
+          jwks:
+            - key: {{ secret "/tmp/garden-ci-key.pem" | mindent 10 "|" | msquote }}
+    '';
     testConfig = yaml.generate "authelia-test.yaml" (lib.recursiveUpdate settings {
       authentication_backend.file.path = "/tmp/garden-test-users.json";
       identity_validation.reset_password.jwt_secret = "CI-only-jwt-secret-not-used-in-deployments";
@@ -106,7 +115,6 @@ in {
       storage.encryption_key = "CI-only-storage-key-not-used-in-deployments";
       identity_providers.oidc = {
         hmac_secret = "CI-only-oidc-hmac-secret-not-used-in-deployments";
-        jwks = [ { key = "{{ secret \"/tmp/garden-ci-key.pem\" | mindent 10 \"|\" | msquote }}"; } ];
         clients = [ (oidcClient // { client_secret = "CI-only-client-secret-not-used-in-deployments"; }) ];
       };
       notifier.smtp = {
@@ -119,7 +127,7 @@ in {
   in pkgs.runCommand "check-authelia-config" { } ''
     ${pkgs.openssl}/bin/openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/garden-ci-key.pem 2>/dev/null
     export X_AUTHELIA_CONFIG_FILTERS=template
-    ${pkgs.authelia}/bin/authelia validate-config --config ${testConfig}
+    ${pkgs.authelia}/bin/authelia validate-config --config ${testConfig},${jwksConfig}
     touch "$out"
   '';
 }
