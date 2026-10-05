@@ -81,6 +81,41 @@ resource "incus_image" "edge" {
   }
 }
 
+variable "edge_lan_parent" {
+  description = "Optional host LAN parent interface; configured in local inputs."
+  type        = string
+  default     = null
+}
+
+variable "edge_lan_mac" {
+  description = "Persistent locally administered MAC for the new LAN DHCP reservation."
+  type        = string
+  default     = null
+
+  validation {
+    condition = (
+      var.edge_lan_parent == null ||
+      can(regex("^02(:[0-9a-f]{2}){5}$", var.edge_lan_mac))
+    )
+    error_message = "When enabling LAN, supply a locally administered MAC starting with 02."
+  }
+}
+
+resource "incus_storage_volume" "caddy" {
+  name    = "garden-caddy-state"
+  pool    = data.incus_storage_pool.root.name
+  project = "default"
+  remote  = var.incus_remote
+
+  config = {
+    "initial.mode" = "0700"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "incus_instance" "edge" {
   name        = "edge"
   description = "Digital Garden NixOS edge; private bootstrap"
@@ -116,6 +151,30 @@ resource "incus_instance" "edge" {
     properties = {
       network = incus_network.private.name
       name    = "eth0"
+    }
+  }
+
+  device {
+    name = "caddy-state"
+    type = "disk"
+    properties = {
+      path   = "/var/lib/caddy"
+      pool   = incus_storage_volume.caddy.pool
+      source = incus_storage_volume.caddy.name
+    }
+  }
+
+  dynamic "device" {
+    for_each = var.edge_lan_parent == null ? [] : [var.edge_lan_parent]
+    content {
+      name = "eth1"
+      type = "nic"
+      properties = {
+        name    = "eth1"
+        nictype = "macvlan"
+        parent  = device.value
+        hwaddr  = var.edge_lan_mac
+      }
     }
   }
 
