@@ -1,0 +1,33 @@
+name: Validate bootstrap
+on:
+  pull_request:
+  push:
+    branches: [main, homelab/bootstrap-inventory]
+permissions:
+  contents: read
+jobs:
+  edge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
+      - name: Shell syntax
+        run: bash -n scripts/inventory.sh scripts/prepare-edge.sh
+      - name: Fish development shell
+        run: nix develop --command fish -c 'type -q tofu; and type -q incus; and type -q python3'
+      - name: OpenTofu formatting and schema
+        run: |
+          nix develop --command tofu -chdir=tofu fmt -check
+          nix develop --command tofu -chdir=tofu init -backend=false -input=false
+          nix develop --command tofu -chdir=tofu validate
+      - name: Dependency lockfiles
+        run: cat flake.lock tofu/.terraform.lock.hcl
+      - name: Build edge closure and split image
+        run: nix build .#edge-image --no-link
+      - name: Bootstrap plan and output regression
+        run: |
+          export TF_VAR_image_directory="$(nix build .#edge-image --no-link --print-out-paths)"
+          nix develop --command tofu -chdir=tofu test
