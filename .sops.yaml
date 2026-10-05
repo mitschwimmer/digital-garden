@@ -1,3 +1,7 @@
 creation_rules:
-  - path_regex: ^secrets/edge\.yaml$
-    age: age1yv47tnq9ganc880ss86262uxrr4xymgpavk92dm2kvyfrwaj7vrqns4let,age1jdtc0wpssr2ljqx7vd3445esg8ehqxdf0yvtafxk30vcmwzf6epqva8x75
+- path_regex: ^secrets/edge-oidc\.yaml$
+  age: age1yv47tnq9ganc880ss86262uxrr4xymgpavk92dm2kvyfrwaj7vrqns4let,age1jdtc0wpssr2ljqx7vd3445esg8ehqxdf0yvtafxk30vcmwzf6epqva8x75
+- path_regex: ^secrets/open-webui\.yaml$
+  age: age1yv47tnq9ganc880ss86262uxrr4xymgpavk92dm2kvyfrwaj7vrqns4let,age1hp55suvqg2cfyzqkkg7n7ms5javla22j6vm26qdq0g83azrzxvkqs4lnnz
+- path_regex: ^secrets/edge\.yaml$
+  age: age1yv47tnq9ganc880ss86262uxrr4xymgpavk92dm2kvyfrwaj7vrqns4let,age1jdtc0wpssr2ljqx7vd3445esg8ehqxdf0yvtafxk30vcmwzf6epqva8x75

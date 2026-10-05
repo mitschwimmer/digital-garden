@@ -49,7 +49,14 @@
       OAUTH_MERGE_ACCOUNTS_BY_EMAIL = "false";
       ENABLE_PERSISTENT_CONFIG = "false";
       ENABLE_OLLAMA_API = "false";
-      ENABLE_OPENAI_API = "false";
+      ENABLE_OPENAI_API = "true";
+      OPENAI_API_BASE_URL = "http://garden-llama.garden.internal:8080/v1";
+      # Private trusted backend: this is a compatibility placeholder, not a credential.
+      OPENAI_API_KEY = "unused";
+      OPENAI_API_CONFIGS = builtins.toJSON { "0" = { provider = "llama.cpp"; }; };
+      # Allow the first chat to wait for a cold model download/load.
+      AIOHTTP_CLIENT_TIMEOUT = "7200";
+      AIOHTTP_CLIENT_STREAM_IDLE_TIMEOUT = "7200";
       CORS_ALLOW_ORIGIN = "https://ai.archaic.work";
       SCARF_NO_ANALYTICS = "True";
       DO_NOT_TRACK = "True";
