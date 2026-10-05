@@ -60,7 +60,7 @@
       '';
       };
       devShells.${system}.default = pkgs.mkShell {
-        packages = [ pkgs.opentofu pkgs.incus (pkgs.python3.withPackages (p: [ p.argon2-cffi p.pyyaml ])) pkgs.fish pkgs.age pkgs.sops pkgs.openssl ];
+        packages = [ pkgs.opentofu pkgs.incus (pkgs.python3.withPackages (p: [ p.argon2-cffi p.pyyaml ])) pkgs.fish pkgs.age pkgs.sops pkgs.openssl pkgs.skopeo pkgs.jq ];
       };
     };
 }

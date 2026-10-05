@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 0
       - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
       - name: Shell syntax
-        run: bash -n scripts/inventory.sh scripts/prepare-edge.sh scripts/deploy-edge.sh scripts/deploy-webui.sh
+        run: bash -n scripts/inventory.sh scripts/prepare-edge.sh scripts/deploy-edge.sh scripts/deploy-webui.sh scripts/check-llama-image.sh
       - name: Fish development shell
         run: nix develop --command fish -c 'type -q tofu; and type -q incus; and type -q python3; and type -q age-keygen; and type -q sops'
       - name: Encrypted preparation and identity recovery
@@ -33,6 +33,7 @@ jobs:
           python3 scripts/verify-llama-image.py
           python3 scripts/pin-models.py
           python3 tests/test_configure_llama.py
+          python3 tests/test_llama_config.py
       - name: Compare build definitions
         id: builds
         run: python3 scripts/ci-build-changes.py
@@ -46,7 +47,7 @@ jobs:
       - name: Validate application configuration
         run: |
           nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.authelia-config .#checks.x86_64-linux.webui-roles --no-link
-          nix develop --command python3 -m py_compile scripts/configure-edge-lan.py scripts/prepare-auth.py scripts/prepare-webui.py scripts/configure-llama.py scripts/download-models.py scripts/check-inference.py scripts/pin-models.py scripts/verify-llama-image.py
+          nix develop --command python3 -m py_compile scripts/configure-edge-lan.py scripts/prepare-auth.py scripts/prepare-webui.py scripts/configure-llama.py scripts/check-inference.py scripts/pin-models.py scripts/verify-llama-image.py
       - name: Build changed edge guest
         if: steps.builds.outputs.guest == 'true'
         run: nix build .#nixosConfigurations.edge.config.system.build.toplevel --no-link

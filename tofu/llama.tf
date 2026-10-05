@@ -9,10 +9,32 @@ variable "llama_gpu_pci" {
   }
 }
 
+variable "llama_image_digest" {
+  description = "Accepted configured OCI image digest from the image workflow; store in ignored local inputs."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.llama_image_digest == null || can(regex("^sha256:[0-9a-f]{64}$", var.llama_image_digest))
+    error_message = "Use the immutable configured image digest printed by the accepted image workflow."
+  }
+}
+
 locals {
   llama_enabled = var.llama_gpu_pci != null
-  llama_image   = jsondecode(file("${path.module}/../llama/image.lock.json"))
-  llama_presets = file("${path.module}/../llama/models.ini.tftpl")
+  llama_image   = {
+    repository = "mitschwimmer/digital-garden-llama"
+    digest     = var.llama_image_digest
+  }
+}
+
+# If an operator tested the earlier PR revision, preserve its obsolete config volume.
+removed {
+  from = incus_storage_volume.llama_config
+
+  lifecycle {
+    destroy = false
+  }
 }
 
 resource "incus_storage_volume" "llama_cache" {
@@ -34,49 +56,32 @@ resource "incus_storage_volume" "llama_cache" {
   }
 }
 
-resource "incus_storage_volume" "llama_config" {
-  count   = local.llama_enabled ? 1 : 0
-  name    = "garden-llama-config"
-  pool    = data.incus_storage_pool.root.name
-  project = "default"
-  remote  = var.incus_remote
-  file {
-    target_path = "/models.ini"
-    content     = local.llama_presets
-    mode        = "0644"
-  }
-
-  lifecycle {
-    prevent_destroy = true
-  }
-}
-
 resource "incus_instance" "llama" {
   count       = local.llama_enabled ? 1 : 0
   name        = "garden-llama"
   description = "Digital Garden private ROCm inference router"
-  image       = "garden-ghcr:${local.llama_image.repository}@${local.llama_image.digest}"
+  image       = "garden-ghcr:${local.llama_image.repository}@${coalesce(local.llama_image.digest, "unconfigured")}"
   type        = "container"
   project     = "default"
   remote      = var.incus_remote
   profiles    = []
   running     = true
 
+  lifecycle {
+    precondition {
+      condition     = var.llama_image_digest != null
+      error_message = "Build/verify the configured llama image and pin its digest in site.auto.tfvars.json before enabling inference."
+    }
+  }
+
   config = {
-    "boot.autostart"                        = "true"
-    "boot.autorestart"                      = "true"
-    "limits.cpu"                            = "4"
-    "limits.memory"                         = "20GiB"
-    "security.privileged"                   = "false"
-    "oci.uid"                               = "1000"
-    "oci.gid"                               = "1000"
-    "environment.LLAMA_CACHE"               = "/var/cache/llama"
-    "environment.LLAMA_ARG_MODELS_PRESET"   = "/etc/llama/models.ini"
-    "environment.LLAMA_ARG_MODELS_MAX"      = "1"
-    "environment.LLAMA_ARG_MODELS_AUTOLOAD" = "true"
-    "environment.LLAMA_ARG_HOST"            = "0.0.0.0"
-    "environment.LLAMA_ARG_PORT"            = "8080"
-    "environment.LLAMA_ARG_UI"              = "false"
+    "boot.autostart"      = "true"
+    "boot.autorestart"    = "true"
+    "limits.cpu"          = "4"
+    "limits.memory"       = "20GiB"
+    "security.privileged" = "false"
+    "oci.uid"             = "1000"
+    "oci.gid"             = "1000"
   }
 
   device {
@@ -98,17 +103,6 @@ resource "incus_instance" "llama" {
       path   = "/var/cache/llama"
       pool   = incus_storage_volume.llama_cache[0].pool
       source = incus_storage_volume.llama_cache[0].name
-    }
-  }
-
-  device {
-    name = "config"
-    type = "disk"
-    properties = {
-      path     = "/etc/llama"
-      pool     = incus_storage_volume.llama_config[0].pool
-      source   = incus_storage_volume.llama_config[0].name
-      readonly = "true"
     }
   }
 
