@@ -49,7 +49,10 @@
       OAUTH_MERGE_ACCOUNTS_BY_EMAIL = "false";
       ENABLE_PERSISTENT_CONFIG = "false";
       ENABLE_OLLAMA_API = "false";
-      ENABLE_OPENAI_API = "false";
+      ENABLE_OPENAI_API = "true";
+      OPENAI_API_BASE_URL = "http://garden-llama.garden.internal:8080/v1";
+      # Private trusted backend: this is a compatibility placeholder, not a credential.
+      OPENAI_API_KEY = "unused";
       CORS_ALLOW_ORIGIN = "https://ai.archaic.work";
       SCARF_NO_ANALYTICS = "True";
       DO_NOT_TRACK = "True";

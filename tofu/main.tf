@@ -42,6 +42,13 @@ provider "incus" {
   default_remote = var.incus_remote
 
   remote {
+    name     = "garden-ghcr"
+    address  = "https://ghcr.io"
+    protocol = "oci"
+    public   = true
+  }
+
+  remote {
     name = var.incus_remote
   }
 }

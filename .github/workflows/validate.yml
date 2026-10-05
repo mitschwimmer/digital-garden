@@ -28,6 +28,11 @@ jobs:
         run: nix develop --command python3 tests/test_prepare_auth.py
       - name: OIDC secret isolation and recovery
         run: nix develop --command python3 tests/test_prepare_webui.py
+      - name: Inference image and public model locks
+        run: |
+          python3 scripts/verify-llama-image.py
+          python3 scripts/pin-models.py
+          python3 tests/test_configure_llama.py
       - name: Compare build definitions
         id: builds
         run: python3 scripts/ci-build-changes.py
@@ -41,7 +46,7 @@ jobs:
       - name: Validate application configuration
         run: |
           nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.authelia-config .#checks.x86_64-linux.webui-roles --no-link
-          nix develop --command python3 -m py_compile scripts/configure-edge-lan.py scripts/prepare-auth.py scripts/prepare-webui.py
+          nix develop --command python3 -m py_compile scripts/configure-edge-lan.py scripts/prepare-auth.py scripts/prepare-webui.py scripts/configure-llama.py scripts/download-models.py scripts/check-inference.py scripts/pin-models.py scripts/verify-llama-image.py
       - name: Build changed edge guest
         if: steps.builds.outputs.guest == 'true'
         run: nix build .#nixosConfigurations.edge.config.system.build.toplevel --no-link
