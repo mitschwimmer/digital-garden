@@ -1,6 +1,8 @@
 { config, lib, pkgs, ... }:
 let
   encrypted = ../../secrets/edge.yaml;
+  oidcEncrypted = ../../secrets/edge-oidc.yaml;
+  oidcClient = import ./oidc-client.nix;
   ready = builtins.pathExists encrypted;
   runtime = name: "/run/secrets/authelia-" + name;
   settings = {
@@ -27,6 +29,9 @@ let
       } ];
     };
     storage.local.path = "/var/lib/authelia-main/db.sqlite3";
+    identity_providers.oidc.clients = [ (oidcClient // {
+      client_secret = "{{ secret \"/run/secrets/authelia-oidc-client\" | msquote }}";
+    }) ];
     totp.issuer = "Digital Garden";
     regulation = { max_retries = 5; find_time = "2m"; ban_time = "5m"; };
   };
@@ -46,7 +51,19 @@ in {
         mode = "0400";
         restartUnits = [ "authelia-main.service" ];
       };
-    }) [ "jwt" "session" "storage" "users" "smtp" ]);
+    }) [ "jwt" "session" "storage" "users" "smtp" ]) //
+      lib.optionalAttrs (builtins.pathExists oidcEncrypted) (builtins.listToAttrs
+        (map (name: {
+          name = "authelia-oidc-" + name;
+          value = {
+            sopsFile = oidcEncrypted;
+            key = name;
+            owner = "authelia-main";
+            group = "authelia-main";
+            mode = "0400";
+            restartUnits = [ "authelia-main.service" ];
+          };
+        }) [ "hmac" "signing" "client" ]));
   };
 
   services.authelia.instances.main = {
@@ -54,6 +71,8 @@ in {
     inherit settings;
     settingsFiles = [ (runtime "smtp") ];
     secrets = {
+      oidcHmacSecretFile = runtime "oidc-hmac";
+      oidcIssuerPrivateKeyFile = runtime "oidc-signing";
       jwtSecretFile = runtime "jwt";
       sessionSecretFile = runtime "session";
       storageEncryptionKeyFile = runtime "storage";
@@ -64,6 +83,12 @@ in {
     unitConfig.RequiresMountsFor = [ "/var/lib/authelia-main" "/var/lib/garden-secrets" ];
     # Incus already supplies user isolation; nested user namespaces are unnecessary.
     serviceConfig.PrivateUsers = lib.mkForce false;
+  };
+  # Route this private DNS suffix to the DHCP-provided Incus resolver.
+  systemd.network.networks."10-backend".networkConfig.Domains = [ "~garden.internal" ];
+  services.caddy.virtualHosts."ai.archaic.work" = {
+    logFormat = null;
+    extraConfig = "reverse_proxy open-webui.garden.internal:8080";
   };
   services.caddy.virtualHosts."auth.archaic.work" = {
     # Verification URLs may contain tokens; keep them out of HTTP access logs.
@@ -79,6 +104,11 @@ in {
       identity_validation.reset_password.jwt_secret = "CI-only-jwt-secret-not-used-in-deployments";
       session.secret = "CI-only-session-secret-not-used-in-deployments";
       storage.encryption_key = "CI-only-storage-key-not-used-in-deployments";
+      identity_providers.oidc = {
+        hmac_secret = "CI-only-oidc-hmac-secret-not-used-in-deployments";
+        jwks = [ { key = "{{ secret \"/tmp/garden-ci-key.pem\" | mindent 10 \"|\" | msquote }}"; } ];
+        clients = [ (oidcClient // { client_secret = "CI-only-client-secret-not-used-in-deployments"; }) ];
+      };
       notifier.smtp = {
         address = "submission://smtp.example.invalid:587";
         username = "ci";
@@ -87,6 +117,8 @@ in {
       };
     });
   in pkgs.runCommand "check-authelia-config" { } ''
+    ${pkgs.openssl}/bin/openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/garden-ci-key.pem 2>/dev/null
+    export X_AUTHELIA_CONFIG_FILTERS=template
     ${pkgs.authelia}/bin/authelia validate-config --config ${testConfig}
     touch "$out"
   '';
