@@ -29,7 +29,8 @@ class PrepareAuthTest(unittest.TestCase):
 
             def transport(args, **kwargs):
                 if args[0] != "incus":
-                    return real_run(args, **kwargs)
+                    # Keep real repository SOPS policies out of this isolated test.
+                    return real_run(args, cwd=root, **kwargs)
                 command = args[args.index("--") + 1:]
                 if command[0] == "mountpoint":
                     return subprocess.CompletedProcess(args, 0, b"", b"")
