@@ -10,3 +10,4 @@ result
 *.auto.tfvars.json
 *.tfvars.json.tmp
 result-*
+*.auto.tfvars.tmp
