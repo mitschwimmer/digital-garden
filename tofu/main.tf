@@ -82,7 +82,7 @@ resource "incus_image" "edge" {
 }
 
 variable "edge_lan_parent" {
-  description = "Optional host LAN parent interface; configured in local inputs."
+  description = "Optional existing IncusOS LAN bridge; configured in local inputs."
   type        = string
   default     = null
 }
@@ -171,7 +171,7 @@ resource "incus_instance" "edge" {
       type = "nic"
       properties = {
         name    = "eth1"
-        nictype = "macvlan"
+        nictype = "bridged"
         parent  = device.value
         hwaddr  = var.edge_lan_mac
       }
