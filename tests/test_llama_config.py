@@ -15,14 +15,15 @@ for name, entry in models.items():
     assert presets[name]["model-url"] == expected
     assert entry["sha256"] in presets[name]["model"]
     assert presets[name]["model"].startswith("/var/cache/llama/")
-base = json.loads((root / "llama/image.lock.json").read_text())
-dockerfile = (root / "llama/Dockerfile").read_text()
-assert dockerfile.splitlines()[0] == "FROM ghcr.io/" + base["repository"] + "@" + base["digest"]
-assert "LLAMA_ARG_MODELS_MAX=1" in dockerfile
-assert "LLAMA_ARG_MODELS_AUTOLOAD=true" in dockerfile
-assert "USER 1000:1000" in dockerfile
+start = (root / "llama/start.sh").read_text()
+assert "--models-max 1" in start and "--models-autoload" in start
+assert "exec /app/llama-server" in start
+assert "LLAMA_CACHE=/var/cache/llama" in start
+assert not (root / "llama/Dockerfile").exists()
 tofu = (root / "tofu/llama.tf").read_text()
-assert 'resource "incus_storage_volume" "llama_config"' not in tofu and "models.ini" not in tofu
-assert 'destroy = false' in tofu
-assert "environment.LLAMA" not in tofu
-print("Immutable model sources, lazy loading, and image-owned application configuration verified.")
+assert 'file("${path.module}/../llama/image.lock.json")' in tofu
+assert 'readonly = "true"' in tofu
+assert "models.ini" not in tofu and "environment.LLAMA" not in tofu
+assert 'file {' not in tofu
+assert "ignore_changes = [running]" in tofu
+print("Immutable model URLs, lazy loading, official image, and external read-only configuration verified.")

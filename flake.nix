@@ -45,6 +45,13 @@
         cp ${bootstrap.config.system.build.metadata}/tarball/*.tar.xz "$out/metadata.tar.xz"
         cp ${bootstrap.config.system.build.tarball}/tarball/*.tar.xz "$out/rootfs.tar.xz"
       '';
+      packages.${system}.llama-config = pkgs.runCommand "digital-garden-llama-config" { } ''
+        mkdir -p "$out"
+        cp ${./llama/models.ini} "$out/models.ini"
+        cp ${./llama/start.sh} "$out/start.sh"
+        chmod 0444 "$out/models.ini" "$out/start.sh"
+        ${pkgs.bash}/bin/bash -n "$out/start.sh"
+      '';
       checks.${system} = {
         webui-roles = pkgs.runCommand "check-webui-oidc-roles" { } ''
           ${pkgs.python3}/bin/python3 ${./tests/test_webui_roles.py} ${./nix/patches/open-webui-oidc.py} ${webui.config.services.open-webui.package.src}
@@ -60,7 +67,7 @@
       '';
       };
       devShells.${system}.default = pkgs.mkShell {
-        packages = [ pkgs.opentofu pkgs.incus (pkgs.python3.withPackages (p: [ p.argon2-cffi p.pyyaml ])) pkgs.fish pkgs.age pkgs.sops pkgs.openssl pkgs.skopeo pkgs.jq ];
+        packages = [ pkgs.opentofu pkgs.incus (pkgs.python3.withPackages (p: [ p.argon2-cffi p.pyyaml ])) pkgs.fish pkgs.age pkgs.sops pkgs.openssl pkgs.jq ];
       };
     };
 }

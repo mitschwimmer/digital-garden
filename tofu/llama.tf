@@ -9,32 +9,9 @@ variable "llama_gpu_pci" {
   }
 }
 
-variable "llama_image_digest" {
-  description = "Accepted configured OCI image digest from the image workflow; store in ignored local inputs."
-  type        = string
-  default     = null
-
-  validation {
-    condition     = var.llama_image_digest == null || can(regex("^sha256:[0-9a-f]{64}$", var.llama_image_digest))
-    error_message = "Use the immutable configured image digest printed by the accepted image workflow."
-  }
-}
-
 locals {
   llama_enabled = var.llama_gpu_pci != null
-  llama_image = {
-    repository = "mitschwimmer/digital-garden-llama"
-    digest     = var.llama_image_digest
-  }
-}
-
-# If an operator tested the earlier PR revision, preserve its obsolete config volume.
-removed {
-  from = incus_storage_volume.llama_config
-
-  lifecycle {
-    destroy = false
-  }
+  llama_image   = jsondecode(file("${path.module}/../llama/image.lock.json"))
 }
 
 resource "incus_storage_volume" "llama_cache" {
@@ -56,22 +33,39 @@ resource "incus_storage_volume" "llama_cache" {
   }
 }
 
+resource "incus_storage_volume" "llama_config" {
+  count   = local.llama_enabled ? 1 : 0
+  name    = "garden-llama-config"
+  pool    = data.incus_storage_pool.root.name
+  project = "default"
+  remote  = var.incus_remote
+
+  config = {
+    "initial.uid"  = "0"
+    "initial.gid"  = "0"
+    "initial.mode" = "0755"
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "incus_instance" "llama" {
   count       = local.llama_enabled ? 1 : 0
   name        = "garden-llama"
   description = "Digital Garden private ROCm inference router"
-  image       = "garden-ghcr:${local.llama_image.repository}@${coalesce(local.llama_image.digest, "unconfigured")}"
+  image       = "garden-ghcr:${local.llama_image.repository}@${local.llama_image.digest}"
   type        = "container"
   project     = "default"
   remote      = var.incus_remote
   profiles    = []
-  running     = true
+  # The deployment script installs Nix-built configuration before first start.
+  running     = false
 
   lifecycle {
-    precondition {
-      condition     = var.llama_image_digest != null
-      error_message = "Build/verify the configured llama image and pin its digest in site.auto.tfvars.json before enabling inference."
-    }
+    # Later infrastructure applies must not stop an activated service.
+    ignore_changes = [running]
   }
 
   config = {
@@ -82,6 +76,7 @@ resource "incus_instance" "llama" {
     "security.privileged" = "false"
     "oci.uid"             = "1000"
     "oci.gid"             = "1000"
+    "oci.entrypoint"      = "/bin/sh /etc/llama/start.sh"
   }
 
   device {
@@ -103,6 +98,17 @@ resource "incus_instance" "llama" {
       path   = "/var/cache/llama"
       pool   = incus_storage_volume.llama_cache[0].pool
       source = incus_storage_volume.llama_cache[0].name
+    }
+  }
+
+  device {
+    name = "config"
+    type = "disk"
+    properties = {
+      path     = "/etc/llama"
+      pool     = incus_storage_volume.llama_config[0].pool
+      source   = incus_storage_volume.llama_config[0].name
+      readonly = "true"
     }
   }
 
@@ -130,10 +136,6 @@ resource "incus_instance" "llama" {
     }
   }
 
-  wait_for {
-    type = "ipv4"
-    nic  = "eth0"
-  }
 }
 
 output "llama_ipv4" {

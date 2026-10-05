@@ -19,7 +19,7 @@ jobs:
           fetch-depth: 0
       - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
       - name: Shell syntax
-        run: bash -n scripts/inventory.sh scripts/prepare-edge.sh scripts/deploy-edge.sh scripts/deploy-webui.sh scripts/check-llama-image.sh
+        run: bash -n scripts/inventory.sh scripts/prepare-edge.sh scripts/deploy-edge.sh scripts/deploy-webui.sh scripts/deploy-llama.sh scripts/check-llama-image.sh llama/start.sh
       - name: Fish development shell
         run: nix develop --command fish -c 'type -q tofu; and type -q incus; and type -q python3; and type -q age-keygen; and type -q sops'
       - name: Encrypted preparation and identity recovery
@@ -67,3 +67,17 @@ jobs:
             in pkgs.runCommand "mock-incus-image-paths" {} "mkdir -p $out; touch $out/metadata.tar.xz $out/rootfs.tar.xz"
           ')"
           nix develop --command tofu -chdir=tofu test
+
+  llama-router:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a
+      - name: Build declarative configuration and test the unmodified upstream router
+        run: |
+          bundle=$(nix build .#llama-config --no-link --print-out-paths)
+          image=$(jq -r '"ghcr.io/" + .repository + "@" + .digest' llama/image.lock.json)
+          bash scripts/check-llama-image.sh "$image" "$bundle"
