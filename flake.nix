@@ -35,14 +35,16 @@
         cp ${bootstrap.config.system.build.metadata}/tarball/*.tar.xz "$out/metadata.tar.xz"
         cp ${bootstrap.config.system.build.tarball}/tarball/*.tar.xz "$out/rootfs.tar.xz"
       '';
-      checks.${system}.authelia-config = edge.config.system.build.autheliaConfigCheck;
-      checks.${system}.caddy-config = pkgs.runCommand "check-edge-caddy-config" { } ''
+      checks.${system} = {
+        authelia-config = edge.config.system.build.autheliaConfigCheck;
+        caddy-config = pkgs.runCommand "check-edge-caddy-config" { } ''
         export HOME="$TMPDIR"
         export XDG_DATA_HOME="$TMPDIR/data"
         export XDG_CONFIG_HOME="$TMPDIR/config"
         ${pkgs.caddy}/bin/caddy validate --config ${edge.config.services.caddy.configFile} --adapter caddyfile
         touch "$out"
       '';
+      };
       devShells.${system}.default = pkgs.mkShell {
         packages = [ pkgs.opentofu pkgs.incus (pkgs.python3.withPackages (p: [ p.argon2-cffi ])) pkgs.fish pkgs.age pkgs.sops ];
       };
