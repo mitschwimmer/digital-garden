@@ -30,7 +30,7 @@ if incus exec "$target" --project default -- "$closure/bin/switch-to-configurati
    incus exec "$target" --project default -- curl --fail --max-time 15 http://127.0.0.1:8080/healthz &&
    incus exec "$target" --project default -- systemctl is-active authelia-main &&
    incus exec "$target" --project default -- curl --fail --retry 10 --retry-connrefused --retry-delay 2 --max-time 15 http://127.0.0.1:9091/api/health &&
-   incus exec "$target" --project default -- curl --fail --max-time 15 -H "Host: auth.archaic.work" http://127.0.0.1:9091/.well-known/openid-configuration; then
+   incus exec "$target" --project default -- curl --fail --max-time 15 -H "Host: auth.archaic.work" -H "X-Forwarded-Proto: https" http://127.0.0.1:9091/.well-known/openid-configuration; then
   printf '\nPrevious system for rollback: %s\n' "$previous"
 else
   echo "Activation failed; restoring previous system $previous." >&2
