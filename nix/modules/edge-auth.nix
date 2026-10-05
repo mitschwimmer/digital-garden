@@ -1,6 +1,15 @@
 { config, lib, pkgs, ... }:
 let
   encrypted = ../../secrets/edge.yaml;
+  oidcEncrypted = ../../secrets/edge-oidc.yaml;
+  oidcClient = import ./oidc-client.nix;
+  clientConfigFor = path: pkgs.writeText "oidc-client.yaml" (builtins.replaceStrings
+    [ "\"GARDEN_CLIENT_SECRET\"" ]
+    [ "{{ secret \"${path}\" | msquote }}" ]
+    (builtins.toJSON { identity_providers.oidc.clients = [
+      (oidcClient // { client_secret = "GARDEN_CLIENT_SECRET"; })
+    ]; }));
+  clientConfig = clientConfigFor "/run/secrets/authelia-oidc-client";
   ready = builtins.pathExists encrypted;
   runtime = name: "/run/secrets/authelia-" + name;
   settings = {
@@ -46,14 +55,28 @@ in {
         mode = "0400";
         restartUnits = [ "authelia-main.service" ];
       };
-    }) [ "jwt" "session" "storage" "users" "smtp" ]);
+    }) [ "jwt" "session" "storage" "users" "smtp" ]) //
+      lib.optionalAttrs (builtins.pathExists oidcEncrypted) (builtins.listToAttrs
+        (map (name: {
+          name = "authelia-oidc-" + name;
+          value = {
+            sopsFile = oidcEncrypted;
+            key = name;
+            owner = "authelia-main";
+            group = "authelia-main";
+            mode = "0400";
+            restartUnits = [ "authelia-main.service" ];
+          };
+        }) [ "hmac" "signing" "client" ]));
   };
 
   services.authelia.instances.main = {
     enable = true;
     inherit settings;
-    settingsFiles = [ (runtime "smtp") ];
+    settingsFiles = [ (runtime "smtp") clientConfig ];
     secrets = {
+      oidcHmacSecretFile = runtime "oidc-hmac";
+      oidcIssuerPrivateKeyFile = runtime "oidc-signing";
       jwtSecretFile = runtime "jwt";
       sessionSecretFile = runtime "session";
       storageEncryptionKeyFile = runtime "storage";
@@ -65,6 +88,12 @@ in {
     # Incus already supplies user isolation; nested user namespaces are unnecessary.
     serviceConfig.PrivateUsers = lib.mkForce false;
   };
+  # Route this private DNS suffix to the DHCP-provided Incus resolver.
+  systemd.network.networks."10-backend".networkConfig.Domains = [ "~garden.internal" ];
+  services.caddy.virtualHosts."ai.archaic.work" = {
+    logFormat = null;
+    extraConfig = "reverse_proxy open-webui.garden.internal:8080";
+  };
   services.caddy.virtualHosts."auth.archaic.work" = {
     # Verification URLs may contain tokens; keep them out of HTTP access logs.
     logFormat = null;
@@ -74,11 +103,20 @@ in {
   # Validate real settings with clearly synthetic secrets, without contacting SMTP.
   system.build.autheliaConfigCheck = let
     yaml = pkgs.formats.yaml { };
+    jwksConfig = pkgs.writeText "ci-oidc-jwks.yaml" ''
+      identity_providers:
+        oidc:
+          jwks:
+            - key: {{ secret "/tmp/garden-ci-key.pem" | mindent 10 "|" | msquote }}
+    '';
     testConfig = yaml.generate "authelia-test.yaml" (lib.recursiveUpdate settings {
       authentication_backend.file.path = "/tmp/garden-test-users.json";
       identity_validation.reset_password.jwt_secret = "CI-only-jwt-secret-not-used-in-deployments";
       session.secret = "CI-only-session-secret-not-used-in-deployments";
       storage.encryption_key = "CI-only-storage-key-not-used-in-deployments";
+      identity_providers.oidc = {
+        hmac_secret = "CI-only-oidc-hmac-secret-not-used-in-deployments";
+      };
       notifier.smtp = {
         address = "submission://smtp.example.invalid:587";
         username = "ci";
@@ -87,7 +125,10 @@ in {
       };
     });
   in pkgs.runCommand "check-authelia-config" { } ''
-    ${pkgs.authelia}/bin/authelia validate-config --config ${testConfig}
+    ${pkgs.openssl}/bin/openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/garden-ci-key.pem 2>/dev/null
+    ${pkgs.python3.withPackages (p: [ p.argon2-cffi ])}/bin/python3 -c 'from argon2 import PasswordHasher; print(PasswordHasher().hash("CI-only-client-secret-not-used-in-deployments"))' > /tmp/garden-ci-client
+    export X_AUTHELIA_CONFIG_FILTERS=template
+    ${pkgs.authelia}/bin/authelia validate-config --config ${testConfig},${jwksConfig},${clientConfigFor "/tmp/garden-ci-client"}
     touch "$out"
   '';
 }

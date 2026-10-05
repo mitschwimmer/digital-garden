@@ -28,14 +28,28 @@
           ./nix/hosts/edge.nix
         ];
       };
+      webui = nixpkgs.lib.nixosSystem {
+        inherit system;
+        modules = [
+          "${nixpkgs}/nixos/modules/virtualisation/lxc-container.nix"
+          sops-nix.nixosModules.sops
+          { nixpkgs.config.allowUnfreePredicate = pkg: nixpkgs.lib.getName pkg == "open-webui"; }
+          ./nix/hosts/open-webui.nix
+        ];
+      };
     in {
       nixosConfigurations.edge = edge;
+      nixosConfigurations.open-webui = webui;
       packages.${system}.edge-image = pkgs.runCommand "digital-garden-edge-image" { } ''
         mkdir -p "$out"
         cp ${bootstrap.config.system.build.metadata}/tarball/*.tar.xz "$out/metadata.tar.xz"
         cp ${bootstrap.config.system.build.tarball}/tarball/*.tar.xz "$out/rootfs.tar.xz"
       '';
       checks.${system} = {
+        webui-roles = pkgs.runCommand "check-webui-oidc-roles" { } ''
+          ${pkgs.python3}/bin/python3 ${./tests/test_webui_roles.py} ${./nix/patches/open-webui-oidc.py} ${webui.config.services.open-webui.package.src}
+          touch "$out"
+        '';
         authelia-config = edge.config.system.build.autheliaConfigCheck;
         caddy-config = pkgs.runCommand "check-edge-caddy-config" { } ''
         export HOME="$TMPDIR"
@@ -46,7 +60,7 @@
       '';
       };
       devShells.${system}.default = pkgs.mkShell {
-        packages = [ pkgs.opentofu pkgs.incus (pkgs.python3.withPackages (p: [ p.argon2-cffi ])) pkgs.fish pkgs.age pkgs.sops ];
+        packages = [ pkgs.opentofu pkgs.incus (pkgs.python3.withPackages (p: [ p.argon2-cffi p.pyyaml ])) pkgs.fish pkgs.age pkgs.sops pkgs.openssl ];
       };
     };
 }

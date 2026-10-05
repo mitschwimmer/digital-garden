@@ -19,13 +19,15 @@ jobs:
           fetch-depth: 0
       - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
       - name: Shell syntax
-        run: bash -n scripts/inventory.sh scripts/prepare-edge.sh scripts/deploy-edge.sh
+        run: bash -n scripts/inventory.sh scripts/prepare-edge.sh scripts/deploy-edge.sh scripts/deploy-webui.sh
       - name: Fish development shell
         run: nix develop --command fish -c 'type -q tofu; and type -q incus; and type -q python3; and type -q age-keygen; and type -q sops'
       - name: Encrypted preparation and identity recovery
         env:
           GARDEN_CI_FIXTURE: "1"
         run: nix develop --command python3 tests/test_prepare_auth.py
+      - name: OIDC secret isolation and recovery
+        run: nix develop --command python3 tests/test_prepare_webui.py
       - name: Compare build definitions
         id: builds
         run: python3 scripts/ci-build-changes.py
@@ -38,11 +40,14 @@ jobs:
         run: cat flake.lock tofu/.terraform.lock.hcl
       - name: Validate application configuration
         run: |
-          nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.authelia-config --no-link
-          nix develop --command python3 -m py_compile scripts/configure-edge-lan.py scripts/prepare-auth.py
+          nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.authelia-config .#checks.x86_64-linux.webui-roles --no-link
+          nix develop --command python3 -m py_compile scripts/configure-edge-lan.py scripts/prepare-auth.py scripts/prepare-webui.py
       - name: Build changed edge guest
         if: steps.builds.outputs.guest == 'true'
         run: nix build .#nixosConfigurations.edge.config.system.build.toplevel --no-link
+      - name: Build changed Open WebUI guest
+        if: steps.builds.outputs.webui == 'true'
+        run: nix build .#nixosConfigurations.open-webui.config.system.build.toplevel --no-link
       - name: Build changed seed image
         if: steps.builds.outputs.image == 'true'
         run: nix build .#edge-image --no-link

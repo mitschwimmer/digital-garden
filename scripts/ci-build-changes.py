@@ -17,6 +17,7 @@ def main():
     event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
     base = event.get("pull_request", {}).get("base", {}).get("sha") or event.get("before", "")
     attrs = {
+        "webui": "nixosConfigurations.open-webui.config.system.build.toplevel.drvPath",
         "guest": "nixosConfigurations.edge.config.system.build.toplevel.drvPath",
         "image": "packages.x86_64-linux.edge-image.drvPath",
     }
