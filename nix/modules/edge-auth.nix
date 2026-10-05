@@ -66,7 +66,8 @@ in {
     serviceConfig.PrivateUsers = lib.mkForce false;
   };
   services.caddy.virtualHosts."auth.archaic.work" = {
-    logFormat = "output stderr";
+    # Verification URLs may contain tokens; keep them out of HTTP access logs.
+    logFormat = null;
     extraConfig = "reverse_proxy 127.0.0.1:9091";
   };
 
