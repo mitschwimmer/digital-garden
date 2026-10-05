@@ -38,6 +38,11 @@ configurations are read-only with explicit readable IDs; generated values are 04
 settings, datasource, provider and flat dashboard each mount at separate non-overlapping paths.
 The existing dashboard UID is `homelab-incus`, datasource UID `prometheus`.
 
+Open WebUI's wrapper disables Uvicorn access logging and clears `AUDIT_UVICORN_LOGGER_NAMES`.
+The pinned application's logger initialization otherwise reattaches that handler, exposing OAuth
+callback query codes despite `--no-access-log`. Audit payload logging and exception-local capture
+remain disabled; ordinary application warnings are retained.
+
 Operator prerequisites: project, ZFS pool, private network/NAT/DNS, LAN attachment/DHCP reservation,
 verified Incus TLS and cached images; private-users (UID 1000), incus-metrics (UID 65534), optional
 private-smtp (UID 1000); Tend's private TLS/Git arguments and retained controller volumes. Tend
