@@ -11,3 +11,6 @@ result
 *.tfvars.json.tmp
 result-*
 *.auto.tfvars.tmp
+
+__pycache__/
+secrets/*.tmp

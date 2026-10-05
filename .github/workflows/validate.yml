@@ -17,7 +17,7 @@ jobs:
       - name: Shell syntax
         run: bash -n scripts/inventory.sh scripts/prepare-edge.sh scripts/deploy-edge.sh
       - name: Fish development shell
-        run: nix develop --command fish -c 'type -q tofu; and type -q incus; and type -q python3'
+        run: nix develop --command fish -c 'type -q tofu; and type -q incus; and type -q python3; and type -q age-keygen; and type -q sops'
       - name: OpenTofu formatting and schema
         run: |
           nix develop --command tofu -chdir=tofu fmt -check
@@ -25,9 +25,9 @@ jobs:
           nix develop --command tofu -chdir=tofu validate
       - name: Build edge guest and validate Caddy
         run: |
-          nix build .#checks.x86_64-linux.caddy-config --no-link
+          nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.authelia-config --no-link
           nix build .#nixosConfigurations.edge.config.system.build.toplevel --no-link
-          python3 -m py_compile scripts/configure-edge-lan.py
+          nix develop --command python3 -m py_compile scripts/configure-edge-lan.py scripts/prepare-auth.py
       - name: Dependency lockfiles
         run: cat flake.lock tofu/.terraform.lock.hcl
       - name: Build edge closure and split image
