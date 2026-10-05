@@ -39,7 +39,7 @@ jobs:
         run: python3 scripts/ci-build-changes.py
       - name: OpenTofu formatting and schema
         run: |
-          nix develop --command tofu -chdir=tofu fmt -check
+          nix develop --command tofu -chdir=tofu fmt -check -diff
           nix develop --command tofu -chdir=tofu init -backend=false -input=false
           nix develop --command tofu -chdir=tofu validate
       - name: Dependency lockfiles

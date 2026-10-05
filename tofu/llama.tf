@@ -22,7 +22,7 @@ variable "llama_image_digest" {
 
 locals {
   llama_enabled = var.llama_gpu_pci != null
-  llama_image   = {
+  llama_image = {
     repository = "mitschwimmer/digital-garden-llama"
     digest     = var.llama_image_digest
   }
