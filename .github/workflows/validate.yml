@@ -3,6 +3,9 @@ on:
   pull_request:
   push:
     branches: [main]
+concurrency:
+  group: homelab-validation-${{ github.ref }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
@@ -13,6 +16,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: DeterminateSystems/nix-installer-action@c5a866b6ab867e88becbed4467b93592bce69f8a # v21
       - name: Shell syntax
         run: bash -n scripts/inventory.sh scripts/prepare-edge.sh scripts/deploy-edge.sh
@@ -22,6 +26,9 @@ jobs:
         env:
           GARDEN_CI_FIXTURE: "1"
         run: nix develop --command python3 tests/test_prepare_auth.py
+      - name: Compare build definitions
+        id: builds
+        run: python3 scripts/ci-build-changes.py
       - name: OpenTofu formatting and schema
         run: |
           nix develop --command tofu -chdir=tofu fmt -check
@@ -29,14 +36,23 @@ jobs:
           nix develop --command tofu -chdir=tofu validate
       - name: Dependency lockfiles
         run: cat flake.lock tofu/.terraform.lock.hcl
-      - name: Build edge guest and validate Caddy
+      - name: Validate application configuration
         run: |
           nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.authelia-config --no-link
-          nix build .#nixosConfigurations.edge.config.system.build.toplevel --no-link
           nix develop --command python3 -m py_compile scripts/configure-edge-lan.py scripts/prepare-auth.py
-      - name: Build edge closure and split image
+      - name: Build changed edge guest
+        if: steps.builds.outputs.guest == 'true'
+        run: nix build .#nixosConfigurations.edge.config.system.build.toplevel --no-link
+      - name: Build changed seed image
+        if: steps.builds.outputs.image == 'true'
         run: nix build .#edge-image --no-link
       - name: Bootstrap plan and output regression
         run: |
-          export TF_VAR_image_directory="$(nix build .#edge-image --no-link --print-out-paths)"
+          # The provider is mocked; these tests need paths, not a bootable rootfs.
+          export TF_VAR_image_directory="$(nix build --impure --no-link --print-out-paths --expr '
+            let
+              flake = builtins.getFlake (toString ./.);
+              pkgs = import flake.inputs.nixpkgs { system = "x86_64-linux"; };
+            in pkgs.runCommand "mock-incus-image-paths" {} "mkdir -p $out; touch $out/metadata.tar.xz $out/rootfs.tar.xz"
+          ')"
           nix develop --command tofu -chdir=tofu test
