@@ -3,6 +3,7 @@
   networking.hostName = "edge";
   networking.useNetworkd = true;
   networking.useDHCP = true;
+  networking.useHostResolvConf = false;
   networking.enableIPv6 = false;
 
   networking.nftables.enable = true;
@@ -16,6 +17,9 @@
   services.openssh.enable = lib.mkForce false;
   services.getty.helpLine = lib.mkForce "";
   users.mutableUsers = false;
+  # Intentionally manage through Incus exec; console/password logins stay locked.
+  users.allowNoPasswordLogin = true;
+  users.users.root.hashedPassword = "!";
   users.users.root.initialHashedPassword = lib.mkForce "!";
 
   nix.settings.experimental-features = [ "nix-command" "flakes" ];
