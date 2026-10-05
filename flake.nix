@@ -46,6 +46,10 @@
         cp ${bootstrap.config.system.build.tarball}/tarball/*.tar.xz "$out/rootfs.tar.xz"
       '';
       checks.${system} = {
+        webui-roles = pkgs.runCommand "check-webui-oidc-roles" { } ''
+          ${pkgs.python3}/bin/python3 ${./tests/test_webui_roles.py} ${./nix/patches/open-webui-oidc.py} ${webui.config.services.open-webui.package.src}
+          touch "$out"
+        '';
         authelia-config = edge.config.system.build.autheliaConfigCheck;
         caddy-config = pkgs.runCommand "check-edge-caddy-config" { } ''
         export HOME="$TMPDIR"

@@ -40,7 +40,7 @@ jobs:
         run: cat flake.lock tofu/.terraform.lock.hcl
       - name: Validate application configuration
         run: |
-          nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.authelia-config --no-link
+          nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.authelia-config .#checks.x86_64-linux.webui-roles --no-link
           nix develop --command python3 -m py_compile scripts/configure-edge-lan.py scripts/prepare-auth.py scripts/prepare-webui.py
       - name: Build changed edge guest
         if: steps.builds.outputs.guest == 'true'

@@ -14,11 +14,10 @@
   };
   services.open-webui = {
     enable = true;
-    # The upstream CLI has no access-log switch; suppress callback query logging.
+    # Keep group authorization effective for the first/sole user; suppress callback logs.
     package = pkgs.open-webui.overrideAttrs (old: {
       postPatch = old.postPatch + ''
-        substituteInPlace backend/open_webui/__init__.py \
-          --replace-fail "forwarded_allow_ips='*'," "forwarded_allow_ips='*', access_log=False,"
+        ${pkgs.python3}/bin/python3 ${../patches/open-webui-oidc.py} .
       '';
     });
     host = "0.0.0.0";

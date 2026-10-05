@@ -3,7 +3,9 @@
 Acceptance: `https://ai.archaic.work` offers Authelia login, requires TOTP, and gives
 the existing `admins` user WebUI admin access. Accounts in `ai-users` receive normal
 access; accounts with neither group are rejected. Password login and public signup
-are disabled. Models remain empty until the next llama.cpp iteration.
+are disabled. A version-checked patch removes upstream first/sole-user admin
+promotion when OIDC roles are enabled; no account bypasses its Authelia group
+assignment. Callback URL access logging is also disabled. Models remain empty until the next llama.cpp iteration.
 
 OpenTofu adds one private NixOS container and two protected volumes. It reuses the
 existing immutable seed image; do not rerun `prepare-edge.sh` or change
