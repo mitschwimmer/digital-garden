@@ -1,116 +1,51 @@
-# Iteration 3: Authelia portal with SMTP and SOPS
+# Milestone 3: Authelia identity
 
-Goal: log into https://auth.archaic.work, receive a verification email, enroll TOTP,
-and retain the account's second factor through a guest restart.
+Prerequisite: trusted Caddy ingress passed, auth.archaic.work manually routed to
+edge, reachable SMTP with valid credentials, persistent machine key and all three
+consumer ciphertext files prepared through [secrets](secrets.md). Preparing OIDC
+now does not require starting WebUI. Keep protected local WebUI key for stage 4.
 
-## Scope and prerequisites
+Authelia listens only on 127.0.0.1:9091 behind Caddy. Its SQLite state and TOTP
+registrations persist at `/var/lib/authelia-main`; stable keys use sops-nix runtime
+files. The private bridge resolver remains available alongside LAN DNS.
 
-Authelia listens only on 127.0.0.1:9091 behind Caddy. Guest ingress remains TCP 80/443 on eth1.
-The test site stays public; no application is protected or integrated via OIDC yet.
-Authelia access-control defaults to deny, with an explicit two-factor rule for *.archaic.work. Public auth DNS/routing is manual, just as for test.
-Publish AAAA only if edge has working global IPv6 and the router permits that traffic.
-
-Use an SMTP provider with authenticated TLS submission (587/STARTTLS or 465/TLS),
-an authorized sender and a working inbox. The helper prompts locally for these details.
-SMTP connectivity and credentials are checked by Authelia at startup; checks are not disabled.
-
-Two new protected volumes hold the SQLite database/TOTP records and the machine age key.
-No application data or secret enters OpenTofu state. Nix builds contain ciphertext only;
-sops-nix decrypts five runtime files owned by authelia-main, mode 0400.
-Operator recovery uses a separate private age key outside the repository.
-Back it up securely before depending on this deployment.
-Caddy continues to own its existing persistent certificate state.
-
-The user database is encrypted and read-only at runtime. Password reset is disabled.
-Use explicit SOPS edits to change passwords or users; do not rerun initialization to rotate
-storage encryption keys. The prepare helper refuses existing ciphertext or policy.
-
-## Apply
-
-From your NixOS workstation, in fish:
+On the workstation:
 
 ```fish
-git fetch origin
-git switch homelab/authelia
-nix develop --command fish
-# Keep your existing GARDEN_REMOTE and tofu/site.auto.tfvars.json.
-tofu -chdir=tofu init -input=false
-tofu -chdir=tofu validate
-tofu -chdir=tofu plan -out=auth.tfplan
-```
-
-Expected: 2 volume additions, 1 edge update, 0 destroys/replacements. Parent, MAC, image and
-Caddy volume must be unchanged. Do not run prepare-edge.sh. Apply the reviewed plan:
-
-```fish
-tofu -chdir=tofu apply auth.tfplan
-python3 scripts/prepare-auth.py "$GARDEN_REMOTE"
-git add secrets/edge.yaml .sops.yaml
+git add .sops.yaml secrets/edge.yaml secrets/edge-oidc.yaml secrets/open-webui.yaml
+jq '.stage = 3' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
+mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
 nix build .#checks.x86_64-linux.authelia-config .#checks.x86_64-linux.caddy-config --no-link
-bash scripts/deploy-edge.sh "$GARDEN_REMOTE"
-```
-
-The helper prompts for username, password, email and SMTP details. No plaintext is written
-to the checkout. It verifies operator decryption without printing any recovered fields.
-Encrypted files must be staged so Git-backed Nix flakes include them. Review/stage only those
-two generated files; commit the ciphertext and public policy after successful verification.
-Never commit private keys. The default operator key is ~/.config/digital-garden/operator.agekey.
-
-Record the previous-system path printed by deployment. Activation/health failures automatically
-restore that system. The helper-created machine identity survives a failed deployment;
-retry with existing encrypted inputs rather than generating new cryptographic material.
-Missing SMTP credentials/provider access is the only external prerequisite besides DNS/routing.
-
-## Verify
-
-```fish
-incus exec "$GARDEN_REMOTE:edge" --project default -- systemctl is-active authelia-main caddy
-incus exec "$GARDEN_REMOTE:edge" --project default -- curl --fail http://127.0.0.1:9091/api/health
+nix build .#nixosConfigurations.edge.config.system.build.toplevel --out-link result-edge-system
 incus exec "$GARDEN_REMOTE:edge" --project default -- mountpoint /var/lib/authelia-main
 incus exec "$GARDEN_REMOTE:edge" --project default -- mountpoint /var/lib/garden-secrets
-incus exec "$GARDEN_REMOTE:edge" --project default -- ss -lnt
-incus exec "$GARDEN_REMOTE:edge" --project default -- journalctl -u authelia-main -n 50 --no-pager
+incus exec "$GARDEN_REMOTE:edge" --project default -- test -s /var/lib/garden-secrets/age.key
+set -gx GARDEN_GUEST edge
+set -gx GARDEN_CONFIG edge
 ```
 
-Expected: both services active, health status OK, mounted state/key directories and port 9091
-bound to loopback only. Do not share secret files, recovery links or full debug logs.
-
-Outside the home LAN, open https://auth.archaic.work with a normally trusted certificate.
-Log in, choose TOTP enrollment, receive the SMTP verification message, follow its link
-and enroll an authenticator. Verify a valid code succeeds and an invalid code is rejected.
-The portal currently has no downstream applications; default deny is intentional.
+Run the [whole plan](runbook.md#native-planapply-and-activation): expect no resource
+changes. Then [activate](activation.md). The synthetic config validator proves
+settings structure only; live SMTP, credentials and decryption are separate gates.
 
 ```fish
-incus restart "$GARDEN_REMOTE:edge" --project default
-incus exec "$GARDEN_REMOTE:edge" --project default -- systemctl is-active authelia-main caddy
-tofu -chdir=tofu plan -detailed-exitcode
+incus exec "$GARDEN_REMOTE:edge" --project default -- systemctl is-active authelia-main
+incus exec "$GARDEN_REMOTE:edge" --project default -- test -s /run/secrets/authelia-storage
+incus exec "$GARDEN_REMOTE:edge" --project default -- curl --fail --retry 10 --retry-connrefused --retry-delay 2 http://127.0.0.1:9091/api/health
+curl --fail https://auth.archaic.work/.well-known/openid-configuration
 ```
 
-Log in again and confirm the enrolled TOTP still works. Sessions may be invalidated by restart
-because this slice uses in-memory sessions; persistent TOTP/account storage must survive.
-Expected infrastructure plan exit 0. Confirm test.archaic.work still serves its original response.
+Gate: discovery issuer is `https://auth.archaic.work`, login works, SMTP enrollment
+email actually arrives, TOTP enrollment and a second-factor login work. Restart
+edge; repeat login using the existing TOTP registration and verify the same user
+identity. Confirm Authelia is loopback-only with `ss -lntp` inside edge, and the
+sops-nix unit/services have no failures. Machine-only successful decryption is
+shown by runtime secret creation/service activation, without printing secrets.
 
-After verification, commit secrets/edge.yaml and .sops.yaml locally and push them on this branch
-before merging the PR. They contain ciphertext and public recipients; SMTP values and personal
-user details are encrypted. Securely back up the operator private key and OpenTofu state.
-
-## Roll back
-
-Restore the previous guest configuration:
-
-```fish
-set -l PREVIOUS_SYSTEM /nix/store/YOUR_RECORDED_PREVIOUS_SYSTEM
-incus exec "$GARDEN_REMOTE:edge" --project default -- nix-env --profile /nix/var/nix/profiles/system --set "$PREVIOUS_SYSTEM"
-incus exec "$GARDEN_REMOTE:edge" --project default -- "$PREVIOUS_SYSTEM/bin/switch-to-configuration" switch
-```
-
-The old Caddy configuration removes the auth route. Restore manual auth DNS if changed.
-Retain both protected volumes, ciphertext and operator key. Do not run tofu destroy or delete
-the SQLite database/machine identity. Reverting Git alone does not revert the running guest.
-This new database has no prior schema to roll back; take a database backup before later upgrades.
-
-## Validation and next iteration
-
-CI runs fast static checks only. Run `bash scripts/verify-workstation.sh` on the workstation for Caddy and Authelia configuration checks using synthetic test secrets, OpenTofu validation and mocked plan regressions. Changed guest closures are built on the workstation by the deployment scripts.
-Real SOPS decryption, SMTP delivery, public HTTPS and enrollment require the live checks above.
-Next: add one application and its native OIDC integration in its own iteration.
+Failure/resume: inspect sops-nix and Authelia journals, mounts/key permissions,
+recipient metadata, SMTP DNS/TLS and clock synchronization. Do not print runtime
+secrets or post verification links/tokens in logs. Fix ciphertext via SOPS and
+reactivate the same guest. Never regenerate the storage encryption key to fix a
+decryption problem. Rollback uses the [previous generation](activation.md) and
+matching database backup if schema changed; retain identity and state volumes.
+Next: [WebUI authorization](04-open-webui.md) only after this identity gate passes.

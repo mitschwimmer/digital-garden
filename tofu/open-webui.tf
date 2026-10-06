@@ -1,4 +1,4 @@
-# Reuse the immutable minimal seed; the deploy script sets the guest hostname.
+# Reuse the immutable minimal seed; NixOS activation sets the guest hostname.
 resource "incus_storage_volume" "webui" {
   name    = "garden-open-webui-state"
   pool    = data.incus_storage_pool.root.name
@@ -24,6 +24,7 @@ resource "incus_storage_volume" "webui_secrets" {
 }
 
 resource "incus_instance" "webui" {
+  count       = local.webui_enabled ? 1 : 0
   name        = "open-webui"
   description = "Digital Garden private Open WebUI"
   type        = "container"
@@ -88,5 +89,5 @@ resource "incus_instance" "webui" {
 }
 
 output "open_webui_ipv4" {
-  value = incus_instance.webui.ipv4_address
+  value = local.webui_enabled ? incus_instance.webui[0].ipv4_address : null
 }

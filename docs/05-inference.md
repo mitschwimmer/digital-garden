@@ -1,155 +1,101 @@
-# Private GPU inference and WebUI model switching
+# Milestone 5: private GPU inference
 
-Acceptance: WebUI advertises `mimo` and `qwen36` before download. Selecting one and
-sending a chat makes llama.cpp download it if needed and load it on the AMD GPU.
-MiMo -> Qwen -> MiMo needs no script, restart, or infrastructure apply; only one
-model is loaded at a time. Chats and downloaded models persist across restarts.
+Prerequisite: WebUI gate passed, inspected AMD GPU PCI address, IncusOS driver/
+firmware and `/dev/kfd`, enough pool capacity, compatible ROCm hardware, Internet
+access to the pinned model URLs. Stop a conflicting old inference workload only
+if its GPU/RAM use must be freed; record that action for rollback. No data migration
+or old-resource deletion is needed to deploy this capability.
 
-Use the [OCI configuration-volume pattern](06-oci-config.md): the unmodified
-upstream ROCm b11382 amd64 image is pinned in `llama/image.lock.json`. Nix builds
-`llama/models.ini` and `llama/start.sh`; Bash deploys the artifact to a read-only
-configuration volume. OpenTofu creates volumes/mounts and the private instance,
-but neither stores nor pushes application configuration. There is no custom image
-build, image publication, registry prerequisite, or Python model installation.
+`tofu/llama.tf` uses the upstream digest in `llama/image.lock.json`, explicit
+unprivileged GPU/KFD mappings, UID/GID 1000, one private NIC, 32 GiB root and a
+64 GiB protected cache. OpenTofu delivers `llama/models.ini` into the read-only
+configuration volume **before** starting the instance, and owns running/autostart
+state. There is no delayed upload/activation window or derived image. Launch
+arguments and LLAMA_CACHE are ordinary public OpenTofu attributes.
 
-llama.cpp owns lazy downloads and cache. Presets use immutable Hugging Face revision
-URLs and checksum-named local files. `models.lock.json` records source SHA256/size;
-the ordinary URL downloader does not independently enforce that recorded SHA256.
-Contexts initially use 8192 tokens, text-only, without MTP. WebUI uses its native
-llama.cpp provider and a two-hour cold-download request timeout. The private API
-has no API-key authentication; only trusted Incus backends can access it. WebUI
-retains OIDC. No new secrets are introduced.
+Only trusted host/backend clients may route to port 8080; the API has no API-key
+access control. Do not publish/forward it. Host administrators and routable guests
+can call it; gardenbr0 is not an authorization boundary. Verify intended caller
+reachability and lack of public routing rather than assuming address privacy.
 
-## Apply
-
-From the repository on the NixOS workstation, in fish:
+On the workstation:
 
 ```fish
-git fetch origin
-git switch homelab/inference
-git pull --ff-only
-nix develop --command fish
-python3 scripts/configure-llama.py "$GARDEN_REMOTE"
-bash scripts/verify-workstation.sh
+jq --arg pci "$GARDEN_GPU_PCI" '.stage = 5 | .llama_gpu_pci = $pci' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
+mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
 ```
 
-CI runs only quick syntax/static checks. The workstation verification performs
-full Nix builds and OpenTofu/configuration checks once, before applying; deployment
-reuses the same build outputs. Model/GPU/browser acceptance runs on the host.
-
-The optional GPU helper discovers local infrastructure inputs; with multiple AMD
-GPUs, specify `--gpu-pci PCI_ADDRESS`. It preserves existing seed/LAN settings and
-writes only ignored `tofu/site.auto.tfvars.json`. Keep the existing seed image path.
-The existing IncusOS AMD driver, firmware, and `/dev/kfd` must remain available.
-
-If former `llama` is running, stop it to free GPU/RAM and record that for rollback.
-If you already tested an earlier PR revision, stop `garden-llama` before the apply
-that changes its OCI launch settings. No old instance or data is deleted:
+Run [native plan/apply](runbook.md#native-planapply-and-activation): one OCI guest
+addition, no volume addition or earlier guest replacement/deletion. Provider
+schema validation is mandatory. Its file content is public and may enter state;
+never use this path for secrets. Initial apply must finish public file delivery
+before instance creation through the disk dependency. If delivery fails, do not
+start the service manually; repair it and reapply the whole plan.
 
 ```fish
-incus stop "$GARDEN_REMOTE:llama" --project default
-tofu -chdir=tofu init
-tofu -chdir=tofu validate
-tofu -chdir=tofu plan -out=inference.tfplan
-```
-
-For a fresh deployment expect **3 additions, 0 changes, 0 deletions**: router,
-cache, and config volume. The router is initially **stopped**. Pool space must
-cover the ROCm root and up to about 21 GB of models; root limit 32 GiB, cache quota
-64 GiB. If the first revision was already applied, expect existing volumes retained
-and an instance/config update, not an edge/WebUI replacement or data deletion.
-The config volume ignores externally managed file contents, retaining any file
-uploaded by an earlier Tofu revision. The Nix deployment saves prior files before
-installing the new configuration.
-If a derived-image revision was actually applied, returning to the upstream image
-requires replacement of only garden-llama, with both volumes retained. Review any
-such replacement separately; no old llama or other guest should be replaced.
-
-```fish
-tofu -chdir=tofu apply inference.tfplan
-bash scripts/deploy-llama.sh "$GARDEN_REMOTE"
+incus info "$GARDEN_REMOTE:garden-llama" --project default
 incus exec "$GARDEN_REMOTE:garden-llama" --project default -- env LD_LIBRARY_PATH=/app /app/llama-server --list-devices
-bash scripts/deploy-webui.sh "$GARDEN_REMOTE"
+incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail --retry 15 --retry-connrefused --retry-delay 2 http://garden-llama.garden.internal:8080/health
+incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail http://garden-llama.garden.internal:8080/v1/models
 ```
 
-The deploy script builds the Nix artifact, backs up prior files in an ignored local
-rollback directory, transfers via Incus custom-volume file operations, verifies
-bytes, then starts the official image and checks health/catalog. Failure restores
-a complete prior configuration; otherwise the router stays stopped for inspection.
-`--list-devices` must list the AMD GPU. The explicit library path is needed for this separate Incus exec process; the upstream service starts in its image working directory. No model download is required during prep.
-On the first deployment, a missing prior config file and a brief connection-refused
-health retry are expected; the final health/catalog checks must succeed.
-
-## Verify
+Both aliases `mimo` and `qwen36` must appear even before downloads. Send native
+API requests from the trusted WebUI guest, one model at a time:
 
 ```fish
+incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"mimo","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
+incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen36","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
+incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"mimo","messages":[{"role":"user","content":"Say hello again."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
 incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail http://garden-llama.garden.internal:8080/models
-```
-
-On first deployment both aliases should be `unloaded`. In the browser at
-`https://ai.archaic.work`, select MiMo and chat, select Qwen and chat, then select
-MiMo and chat again. Both should be selectable before downloading. First use
-waits for download/load; cached swaps only load the selected model. Native provider
-support supplies model status and admin model-management integration.
-
-Check the backend independently from the WebUI guest:
-
-```fish
-python3 scripts/check-inference.py "$GARDEN_REMOTE" --swap
 incus console "$GARDEN_REMOTE:garden-llama" --project default --show-log
 ```
 
-The smoke test checks real generated text and exactly the selected model loaded
-after each request. It tests the backend contract, not browser/OIDC behavior.
-Logs must show ROCm initialization and layers offloaded to GPU. Device availability
-alone is insufficient. If Qwen does not fit, reduce context/offload explicitly;
-do not enable privileged mode or spoof the architecture.
+Gate: responses contain actual generated text; logs show ROCm and layers
+**offloaded**, not merely enumerated devices. Catalog status shows only the
+selected model loaded (models-max 1). In WebUI select MiMo -> Qwen -> MiMo and
+chat; switching needs no infrastructure apply/restart. First download/load may
+be slow. Cached models and chat state must survive restarting both guests. Repeat
+an API request and browser chat after restart and ensure no full re-download.
 
-For an optional integrity check after lazy download, compare `sha256sum` for the
-paths in `llama/models.ini` with the fingerprints in `llama/models.lock.json`.
+The immutable source URLs and expected SHA256/size are recorded in
+`llama/models.lock.json`; checksum-named cache paths alone do not verify bytes.
+After download, verify each file with `sha256sum` inside llama and compare against
+the lock. Also check file sizes with `stat -c %s`. This can be expensive once;
+record verified results and repeat after changing bytes, not every restart.
+
+Failure/resume: inspect container log, GPU devices/permissions, memory and cache
+capacity, outbound Hugging Face DNS/TLS, selected model status and WebUI backend
+URL. If Qwen cannot fit, review an explicit context/offload change. Do not enable
+privileged mode or bypass checks with an architecture override. A failed initial
+apply resumes with the same state/volumes and whole plan.
+
+## Configuration changes and rollback
+
+Before an update, save the current Git revision, image/launch settings, state,
+and public presets outside the checkout. Stop the OCI guest before modifying a
+mounted config volume. With the new declared configuration present, the whole
+plan will include the public file update and the detected `running=false` drift;
+OpenTofu returns running to true after the config dependency is updated:
 
 ```fish
-incus restart "$GARDEN_REMOTE:garden-llama" --project default
-python3 scripts/check-inference.py "$GARDEN_REMOTE"
-incus restart "$GARDEN_REMOTE:open-webui" --project default
-```
-
-Confirm cached inference works and the chat remains. A subsequent config change
-uses `bash scripts/deploy-llama.sh "$GARDEN_REMOTE"`; no image build or Tofu file
-push is needed. Only infrastructure/image changes require an infrastructure plan.
-
-## Roll back
-
-For a configuration-only update with the complete backup path printed by deploy:
-
-```fish
-set PREVIOUS_CONFIG /ABSOLUTE/PATH/PRINTED_BY_DEPLOY
-set GARDEN_POOL (jq -r '.storage_pool // "local"' tofu/site.auto.tfvars.json)
 incus stop "$GARDEN_REMOTE:garden-llama" --project default
-incus storage volume file push "$PREVIOUS_CONFIG/models.ini" "$GARDEN_REMOTE:$GARDEN_POOL" garden-llama-config/models.ini --uid 0 --gid 0 --mode 0444 --project default
-incus storage volume file push "$PREVIOUS_CONFIG/start.sh" "$GARDEN_REMOTE:$GARDEN_POOL" garden-llama-config/start.sh --uid 0 --gid 0 --mode 0444 --project default
-incus start "$GARDEN_REMOTE:garden-llama" --project default
 ```
 
-For rollback of the whole iteration, restore the previous WebUI system printed
-by its deployment and reactivate the old llama only if previously running:
+Run the whole plan/apply and repeat health/catalog/generated-text acceptance. If
+an apply fails after a partial config update, keep it stopped until the declared
+configuration is complete; do not manually re-enable it with half-written files.
+For a longer repair, disable boot.autostart manually while stopped and record the
+drift. The next reviewed apply must restore declared running/autostart settings.
+An image upgrade can replace only this guest, with volumes retained; review it
+separately from persistent-data changes.
 
-```fish
-set PREVIOUS_WEBUI /nix/store/PASTE_PREVIOUS_WEBUI_SYSTEM
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- nix-env --profile /nix/var/nix/profiles/system --set "$PREVIOUS_WEBUI"
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- "$PREVIOUS_WEBUI/bin/switch-to-configuration" switch
-incus stop "$GARDEN_REMOTE:garden-llama" --project default
-incus config set "$GARDEN_REMOTE:garden-llama" --project default boot.autostart=false
-incus start "$GARDEN_REMOTE:llama" --project default
-```
-
-All volumes remain intact/protected. Do not unset GPU input and apply or run
-`tofu destroy`. A reviewed apply restores declared autostart when resuming.
-
-## Next iteration
-
-Backups and a restore test before obsolete-resource cleanup.
+Rollback: restore the previously recorded public preset/image/launch declarations,
+stop the guest, review/apply a new whole plan, and repeat inference checks. Retain
+cache and identities. Restore the old workload only if it was stopped earlier and
+new inference is also stopped. Never lower stage or unset PCI to troubleshoot.
+After rollback reconcile repository versus running state before continuation.
+Next: [backup/restore gate](recovery.md).
 
 Sources: [pinned llama server](https://github.com/ggml-org/llama.cpp/blob/b11382/tools/server/README.md),
-[WebUI native provider](https://github.com/open-webui/open-webui/blob/v0.11.4/backend/open_webui/routers/openai.py),
-and [Incus custom-volume file transfer](https://linuxcontainers.org/incus/docs/main/reference/manpages/incus/storage/volume/file/push/).
+[pinned provider files](https://github.com/lxc/terraform-provider-incus/blob/v1.2.0/docs/resources/storage_volume.md),
+[Incus instance options](https://linuxcontainers.org/incus/docs/main/reference/instance_options/).

@@ -154,6 +154,13 @@ resource "incus_storage_volume" "edge_secrets" {
 }
 
 resource "incus_instance" "edge" {
+  lifecycle {
+    precondition {
+      condition     = var.stage < 2 || (var.edge_lan_parent != null && var.edge_lan_mac != null)
+      error_message = "Ingress requires an inspected IncusOS instances bridge and persistent LAN MAC."
+    }
+  }
+
   name        = "edge"
   description = "Digital Garden NixOS edge; private bootstrap"
   type        = "container"
@@ -222,7 +229,7 @@ resource "incus_instance" "edge" {
   }
 
   dynamic "device" {
-    for_each = var.edge_lan_parent == null ? [] : [var.edge_lan_parent]
+    for_each = var.stage >= 2 ? [var.edge_lan_parent] : []
     content {
       name = "eth1"
       type = "nic"

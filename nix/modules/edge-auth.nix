@@ -40,7 +40,10 @@ let
     regulation = { max_retries = 5; find_time = "2m"; ban_time = "5m"; };
   };
 in {
-  # CI can build without operator ciphertext; deployment requires it explicitly.
+  assertions = [ {
+    assertion = ready && builtins.pathExists oidcEncrypted;
+    message = "Prepare encrypted Authelia and OIDC inputs before building this consumer.";
+  } ];
   sops = lib.mkIf ready {
     defaultSopsFile = encrypted;
     age.keyFile = "/var/lib/garden-secrets/age.key";
@@ -126,7 +129,7 @@ in {
     });
   in pkgs.runCommand "check-authelia-config" { } ''
     ${pkgs.openssl}/bin/openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/garden-ci-key.pem 2>/dev/null
-    ${pkgs.python3.withPackages (p: [ p.argon2-cffi ])}/bin/python3 -c 'from argon2 import PasswordHasher; print(PasswordHasher().hash("CI-only-client-secret-not-used-in-deployments"))' > /tmp/garden-ci-client
+    ${pkgs.authelia}/bin/authelia crypto hash generate argon2 --password CI-only-client-secret-not-used-in-deployments | ${pkgs.gnused}/bin/sed -n 's/^Digest: //p' > /tmp/garden-ci-client
     export X_AUTHELIA_CONFIG_FILTERS=template
     ${pkgs.authelia}/bin/authelia validate-config --config ${testConfig},${jwksConfig},${clientConfigFor "/tmp/garden-ci-client"}
     touch "$out"
