@@ -2,6 +2,10 @@
 {
   imports = [ ./edge-bootstrap.nix ];
   networking.hostName = lib.mkForce "open-webui";
+  assertions = [ {
+    assertion = builtins.pathExists ../../secrets/open-webui.yaml;
+    message = "Prepare encrypted WebUI inputs before building this consumer.";
+  } ];
   sops = lib.mkIf (builtins.pathExists ../../secrets/open-webui.yaml) {
     defaultSopsFile = ../../secrets/open-webui.yaml;
     age.keyFile = "/var/lib/garden-secrets/age.key";
@@ -16,9 +20,7 @@
     enable = true;
     # Keep group authorization effective for the first/sole user; suppress callback logs.
     package = pkgs.open-webui.overrideAttrs (old: {
-      postPatch = old.postPatch + ''
-        ${pkgs.python3}/bin/python3 ${../patches/open-webui-oidc.py} .
-      '';
+      patches = (old.patches or [ ]) ++ [ ../patches/open-webui-oidc.patch ];
     });
     host = "0.0.0.0";
     port = 8080;
@@ -68,8 +70,8 @@
   };
   networking.firewall.interfaces.eth0.allowedTCPPorts = [ 8080 ];
   # A stable system user keeps mounted data ownership predictable across rebuilds.
-  users.groups.open-webui = { };
-  users.users.open-webui = { isSystemUser = true; group = "open-webui"; };
+  users.groups.open-webui.gid = 990;
+  users.users.open-webui = { isSystemUser = true; uid = 990; group = "open-webui"; };
   systemd.services.open-webui = {
     unitConfig.RequiresMountsFor = [ "/var/lib/open-webui" "/var/lib/garden-secrets" ];
     unitConfig.ConditionPathIsMountPoint = "/var/lib/open-webui";

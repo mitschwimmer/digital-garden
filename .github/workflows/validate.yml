@@ -1,4 +1,4 @@
-name: Fast static checks
+name: Whitespace checks
 on:
   pull_request:
   push:
@@ -9,21 +9,20 @@ concurrency:
 permissions:
   contents: read
 jobs:
-  static:
+  whitespace:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
         with:
           persist-credentials: false
-          fetch-depth: 2
-      - name: Whitespace and shell syntax
+          fetch-depth: 0
+      - name: Check changed whitespace
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
         run: |
-          git diff --check HEAD^ HEAD
-          for script in scripts/*.sh; do bash -n "$script"; done
-          sh -n llama/start.sh
-      - name: Python syntax and lightweight declarative checks
-        run: |
-          python3 -m py_compile scripts/*.py tests/*.py
-          python3 tests/test_configure_llama.py
-          python3 tests/test_llama_config.py
+          if git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            git diff --check "$BASE_SHA" HEAD
+          else
+            git show --format= --check HEAD
+          fi

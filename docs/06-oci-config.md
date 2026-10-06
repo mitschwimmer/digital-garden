@@ -1,44 +1,17 @@
-# OCI configuration pattern
+# Direct OCI configuration ownership
 
-Use the application's official OCI image, pinned to an immutable digest. Keep
-application configuration in Git and build its deployment artifact with Nix.
-Create separate Incus volumes for configuration and mutable application data.
-Mount configuration read-only; give the application only the writable state/cache
-volumes it needs. Keep secrets out of ordinary configuration artifacts.
+OpenTofu owns image digest, entrypoint, public environment, volume mounts,
+devices/limits, running state and ordinary public config-file delivery. The pinned
+Incus provider's native `incus_storage_volume.file` puts `llama/models.ini` at
+`/models.ini` before a dependent OCI instance starts. At runtime the volume is
+mounted read-only at `/etc/llama`. llama.cpp owns writable downloads/cache.
 
-Ownership:
+There is no Nix configuration bundle, launch script, external upload controller,
+`ignore_changes` on config files/running state, derived image or publication
+pipeline. Public config may appear in OpenTofu state. Secret plaintext may not;
+secret-heavy workloads use NixOS/sops-nix instead.
 
-- OpenTofu: image identity, volumes, mounts, instance/device/limit settings, and
-  the OCI launch entrypoint. It does not store or transfer application file contents. Its config-volume resource
-  ignores changes to the externally managed `file` field.
-- Nix: the configuration artifact, including an optional POSIX launch script when
-  runtime options must be supplied independently of the upstream entrypoint.
-- Deployment script: build the artifact, back up prior configuration, stop the
-  service, upload through authenticated Incus volume file operations, verify the
-  transferred bytes, and activate/check it. Restore the previous files on failure.
-- Application: mutable runtime state such as model downloads, indexes, and databases.
-- Python checks: configuration and runtime verification, not service installation.
-
-A fresh OCI instance is created stopped so missing configuration cannot break its
-first boot. After uploading, the deployment script starts it. `ignore_changes` on
-`running` prevents a later infrastructure apply from stopping an activated service;
-Incus boot autostart remains enabled. Instance image upgrades require an explicit
-replacement plan; mounted state/config volumes remain separate and protected.
-
-For llama.cpp, `nix build .#llama-config` produces `models.ini` and `start.sh`;
-`deploy-llama.sh` pushes them to `garden-llama-config`. The upstream ROCm image
-mounts that volume at `/etc/llama` read-only and the cache at `/var/cache/llama`
-read-write. `oci.entrypoint` connects the official binary to the mounted launch
-script; no application configuration values or file contents pass through Tofu.
-
-Incus supports [custom-volume file transfers](https://linuxcontainers.org/incus/docs/main/reference/manpages/incus/storage/volume/file/push/),
-so configuration can be installed before a container is started. This pattern
-needs neither a derived image nor a registry publication workflow.
-
-## Verification policy
-
-CI contains only fast shell/Python syntax and lightweight declarative checks.
-Run `bash scripts/verify-workstation.sh` in the repository Nix shell for full Nix
-builds, configuration validation, and mocked infrastructure plans before applying.
-Reuse those build outputs during deployment; test live service/browser behavior
-on the homelab. CI never builds/pulls OCI images or builds Nix system closures.
+On updates, stop before applying mounted config-file changes, then let the reviewed
+whole plan restore declared running/autostart state after config delivery. Reboot
+and partial-failure behavior, acceptance and rollback are covered in
+[milestone 5](05-inference.md). Stop live application at a failed gate.

@@ -1,0 +1,54 @@
+--- a/backend/open_webui/utils/oauth.py
++++ b/backend/open_webui/utils/oauth.py
+@@ -1531,11 +1531,11 @@
+     async def get_user_role(self, user, user_data, *, access_token: str | None = None):
+         auth_config = await get_oauth_runtime_config()
+         user_count = await Users.get_num_users()
+-        if user and user_count == 1:
++        if not auth_config.ENABLE_OAUTH_ROLE_MANAGEMENT and user and user_count == 1:
+             # If the user is the only user, assign the role "admin" - actually repairs role for single user on login
+             log.debug('Assigning the only user the admin role')
+             return 'admin'
+-        if not user and user_count == 0:
++        if not auth_config.ENABLE_OAUTH_ROLE_MANAGEMENT and not user and user_count == 0:
+             # First-user bootstrap: skip role management gating so the
+             # instance can be initialized.  We intentionally return the
+             # default role here (not 'admin') — admin promotion happens
+@@ -1573,7 +1573,7 @@
+                 elif isinstance(claim_data, int):
+                     oauth_roles = [str(claim_data)]
+ 
+-            if access_token is not None and not oauth_roles and oauth_allowed_roles and '*' not in oauth_allowed_roles:
++            if not oauth_roles and oauth_allowed_roles and '*' not in oauth_allowed_roles:
+                 log.warning('Token exchange denied: no readable roles claim in userinfo or the token')
+                 raise HTTPException(status.HTTP_403_FORBIDDEN, detail=ERROR_MESSAGES.ACCESS_PROHIBITED)
+ 
+@@ -2130,7 +2130,7 @@
+                     # Atomically check if this is the only user *after* the
+                     # insert to avoid TOCTOU race on first-user registration.
+                     # Matches signup_handler pattern.
+-                    if await Users.get_num_users(db=db) == 1:
++                    if not auth_config.ENABLE_OAUTH_ROLE_MANAGEMENT and await Users.get_num_users(db=db) == 1:
+                         await Users.update_user_role_by_id(user.id, 'admin', db=db)
+                         user = await Users.get_user_by_id(user.id, db=db)
+ 
+--- a/backend/open_webui/__init__.py
++++ b/backend/open_webui/__init__.py
+@@ -85,7 +85,7 @@
+         'open_webui.main:app',
+         host=host,
+         port=port,
+-        forwarded_allow_ips='*',
++        forwarded_allow_ips='*', access_log=False,
+         workers=UVICORN_WORKERS,
+         ws_per_message_deflate=UVICORN_WS_PER_MESSAGE_DEFLATE,
+         loop=loop,
+@@ -105,7 +105,7 @@
+         host=host,
+         port=port,
+         reload=reload,
+-        forwarded_allow_ips='*',
++        forwarded_allow_ips='*', access_log=False,
+         ws_per_message_deflate=UVICORN_WS_PER_MESSAGE_DEFLATE,
+     )
+ 

@@ -1,121 +1,69 @@
-# Open WebUI with Authelia OIDC
+# Milestone 4: Open WebUI native OIDC
 
-Acceptance: `https://ai.archaic.work` offers Authelia login, requires TOTP, and gives
-the existing `admins` user WebUI admin access. Accounts in `ai-users` receive normal
-access; accounts with neither group are rejected. Password login and public signup
-are disabled. A version-checked patch removes upstream first/sole-user admin
-promotion when OIDC roles are enabled; no account bypasses its Authelia group
-assignment. Callback URL access logging is also disabled. Models remain empty until the next llama.cpp iteration.
+Prerequisite: identity gate passed, ai.archaic.work manually routed to edge,
+private/public DNS and trusted HTTPS discovery reachable from the WebUI guest,
+WebUI ciphertext with matching client secret, and its machine key. Edge already
+contains the Caddy route and two-factor OIDC client. No forward-auth layer is added.
 
-OpenTofu adds one private NixOS container and two protected volumes. It reuses the
-existing immutable seed image; do not rerun `prepare-edge.sh` or change
-`image_directory`. NixOS manages WebUI 0.11.4, its runtime environment file, and
-the edge's OIDC configuration. The existing `secrets/edge.yaml` is preserved.
-New files separate OIDC signing/client material from WebUI credentials. The
-operator can recover both; each machine can decrypt only its own file.
-
-WebUI reaches Authelia at its public HTTPS discovery URL. The router must support
-that connection from the private bridge through host NAT (hairpin NAT or equivalent
-local DNS). The deploy script checks this before changing WebUI's system profile.
-Wildcard DNS and the existing Caddy port forwards must cover `ai.archaic.work`.
-Keep IPv6 exposure consistent with the already verified edge ingress.
-
-## Apply
-
-Run on the NixOS workstation, in fish, from this checkout:
+WebUI uses a private NixOS system container because native environment-file
+secrets and sops-nix simplify this workload. It accepts TCP 8080 on eth0 for
+trusted host/backend callers. There is no LAN NIC, public forward or SSH listener.
+All workloads/clients able to route to the private bridge are trusted infrastructure;
+WebUI additionally requires OIDC. A separate bridge alone does not enforce caller
+isolation. Do not attach untrusted guests without adding a reviewed network policy.
 
 ```fish
-git fetch origin
-git switch homelab/open-webui
-nix develop --command fish
-tofu -chdir=tofu init
-tofu -chdir=tofu validate
-tofu -chdir=tofu plan -out=webui.tfplan
+jq '.stage = 4' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
+mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
+nix build .#nixosConfigurations.open-webui.config.system.build.toplevel --out-link result-open-webui-system
 ```
 
-Expected for the existing deployment: **3 additions, 0 changes, 0 deletions**
-(WebUI instance plus its state and machine-key volumes). Stop if the plan replaces
-edge, changes the seed image, or removes anything. Apply the reviewed saved plan:
+This builds the complete package with the [pinned authorization patch](../nix/patches/README.md).
+Run [plan/apply](runbook.md#native-planapply-and-activation): one guest addition,
+no deletion/replacement, existing volumes unchanged. Install only the restored or
+new prepared key after confirming it is absent (skip transfer if the existing
+correct key is already present):
 
 ```fish
-tofu -chdir=tofu apply webui.tfplan
-python3 scripts/prepare-webui.py "$GARDEN_REMOTE"
-git add .sops.yaml secrets/edge-oidc.yaml secrets/open-webui.yaml
-bash scripts/deploy-edge.sh "$GARDEN_REMOTE"
-bash scripts/deploy-webui.sh "$GARDEN_REMOTE"
+incus exec "$GARDEN_REMOTE:open-webui" --project default -- mountpoint /var/lib/open-webui
+incus exec "$GARDEN_REMOTE:open-webui" --project default -- mountpoint /var/lib/garden-secrets
+incus exec "$GARDEN_REMOTE:open-webui" --project default -- test ! -e /var/lib/garden-secrets/age.key
+incus file push "$GARDEN_SECRET_WORK/webui.agekey" "$GARDEN_REMOTE:open-webui/var/lib/garden-secrets/age.key" --project default --uid 0 --gid 0 --mode 0600
+incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail https://auth.archaic.work/.well-known/openid-configuration
+set -gx GARDEN_GUEST open-webui
+set -gx GARDEN_CONFIG open-webui
 ```
 
-The helper requires the existing operator identity at
-`~/.config/digital-garden/operator.agekey` (or `--operator-key PATH`). It creates
-the new guest identity once on its protected volume, checks encrypted operator
-recovery, and refuses to overwrite existing OIDC/WebUI ciphertext. No credentials
-are passed through OpenTofu. Store printed previous-system paths for rollback.
-WebUI's closure is larger than edge; the first build/import can take longer.
-
-## Verify
+Stop for failed mount/path/discovery checks. [Activate](activation.md) and verify:
 
 ```fish
 incus exec "$GARDEN_REMOTE:edge" --project default -- getent hosts open-webui.garden.internal
-incus exec "$GARDEN_REMOTE:edge" --project default -- curl --fail http://open-webui.garden.internal:8080/health
 incus exec "$GARDEN_REMOTE:open-webui" --project default -- systemctl is-active open-webui
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail https://auth.archaic.work/.well-known/openid-configuration
+incus exec "$GARDEN_REMOTE:open-webui" --project default -- test -s /run/secrets/environment
+incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail --retry 30 --retry-connrefused --retry-delay 2 http://127.0.0.1:8080/health
 curl --fail https://ai.archaic.work/health
 ```
 
-Expected: DNS resolves the private guest address, the service is active, WebUI
-health returns success, and OIDC discovery advertises issuer
-`https://auth.archaic.work`. Open `https://ai.archaic.work`, choose Authelia, sign in
-with TOTP, and check Admin Panel access. No local password or signup form should
-be available. Native OIDC handles login; there is no second forward-auth gate.
+Browser gate in a private window: only Authelia login, TOTP required, admins receive
+admin role, ai-users receive user role, unrelated or absent groups are denied.
+Test with separate identities through encrypted users configuration; retain your
+operator admin. For an **empty** WebUI database, try denied and ai-users identities
+before the first admin: denied identities must not create/promote the initial user;
+first ai-users must remain a user. Test sole-user subsequent login and missing
+claims as well. Use a disposable backed-up test state if a populated production
+database cannot exercise bootstrap behavior; never delete its database to test.
+If the IdP always supplies groups, test absent groups with a separate user with no
+groups and verify no claim from another source silently grants access.
 
-Restart and verify persistence:
+Restart WebUI and edge, then log in again; the account/settings remain and a new
+private window requires login. Inference is expected to be unavailable until stage
+5. Gate: both permitted-role behavior and denial/first-user behavior passed,
+matching identity and state persist. Login alone is insufficient.
 
-```fish
-incus restart "$GARDEN_REMOTE:open-webui" --project default
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail --retry 30 --retry-connrefused --retry-delay 2 http://127.0.0.1:8080/health
-```
+Failure/resume: inspect service/sops-nix journals, ownership of the mounted state,
+DNS/hairpin routing, issuer/callback URL, client hash/plaintext pairing, PKCE and
+IdP groups. Correct declared config/ciphertext and reactivate; do not enable local
+signup as a workaround. Rollback uses the recorded previous generation plus a
+matching data backup for migrations, retaining state and keys. Next: [inference](05-inference.md).
 
-Sign in again; the same account and its settings should remain. A private browser
-window must still require login. To test role rejection, create a separate test
-identity without `admins`/`ai-users` using SOPS; do not remove your own admin group.
-If something fails, inspect `journalctl -u open-webui -n 80 --no-pager` in WebUI or
-`journalctl -u authelia-main -n 80 --no-pager` in edge. Never publish decrypted
-environment files, cookies, callback URLs, or private keys.
-
-After verification, commit and push the encrypted configuration and public policy:
-
-```fish
-git commit -m "Configure encrypted Open WebUI OIDC identities"
-git push
-```
-
-Back up the operator key securely. Future edits use
-`set -gx SOPS_AGE_KEY_FILE "$HOME/.config/digital-garden/operator.agekey"` and SOPS.
-Keep signing/session keys stable unless performing an intentional rotation.
-
-## Roll back
-
-Each deployment automatically restores its own previous system on failed health
-checks. If manual rollback is needed, use the paths printed by that deployment:
-
-```fish
-set PREVIOUS_EDGE /nix/store/PASTE_PREVIOUS_EDGE_SYSTEM
-incus exec "$GARDEN_REMOTE:edge" --project default -- nix-env --profile /nix/var/nix/profiles/system --set "$PREVIOUS_EDGE"
-incus exec "$GARDEN_REMOTE:edge" --project default -- "$PREVIOUS_EDGE/bin/switch-to-configuration" switch
-incus stop "$GARDEN_REMOTE:open-webui" --project default
-```
-
-Restoring the previous edge generation removes the new public route and OIDC
-configuration; WebUI's volumes and ciphertext remain intact. Do not use
-`tofu destroy`: persistent volumes are deliberately protected. Before later WebUI
-upgrades, snapshot its database volume; system rollback does not undo database
-migrations.
-
-## Next iteration
-
-Add pinned llama.cpp OCI with AMD GPU access and persistent model storage, then
-connect its private OpenAI-compatible API to WebUI.
-
-References: [Authelia's versioned integration](https://github.com/authelia/authelia/blob/v4.39.20/docs/content/integration/openid-connect/clients/open-webui/index.md),
-[WebUI SSO](https://docs.openwebui.com/features/authentication-access/auth/sso/),
-and the [pinned NixOS service module](https://github.com/NixOS/nixpkgs/blob/0d9e9b832d03ac387417e16ce1febf73b2e631e1/nixos/modules/services/misc/open-webui.nix).
+Source: [pinned NixOS WebUI module](https://github.com/NixOS/nixpkgs/blob/0d9e9b832d03ac387417e16ce1febf73b2e631e1/nixos/modules/services/misc/open-webui.nix).
