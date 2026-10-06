@@ -42,3 +42,13 @@ Open WebUI's example hostname was ai.archaic.work.
 The former example base domain was mitschwimmer.de; the new baseline uses archaic.work.
 
 See the bootstrap document for validation, exact apply commands, verification and rollback.
+
+## Versioned homelab skill
+
+The upstream [IncusOS Homelab skill](.agents/skills/incusos-homelab/SKILL.md)
+is maintained in this repository. It defines operator runbooks, cumulative
+acceptance milestones, declarative ownership, recovery, and a minimal-script
+policy for future homelab work. Its linked references form part of the skill.
+
+The skill describes the intended workflow. Existing deployment guides and helper
+scripts have not yet been migrated to that contract.
