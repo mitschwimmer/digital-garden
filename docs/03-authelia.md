@@ -20,6 +20,7 @@ nix build .#nixosConfigurations.edge.config.system.build.toplevel --out-link res
 incus exec "$GARDEN_REMOTE:edge" --project default -- mountpoint /var/lib/authelia-main
 incus exec "$GARDEN_REMOTE:edge" --project default -- mountpoint /var/lib/garden-secrets
 incus exec "$GARDEN_REMOTE:edge" --project default -- test -s /var/lib/garden-secrets/age.key
+set -gx GARDEN_PROJECT default
 set -gx GARDEN_GUEST edge
 set -gx GARDEN_CONFIG edge
 ```

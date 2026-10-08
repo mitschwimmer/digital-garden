@@ -17,10 +17,13 @@ jq -n --arg remote "$GARDEN_REMOTE" --arg pool "$GARDEN_POOL" --arg image "$GARD
 Keep `result-edge-image` as a GC root; do not rebuild/update the seed input for
 ordinary guest maintenance. Check the seed archives exist. Run the [whole
 plan/apply procedure](runbook.md#native-planapply-and-activation). First apply:
-10 additions, no modifications/deletions. Seven volumes are established now so
+13 additions: two projects, two project-scoped seed images, the bridge, edge,
+and seven volumes; no modifications/deletions. Seven volumes are established now so
 later guest removal cannot accidentally remove their state. WebUI/llama are absent.
 
 ```fish
+incus project show "$GARDEN_REMOTE:ai"
+incus project show "$GARDEN_REMOTE:inference"
 incus info "$GARDEN_REMOTE:edge" --project default
 incus network show "$GARDEN_REMOTE:gardenbr0" --project default
 incus exec "$GARDEN_REMOTE:edge" --project default -- cat /etc/os-release

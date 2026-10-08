@@ -33,16 +33,21 @@ set -gx GARDEN_BACKUP /ABSOLUTE/SECURE/BACKUP_DIRECTORY
 set -gx SOPS_AGE_KEY_FILE "$HOME/.config/digital-garden/operator.agekey"
 ```
 
+`GARDEN_BACKUP` is an absolute directory on the workstation, outside this checkout.
+It is not an Incus storage pool or volume name. Use a secured directory and copy
+its contents to separate off-host storage; no extra `data` volume is required.
+
 Inspect before assigning LAN/GPU values; defer these inputs until their milestone
 if unavailable. The MAC must start with `02` and use lowercase hexadecimal pairs.
 Choose a new DHCP reservation; do not copy another live machine's identity.
 
 ```fish
 incus info "$GARDEN_REMOTE:" --project default
-incus list "$GARDEN_REMOTE:" --project default
+incus project list "$GARDEN_REMOTE:"
+incus list "$GARDEN_REMOTE:" --all-projects
 incus network list "$GARDEN_REMOTE:" --project default
 incus storage list "$GARDEN_REMOTE:"
-incus storage volume list "$GARDEN_REMOTE:$GARDEN_POOL" --project default
+incus storage volume list "$GARDEN_REMOTE:$GARDEN_POOL" --all-projects
 incus query "$GARDEN_REMOTE:/os/1.0/system/network"
 incus query "$GARDEN_REMOTE:/1.0/resources"
 ```
@@ -53,17 +58,40 @@ IncusOS network configuration. Management API exposure/trusted client certificat
 are separate from guest HTTP ingress. Maintain IncusOS's AMD driver/firmware and
 `/dev/kfd`; PCI selection alone does not establish ROCm compatibility.
 
-A fresh installation requires `edge`, `open-webui`, `garden-llama`, `gardenbr0`
-and the seven `garden-*` volumes below to be absent. If they exist, follow
+A fresh installation requires projects `ai` and `inference`, guests `edge`,
+`open-webui`, `garden-llama`, bridge `gardenbr0`, and the seven `garden-*` volumes below to be absent. If they exist, follow
 [recovery](recovery.md) or the explicit reset checklist there. Do not apply empty
 state to existing resources. The existing storage pool and unrelated guests are
 outside this configuration's lifecycle. Keep state and raw inventory private.
+
+## Project ownership
+
+| Project | Guests and owned resources |
+|---|---|
+| `default` | Shared `edge` (Caddy/Authelia), its three volumes, edge seed image and `gardenbr0` |
+| `ai` | `open-webui`, its two volumes and a separate import of the immutable NixOS seed |
+| `inference` | `garden-llama`, its cache/config volumes and OCI image cache |
+
+OpenTofu creates both named projects at stage 1 with local images, profiles,
+volumes and buckets; networks and network zones use `default`. Existing storage
+pools remain host-wide prerequisites. Project names are resource namespaces,
+not automatic traffic isolation or application authentication. Keep guest names
+unique on the shared bridge and verify cross-project DNS/reachability at stages
+4 and 5. Existing trusted-caller policy remains in force.
+
+Use explicit `--project` on guest/volume operations. Activation uses
+`GARDEN_PROJECT`, set by each NixOS milestone. Project-local profiles are available
+for future workloads; current guests keep `profiles = []` and explicit devices.
+No project restrictions or new quotas are introduced by this placement change.
+Follow the [project guidance](../.agents/skills/incusos-homelab/references/projects.md)
+for future additions. This layout targets fresh state on an empty host, not an
+in-place project migration.
 
 ## Cumulative capabilities
 
 | Stage | Guest activation | Gate | Expected infrastructure change from preceding accepted stage |
 |---|---|---|---|
-| 1 | Minimal seed | [Private guest](01-edge-bootstrap.md) | 10 additions: bridge, image, edge, seven volumes |
+| 1 | Minimal seed | [Private guest](01-edge-bootstrap.md) | 13 additions: two projects, bridge, two seed images, edge, seven volumes |
 | 2 | `edge-ingress` | [Caddy ingress](02-caddy-ingress.md) | One edge NIC update; no replacement/deletion |
 | 3 | `edge` | [Authelia](03-authelia.md) | None; NixOS activation changes services |
 | 4 | `open-webui` | [OIDC login](04-open-webui.md) | One WebUI guest addition |

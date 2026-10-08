@@ -5,7 +5,8 @@ private/public DNS and trusted HTTPS discovery reachable from the WebUI guest,
 WebUI ciphertext with matching client secret, and its machine key. Edge already
 contains the Caddy route and two-factor OIDC client. No forward-auth layer is added.
 
-WebUI uses a private NixOS system container because native environment-file
+WebUI and its state/secrets belong to project `ai`. The shared edge remains in
+`default`. WebUI uses a private NixOS system container because native environment-file
 secrets and sops-nix simplify this workload. It accepts TCP 8080 on eth0 for
 trusted host/backend callers. There is no LAN NIC, public forward or SSH listener.
 All workloads/clients able to route to the private bridge are trusted infrastructure;
@@ -25,11 +26,12 @@ new prepared key after confirming it is absent (skip transfer if the existing
 correct key is already present):
 
 ```fish
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- mountpoint /var/lib/open-webui
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- mountpoint /var/lib/garden-secrets
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- test ! -e /var/lib/garden-secrets/age.key
-incus file push "$GARDEN_SECRET_WORK/webui.agekey" "$GARDEN_REMOTE:open-webui/var/lib/garden-secrets/age.key" --project default --uid 0 --gid 0 --mode 0600
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail https://auth.archaic.work/.well-known/openid-configuration
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- mountpoint /var/lib/open-webui
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- mountpoint /var/lib/garden-secrets
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- test ! -e /var/lib/garden-secrets/age.key
+incus file push "$GARDEN_SECRET_WORK/webui.agekey" "$GARDEN_REMOTE:open-webui/var/lib/garden-secrets/age.key" --project ai --uid 0 --gid 0 --mode 0600
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail https://auth.archaic.work/.well-known/openid-configuration
+set -gx GARDEN_PROJECT ai
 set -gx GARDEN_GUEST open-webui
 set -gx GARDEN_CONFIG open-webui
 ```
@@ -37,10 +39,10 @@ set -gx GARDEN_CONFIG open-webui
 Stop for failed mount/path/discovery checks. [Activate](activation.md) and verify:
 
 ```fish
-incus exec "$GARDEN_REMOTE:edge" --project default -- getent hosts open-webui.garden.internal
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- systemctl is-active open-webui
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- test -s /run/secrets/environment
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail --retry 30 --retry-connrefused --retry-delay 2 http://127.0.0.1:8080/health
+incus exec "$GARDEN_REMOTE:edge" --project ai -- getent hosts open-webui.garden.internal
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- systemctl is-active open-webui
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- test -s /run/secrets/environment
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --retry 30 --retry-connrefused --retry-delay 2 http://127.0.0.1:8080/health
 curl --fail https://ai.archaic.work/health
 ```
 

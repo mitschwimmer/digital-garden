@@ -5,6 +5,9 @@ Authelia identity, private Open WebUI with native OIDC, and direct OCI llama.cpp
 with AMD GPU/KFD access. Stable secrets use SOPS + age; mutable application state
 and machine identities have separate protected volumes.
 
+Shared Caddy/Authelia services and bridge networking stay in `default`; Open WebUI
+runs in `ai`, and llama.cpp runs in `inference`, with project-local data and images.
+
 Start at the [current operator runbook](docs/runbook.md). It covers a fresh
 installation, cumulative acceptance gates, maintenance, interrupted deployment,
 and recovery from host loss. All procedures use this checkout, without historical

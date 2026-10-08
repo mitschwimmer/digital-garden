@@ -50,3 +50,24 @@ Keep a local acceptance record with revision, milestone/check, passed/failed/pen
 environment and date. Do not commit private inventory/logs. A changed relevant
 configuration invalidates its earlier evidence; no-change OpenTofu plans do not
 prove guest activation or authentication correctness. Stop at every failed gate.
+
+## Application-project placement evidence (2026-10-08)
+
+This change keeps shared edge services in `default`, places WebUI in `ai` and
+llama.cpp in `inference`, and updates activation, backup, restore and import scopes.
+The initial fresh-install plan now expects 13 managed resource additions. This
+section supersedes earlier evidence for affected project placement procedures.
+
+| Check | Result |
+|---|---|
+| OpenTofu 1.9.0 `fmt -check -diff` | Passed |
+| Initialization with pinned Incus provider 1.2.0 and read-only lockfile | Passed; provider signature verified |
+| OpenTofu `validate` | Blocked by execution sandbox: provider Unix socket creation is not permitted; schema validation remains pending |
+| Whitespace, relative document links and application-command project scopes | Passed |
+| Nix guest configuration | Unchanged; existing builds remain an operator prerequisite |
+| First-create/advanced-stage plans and host acceptance | Pending on authenticated IncusOS target; nothing applied |
+
+Repeat native schema validation on the workstation, inspect the complete saved
+plans against the updated milestone counts, and verify edge-to-WebUI and
+WebUI-to-inference DNS/HTTP reachability across projects before accepting stages
+4 and 5. Project namespaces alone do not establish network access controls.

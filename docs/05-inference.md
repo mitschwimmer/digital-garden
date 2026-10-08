@@ -6,6 +6,9 @@ access to the pinned model URLs. Stop a conflicting old inference workload only
 if its GPU/RAM use must be freed; record that action for rollback. No data migration
 or old-resource deletion is needed to deploy this capability.
 
+The OCI guest, cache and configuration volumes belong to project `inference`.
+Open WebUI callers run in `ai`; both use the shared bridge in `default`.
+
 `tofu/llama.tf` uses the upstream digest in `llama/image.lock.json`, explicit
 unprivileged GPU/KFD mappings, UID/GID 1000, one private NIC, 32 GiB root and a
 64 GiB protected cache. OpenTofu delivers `llama/models.ini` into the read-only
@@ -33,21 +36,21 @@ before instance creation through the disk dependency. If delivery fails, do not
 start the service manually; repair it and reapply the whole plan.
 
 ```fish
-incus info "$GARDEN_REMOTE:garden-llama" --project default
-incus exec "$GARDEN_REMOTE:garden-llama" --project default -- env LD_LIBRARY_PATH=/app /app/llama-server --list-devices
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail --retry 15 --retry-connrefused --retry-delay 2 http://garden-llama.garden.internal:8080/health
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail http://garden-llama.garden.internal:8080/v1/models
+incus info "$GARDEN_REMOTE:garden-llama" --project inference
+incus exec "$GARDEN_REMOTE:garden-llama" --project inference -- env LD_LIBRARY_PATH=/app /app/llama-server --list-devices
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --retry 15 --retry-connrefused --retry-delay 2 http://garden-llama.garden.internal:8080/health
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail http://garden-llama.garden.internal:8080/v1/models
 ```
 
 Both aliases `mimo` and `qwen36` must appear even before downloads. Send native
 API requests from the trusted WebUI guest, one model at a time:
 
 ```fish
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"mimo","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen36","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"mimo","messages":[{"role":"user","content":"Say hello again."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- curl --fail http://garden-llama.garden.internal:8080/models
-incus console "$GARDEN_REMOTE:garden-llama" --project default --show-log
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"mimo","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen36","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"mimo","messages":[{"role":"user","content":"Say hello again."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail http://garden-llama.garden.internal:8080/models
+incus console "$GARDEN_REMOTE:garden-llama" --project inference --show-log
 ```
 
 Gate: responses contain actual generated text; logs show ROCm and layers
@@ -78,7 +81,7 @@ plan will include the public file update and the detected `running=false` drift;
 OpenTofu returns running to true after the config dependency is updated:
 
 ```fish
-incus stop "$GARDEN_REMOTE:garden-llama" --project default
+incus stop "$GARDEN_REMOTE:garden-llama" --project inference
 ```
 
 Run the whole plan/apply and repeat health/catalog/generated-text acceptance. If
