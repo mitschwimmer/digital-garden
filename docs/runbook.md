@@ -33,6 +33,10 @@ set -gx GARDEN_BACKUP /ABSOLUTE/SECURE/BACKUP_DIRECTORY
 set -gx SOPS_AGE_KEY_FILE "$HOME/.config/digital-garden/operator.agekey"
 ```
 
+`GARDEN_BACKUP` is an absolute directory on the workstation, outside this checkout.
+It is not an Incus storage pool or volume name. Use a secured directory and copy
+its contents to separate off-host storage; no extra `data` volume is required.
+
 Inspect before assigning LAN/GPU values; defer these inputs until their milestone
 if unavailable. The MAC must start with `02` and use lowercase hexadecimal pairs.
 Choose a new DHCP reservation; do not copy another live machine's identity.

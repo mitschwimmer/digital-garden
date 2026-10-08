@@ -8,7 +8,10 @@ OpenTofu state and the immutable seed archives. Protected volumes are not backup
 ## Backup with native commands
 
 On the workstation, with `GARDEN_BACKUP` pointing at a new secured backup set
-outside the checkout (0700), back up state and local inputs:
+outside the checkout (0700), back up state and local inputs. This is a workstation
+filesystem path, not a volume inside the Incus pool. Retain a copy on storage
+independent of the IncusOS host and its pools:
+
 
 ```fish
 umask 077
