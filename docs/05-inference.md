@@ -21,26 +21,37 @@ access control. Do not publish/forward it. Host administrators and routable gues
 can call it; gardenbr0 is not an authorization boundary. Verify intended caller
 reachability and lack of public routing rather than assuming address privacy.
 
-On the workstation:
+## 1. Set inspected inputs on the workstation
 
 ```fish
 jq --arg pci "$GARDEN_GPU_PCI" '.stage = 5 | .llama_gpu_pci = $pci' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
 mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
 ```
 
+## 2. Apply the OCI workload
+
 Run [native plan/apply](runbook.md#native-planapply-and-activation): one OCI guest
 addition, no volume addition or earlier guest replacement/deletion. Provider
 schema validation is mandatory. Its file content is public and may enter state;
 never use this path for secrets. Initial apply must finish public file delivery
 before instance creation through the disk dependency. If delivery fails, do not
-start the service manually; repair it and reapply the whole plan.
+start the service manually; repair it and reapply the whole plan. This workload
+starts directly through OpenTofu; it does **not** use NixOS activation or the
+systemd readiness loop.
+
+## 3. Verify API readiness before requesting models
 
 ```fish
 incus info "$GARDEN_REMOTE:garden-llama" --project inference
 incus exec "$GARDEN_REMOTE:garden-llama" --project inference -- env LD_LIBRARY_PATH=/app /app/llama-server --list-devices
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --retry 15 --retry-connrefused --retry-delay 2 http://garden-llama.garden.internal:8080/health
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail http://garden-llama.garden.internal:8080/v1/models
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --retry 15 --retry-connrefused --retry-delay 2 --connect-timeout 5 --max-time 10 --retry-max-time 90 http://garden-llama.garden.internal:8080/health
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --connect-timeout 5 --max-time 30 --fail http://garden-llama.garden.internal:8080/v1/models
 ```
+
+Stop unless health succeeds within the retry budget and the catalog is available.
+A running OCI process or device enumeration alone does not pass the gate.
+
+## 4. Verify model output, GPU use and persistence
 
 Both aliases `mimo` and `qwen36` must appear even before downloads. Send native
 API requests from the trusted WebUI guest, one model at a time:
@@ -49,7 +60,7 @@ API requests from the trusted WebUI guest, one model at a time:
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"mimo","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen36","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"mimo","messages":[{"role":"user","content":"Say hello again."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail http://garden-llama.garden.internal:8080/models
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --connect-timeout 5 --max-time 30 --fail http://garden-llama.garden.internal:8080/models
 incus console "$GARDEN_REMOTE:garden-llama" --project inference --show-log
 ```
 
@@ -57,7 +68,10 @@ Gate: responses contain actual generated text; logs show ROCm and layers
 **offloaded**, not merely enumerated devices. Catalog status shows only the
 selected model loaded (models-max 1). In WebUI select MiMo -> Qwen -> MiMo and
 chat; switching needs no infrastructure apply/restart. First download/load may
-be slow. Cached models and chat state must survive restarting both guests. Repeat
+be slow. Cold model requests may take up to the documented 7200-second timeout;
+do not treat this as the short API readiness check. Cached models and chat state
+must survive restarting both guests. Wait for WebUI via [guest readiness](readiness.md)
+in `ai`, and repeat the bounded inference health check above before requests. Repeat
 an API request and browser chat after restart and ensure no full re-download.
 
 The immutable source URLs and expected SHA256/size are recorded in

@@ -58,11 +58,69 @@ IncusOS network configuration. Management API exposure/trusted client certificat
 are separate from guest HTTP ingress. Maintain IncusOS's AMD driver/firmware and
 `/dev/kfd`; PCI selection alone does not establish ROCm compatibility.
 
-A fresh installation requires projects `ai` and `inference`, guests `edge`,
-`open-webui`, `garden-llama`, bridge `gardenbr0`, and the seven `garden-*` volumes below to be absent. If they exist, follow
-[recovery](recovery.md) or the explicit reset checklist there. Do not apply empty
-state to existing resources. The existing storage pool and unrelated guests are
+A wholly fresh installation has no managed guests, application volumes or named
+application projects. Existing bridges and tracked seed images may be retained
+using the procedure below. Keep IncusOS-managed storage and unrelated workloads
 outside this configuration's lifecycle. Keep state and raw inventory private.
+
+## Starting state and retained resources
+
+Inspect both Incus inventory above and OpenTofu's records before initializing or
+applying. A state entry does not prove the remote object still exists:
+
+```fish
+tofu -chdir=tofu state list
+```
+
+If state is present, save it privately before editing it:
+
+```fish
+umask 077
+mkdir -p "$GARDEN_BACKUP"
+chmod 0700 "$GARDEN_BACKUP"
+tofu -chdir=tofu state pull > "$GARDEN_BACKUP/before-reconciliation.tfstate"
+```
+
+Use a new backup directory per checkpoint. Inspect individual records with
+`tofu state show`; compare their remote, project, name and image identity to host
+inventory. Keep valid bridge/image records. For an explicitly requested reset,
+remove only records for workloads/volumes confirmed deleted using `tofu state rm`
+with the exact addresses from `state list` (quote addresses containing brackets).
+This changes state only; it must never be used to conceal a surviving resource or
+as routine failure recovery. Do not assume old indexed addresses match current HCL.
+For an active installation, keep state and use the recovery/resume procedure.
+
+For a retained `gardenbr0` not tracked by the current state, establish valid
+milestone-1 inputs and run `tofu init`, then import before the first plan:
+
+```fish
+tofu -chdir=tofu import incus_network.private "$GARDEN_REMOTE:default/gardenbr0"
+```
+
+If it is already tracked correctly, **skip import**; an already-managed error is
+not a reason to forget the bridge. Keep its allocated subnet and inspect any
+proposed config updates. Other host bridges remain prerequisites, not imported
+into `incus_network.private`.
+
+The pinned image resource has no importer. Preserve a valid `incus_image.edge`
+record and its original immutable `image_directory` when retaining that image.
+For a surviving seed without matching state, follow [image recovery](recovery.md)
+instead of pretending the host is empty. Archive old state only when deliberately
+starting a separate new state; import retained resources before creating them.
+The stage-1 count is 13 additions for a wholly fresh target, 12 with only the
+bridge tracked, or 11 with bridge and edge seed already tracked. Other retained
+resources change these counts; review the whole plan against actual inventory.
+
+## Operator execution rules
+
+Run each numbered step separately and check its result before continuing. A pasted
+block keeps executing after a failed command. `echo $status` reports only the
+immediately preceding fish command; inspect `$pipestatus` immediately after pipes.
+Treat missing mounts, failed builds/transfers/activation and failed health as stop
+points. Use [bounded guest readiness](readiness.md) after creation and restart;
+Incus RUNNING and a no-change infrastructure plan do not prove guest readiness.
+Builds run on the workstation, infrastructure apply changes devices/volumes, and
+NixOS activation installs/starts guest services. Complete all three when required.
 
 ## Project ownership
 
