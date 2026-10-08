@@ -31,15 +31,15 @@ in the same recovery set. Caddy downtime affects public ingress. Stop inference
 if exporting its optional model cache. These commands run from the workstation:
 
 ```fish
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- systemctl stop open-webui
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- systemctl stop open-webui
 incus exec "$GARDEN_REMOTE:edge" --project default -- systemctl stop authelia-main caddy
-incus storage volume export "$GARDEN_REMOTE:$GARDEN_POOL" garden-open-webui-state "$GARDEN_BACKUP/webui.tar.gz" --project default
+incus storage volume export "$GARDEN_REMOTE:$GARDEN_POOL" garden-open-webui-state "$GARDEN_BACKUP/webui.tar.gz" --project ai
 incus storage volume export "$GARDEN_REMOTE:$GARDEN_POOL" garden-authelia-state "$GARDEN_BACKUP/authelia.tar.gz" --project default
 incus storage volume export "$GARDEN_REMOTE:$GARDEN_POOL" garden-caddy-state "$GARDEN_BACKUP/caddy.tar.gz" --project default
 incus storage volume export "$GARDEN_REMOTE:$GARDEN_POOL" garden-edge-secrets "$GARDEN_BACKUP/edge-secrets.tar.gz" --project default
-incus storage volume export "$GARDEN_REMOTE:$GARDEN_POOL" garden-open-webui-secrets "$GARDEN_BACKUP/webui-secrets.tar.gz" --project default
+incus storage volume export "$GARDEN_REMOTE:$GARDEN_POOL" garden-open-webui-secrets "$GARDEN_BACKUP/webui-secrets.tar.gz" --project ai
 incus exec "$GARDEN_REMOTE:edge" --project default -- systemctl start caddy authelia-main
-incus exec "$GARDEN_REMOTE:open-webui" --project default -- systemctl start open-webui
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- systemctl start open-webui
 ```
 
 Check every exit status; do not resume dependent capability use on a failed backup
@@ -75,41 +75,74 @@ Never blindly push old state or apply it against a different host.
   the pinned provider IDs below, then review the whole plan. Do not import absent
   objects. Verify original image identity when importing surviving guests.
 
-For an empty host, native imports restore volumes under their declared names;
-commands below use the same selected pool and explicit default project:
+For an empty host, first recreate the two application projects with the declared
+feature settings so volumes can be restored into their original namespaces:
 
 ```fish
-incus storage volume import "$GARDEN_REMOTE:$GARDEN_POOL" "$GARDEN_BACKUP/webui.tar.gz" garden-open-webui-state --project default
+for project in ai inference
+    incus project create "$GARDEN_REMOTE:$project" -c features.images=true -c features.profiles=true -c features.storage.volumes=true -c features.storage.buckets=true -c features.networks=false -c features.networks.zones=false
+end
+```
+
+For surviving projects, inspect `incus project show` instead of recreating them;
+verify their settings match `tofu/projects.tf`. With valid local inputs and
+`tofu init` complete, import these existing projects into the new state before
+planning; skip imports only when the objects are already tracked:
+
+```fish
+tofu -chdir=tofu import incus_project.ai "$GARDEN_REMOTE:ai"
+tofu -chdir=tofu import incus_project.inference "$GARDEN_REMOTE:inference"
+```
+
+Native imports restore volumes under their declared names and original projects;
+commands below use the same selected host-wide pool:
+
+```fish
+incus storage volume import "$GARDEN_REMOTE:$GARDEN_POOL" "$GARDEN_BACKUP/webui.tar.gz" garden-open-webui-state --project ai
 incus storage volume import "$GARDEN_REMOTE:$GARDEN_POOL" "$GARDEN_BACKUP/authelia.tar.gz" garden-authelia-state --project default
 incus storage volume import "$GARDEN_REMOTE:$GARDEN_POOL" "$GARDEN_BACKUP/caddy.tar.gz" garden-caddy-state --project default
 incus storage volume import "$GARDEN_REMOTE:$GARDEN_POOL" "$GARDEN_BACKUP/edge-secrets.tar.gz" garden-edge-secrets --project default
-incus storage volume import "$GARDEN_REMOTE:$GARDEN_POOL" "$GARDEN_BACKUP/webui-secrets.tar.gz" garden-open-webui-secrets --project default
+incus storage volume import "$GARDEN_REMOTE:$GARDEN_POOL" "$GARDEN_BACKUP/webui-secrets.tar.gz" garden-open-webui-secrets --project ai
 ```
 
 An existing destination is an error, not permission to overwrite it. With local
 inputs restored and `tofu init` complete, import each restored volume into state:
 
 ```fish
-tofu -chdir=tofu import incus_storage_volume.webui "$GARDEN_REMOTE:default/$GARDEN_POOL/garden-open-webui-state"
+tofu -chdir=tofu import incus_storage_volume.webui "$GARDEN_REMOTE:ai/$GARDEN_POOL/garden-open-webui-state"
 tofu -chdir=tofu import incus_storage_volume.authelia "$GARDEN_REMOTE:default/$GARDEN_POOL/garden-authelia-state"
 tofu -chdir=tofu import incus_storage_volume.caddy "$GARDEN_REMOTE:default/$GARDEN_POOL/garden-caddy-state"
 tofu -chdir=tofu import incus_storage_volume.edge_secrets "$GARDEN_REMOTE:default/$GARDEN_POOL/garden-edge-secrets"
-tofu -chdir=tofu import incus_storage_volume.webui_secrets "$GARDEN_REMOTE:default/$GARDEN_POOL/garden-open-webui-secrets"
+tofu -chdir=tofu import incus_storage_volume.webui_secrets "$GARDEN_REMOTE:ai/$GARDEN_POOL/garden-open-webui-secrets"
 ```
 
-Import optional restored cache/config with `incus_storage_volume.llama_cache` /
-`incus_storage_volume.llama_config` and the corresponding names. If absent, let
-OpenTofu create them. Public presets will be reconciled from this checkout.
-For surviving bridges and guests, provider IDs are respectively
-`REMOTE:default/gardenbr0` and `REMOTE:default/INSTANCE,image=IMAGE_ID`. Substitute these values only from
+Restore optional cache/config archives with `incus storage volume import` using
+`--project inference`, then import them into state with
+`incus_storage_volume.llama_cache` / `incus_storage_volume.llama_config` and IDs
+`REMOTE:inference/POOL/garden-llama-cache` /
+`REMOTE:inference/POOL/garden-llama-config`. If absent, let OpenTofu create them.
+Public presets will be reconciled from this checkout.
+
+For surviving bridges and guests, use these provider IDs:
+
+| Resource | Import ID |
+|---|---|
+| `incus_network.private` | `REMOTE:default/gardenbr0` |
+| `incus_instance.edge` | `REMOTE:default/edge,image=IMAGE_ID` |
+| `incus_instance.webui[0]` | `REMOTE:ai/open-webui,image=IMAGE_ID` |
+| `incus_instance.llama[0]` | `REMOTE:inference/garden-llama,image=IMAGE_ID` |
+
+Substitute these values only from
 verified inventory/state; include the original seed fingerprint (OCI digest for
 llama) or the provider may replace an imported guest. Inspect the
 [pinned network](https://github.com/lxc/terraform-provider-incus/blob/v1.2.0/docs/resources/network.md),
 [instance](https://github.com/lxc/terraform-provider-incus/blob/v1.2.0/docs/resources/instance.md)
 import docs before importing surviving objects. The pinned image resource has no
-native importer: use matching backed-up state for a surviving managed seed image.
+native importer: use matching backed-up state for surviving managed seed images
+in `default` and `ai`.
 If that state is unavailable, separately review deleting only the reproducible
-seed cache image and recreating it from exactly the backed-up archives; do not
+seed cache image in its owning project and recreating it from exactly the
+backed-up archives; do not
 delete guests or volumes. Confirm the recreated fingerprint matches the guest
 import identity before accepting the plan.
 
@@ -158,7 +191,8 @@ isolated test has its own reviewed deletion list.
 No old-install migration is required for this refactor. Before a destructive fresh
 reset, make a local exact deletion list from inventory, confirm backup/restore or
 explicitly accept losing that state, and withdraw old public routes. Only the
-managed guests, bridge, image and seven named volumes are candidates; existing
+managed guests, bridge, two seed images, seven named volumes and the now-empty
+`ai`/`inference` projects are candidates; existing
 pools, IncusOS-managed backups/images/log volumes and unrelated services are not.
 Removing `prevent_destroy`, detaching/removing old resources, or discarding their
 state is a separate reviewed destructive action, never a runbook troubleshooting

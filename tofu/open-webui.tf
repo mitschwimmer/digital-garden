@@ -1,8 +1,19 @@
+# Import the immutable seed into ai; image namespaces are project-local.
+resource "incus_image" "webui" {
+  project = incus_project.ai.name
+  remote  = var.incus_remote
+
+  source_file = {
+    metadata_path = "${var.image_directory}/metadata.tar.xz"
+    data_path     = "${var.image_directory}/rootfs.tar.xz"
+  }
+}
+
 # Reuse the immutable minimal seed; NixOS activation sets the guest hostname.
 resource "incus_storage_volume" "webui" {
   name    = "garden-open-webui-state"
   pool    = data.incus_storage_pool.root.name
-  project = "default"
+  project = incus_project.ai.name
   remote  = var.incus_remote
   config  = { "initial.mode" = "0700" }
 
@@ -14,7 +25,7 @@ resource "incus_storage_volume" "webui" {
 resource "incus_storage_volume" "webui_secrets" {
   name    = "garden-open-webui-secrets"
   pool    = data.incus_storage_pool.root.name
-  project = "default"
+  project = incus_project.ai.name
   remote  = var.incus_remote
   config  = { "initial.mode" = "0700" }
 
@@ -28,8 +39,8 @@ resource "incus_instance" "webui" {
   name        = "open-webui"
   description = "Digital Garden private Open WebUI"
   type        = "container"
-  image       = incus_image.edge.fingerprint
-  project     = "default"
+  image       = incus_image.webui.fingerprint
+  project     = incus_project.ai.name
   remote      = var.incus_remote
   profiles    = []
   running     = true

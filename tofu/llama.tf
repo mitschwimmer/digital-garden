@@ -16,7 +16,7 @@ locals {
 resource "incus_storage_volume" "llama_cache" {
   name    = "garden-llama-cache"
   pool    = data.incus_storage_pool.root.name
-  project = "default"
+  project = incus_project.inference.name
   remote  = var.incus_remote
 
   config = {
@@ -34,7 +34,7 @@ resource "incus_storage_volume" "llama_cache" {
 resource "incus_storage_volume" "llama_config" {
   name    = "garden-llama-config"
   pool    = data.incus_storage_pool.root.name
-  project = "default"
+  project = incus_project.inference.name
   remote  = var.incus_remote
 
   config = {
@@ -64,7 +64,7 @@ resource "incus_instance" "llama" {
   description = "Digital Garden private ROCm inference router"
   image       = "garden-ghcr:${local.llama_image.repository}@${local.llama_image.digest}"
   type        = "container"
-  project     = "default"
+  project     = incus_project.inference.name
   remote      = var.incus_remote
   profiles    = []
   running     = true

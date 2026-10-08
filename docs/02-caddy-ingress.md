@@ -11,6 +11,7 @@ On the workstation:
 ```fish
 jq --arg parent "$GARDEN_LAN_PARENT" --arg mac "$GARDEN_LAN_MAC" '.stage = 2 | .edge_lan_parent = $parent | .edge_lan_mac = $mac' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
 mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
+set -gx GARDEN_PROJECT default
 set -gx GARDEN_GUEST edge
 set -gx GARDEN_CONFIG edge-ingress
 nix build .#nixosConfigurations.edge-ingress.config.system.build.toplevel --out-link result-edge-ingress-system
