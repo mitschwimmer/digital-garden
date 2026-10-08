@@ -45,6 +45,10 @@ Use ordinary Nix build commands, small service wrappers, and native application 
 
 Before introducing a helper, explain the unmet requirement, alternatives, maintenance cost, and why native tools or an operator procedure are insufficient. Treat it as an architectural exception. If authorization already covers that exception, proceed; otherwise present the concrete decision. Do not add scripts merely because CI or a convenient all-in-one command makes them tempting.
 
+## Use Incus projects deliberately
+
+Keep shared homelab services, including the Caddy/Authelia edge guest and its state and secret volumes, in `default`. Group application workloads into meaningful projects by ownership, lifecycle, required privileges, and resource budgets; do not create one project per container automatically. Read [project guidance](references/projects.md) when designing project boundaries or adding workloads.
+
 ## Keep the baseline practical
 
 Prefer an edge NixOS system container running Caddy and Authelia, a private Open WebUI NixOS system container with sops-nix and native OIDC, and a private direct OCI llama.cpp workload with AMD GPU/KFD mapping. Re-evaluate placement per application; these are defaults, not universal laws.

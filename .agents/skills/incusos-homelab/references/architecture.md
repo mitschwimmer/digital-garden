@@ -6,6 +6,8 @@ Internet traffic reaches Caddy on a NixOS edge container through manually config
 
 Keep the Open WebUI-to-llama path private. Verify actual network reachability and document trusted callers; bridge separation alone is not an access-control policy.
 
+Place the shared edge guest and its volumes in `default`; use meaningful projects for application workloads. Follow [project guidance](projects.md) for resource scope, inheritance, and access boundaries.
+
 ## Ownership boundaries
 
 | Concern | Authoritative owner |
