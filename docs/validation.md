@@ -71,3 +71,25 @@ Repeat native schema validation on the workstation, inspect the complete saved
 plans against the updated milestone counts, and verify edge-to-WebUI and
 WebUI-to-inference DNS/HTTP reachability across projects before accepting stages
 4 and 5. Project namespaces alone do not establish network access controls.
+
+## Runbook readiness and activation review (2026-10-08)
+
+Base inspected: `d5763c27d6e312d6270e3b33d0de8f8b68ef10b1`. This is a
+documentation-only revision based on operator observations: early-boot system-bus
+failures, a transient null address after restart, an unsupported terminal type,
+and an initially inactive Caddy service. Later output showed Caddy running and
+ACME challenge responses; external HTTPS and restart persistence still require
+operator acceptance.
+
+| Check | Result |
+|---|---|
+| Whitespace, local Markdown links/anchors and fence balance | Passed |
+| Literal application-command project scopes | Passed: edge/default, open-webui/ai, garden-llama/inference |
+| Milestones 1–5, OCI configuration, activation, secrets and recovery review | Completed; corrected edge DNS project, clarified activation and prerequisite ordering, added bounded readiness and diagnostics |
+| Native fish syntax/execution | Pending: fish is unavailable in this environment |
+| Nix/OpenTofu configuration and builds | Unchanged by this revision |
+| Live boot, health, external HTTPS, identity, GPU and restoration gates | Operator validation required; documentation review does not establish these results |
+
+On the fish workstation, syntax-check the extracted fish blocks with `fish -n`
+before execution. Run the relevant live gates in order and retain the accepted
+revision, environment, date and results privately.

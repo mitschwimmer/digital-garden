@@ -64,6 +64,12 @@ runtime key path is absent. For an existing key, restore/reuse it instead:
 ```fish
 incus exec "$GARDEN_REMOTE:edge" --project default -- mountpoint /var/lib/garden-secrets
 incus exec "$GARDEN_REMOTE:edge" --project default -- test ! -e /var/lib/garden-secrets/age.key
+```
+
+Require mount-check and absence-test exit 0 before this separate transfer. If
+there is already a key, verify/reuse the intended identity and skip this command:
+
+```fish
 incus file push "$GARDEN_SECRET_WORK/edge.agekey" "$GARDEN_REMOTE:edge/var/lib/garden-secrets/age.key" --project default --uid 0 --gid 0 --mode 0600
 ```
 

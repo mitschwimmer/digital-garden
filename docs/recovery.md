@@ -34,19 +34,22 @@ in the same recovery set. Caddy downtime affects public ingress. Stop inference
 if exporting its optional model cache. These commands run from the workstation:
 
 ```fish
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- systemctl stop open-webui
-incus exec "$GARDEN_REMOTE:edge" --project default -- systemctl stop authelia-main caddy
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -T -- env TERM=xterm systemctl stop open-webui
+incus exec "$GARDEN_REMOTE:edge" --project default -T -- env TERM=xterm systemctl stop authelia-main caddy
 incus storage volume export "$GARDEN_REMOTE:$GARDEN_POOL" garden-open-webui-state "$GARDEN_BACKUP/webui.tar.gz" --project ai
 incus storage volume export "$GARDEN_REMOTE:$GARDEN_POOL" garden-authelia-state "$GARDEN_BACKUP/authelia.tar.gz" --project default
 incus storage volume export "$GARDEN_REMOTE:$GARDEN_POOL" garden-caddy-state "$GARDEN_BACKUP/caddy.tar.gz" --project default
 incus storage volume export "$GARDEN_REMOTE:$GARDEN_POOL" garden-edge-secrets "$GARDEN_BACKUP/edge-secrets.tar.gz" --project default
 incus storage volume export "$GARDEN_REMOTE:$GARDEN_POOL" garden-open-webui-secrets "$GARDEN_BACKUP/webui-secrets.tar.gz" --project ai
-incus exec "$GARDEN_REMOTE:edge" --project default -- systemctl start caddy authelia-main
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- systemctl start open-webui
+incus exec "$GARDEN_REMOTE:edge" --project default -T -- env TERM=xterm systemctl start caddy authelia-main
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -T -- env TERM=xterm systemctl start open-webui
 ```
 
 Check every exit status; do not resume dependent capability use on a failed backup
-or restart gate. Private keys are inside secret-volume exports: encrypt and restrict
+or restart gate. Repeat the stage-3/4 service and health checks after starting
+them, and the bounded inference health check if inference was stopped. If restart
+requires boot readiness, use [guest readiness](readiness.md) for the exact project.
+Private keys are inside secret-volume exports: encrypt and restrict
 them, never upload them to public Git. The public config volume is reproducible
 from Git. Model cache may be exported similarly after stopping inference, or
 redownloaded from pinned URLs if acceptable. Verify backup hashes, readable archive
@@ -77,6 +80,30 @@ Never blindly push old state or apply it against a different host.
 * If only some resources survive, import those exact objects into a new state using
   the pinned provider IDs below, then review the whole plan. Do not import absent
   objects. Verify original image identity when importing surviving guests.
+
+Before any OpenTofu import, restore valid local inputs and the immutable seed
+archives/path. Provider import evaluates configuration, so a missing workstation
+seed path can fail even when the remote object exists.
+
+On a new workstation, rebuild the recorded seed revision and retain its GC root.
+On a completely empty host, alternatively restore archived seed files into an
+immutable store directory with native Nix:
+
+```fish
+set -l GARDEN_IMAGE (nix store add-path "$GARDEN_BACKUP/seed")
+ln -s "$GARDEN_IMAGE" result-edge-image
+jq --arg image "$GARDEN_IMAGE" '.image_directory = $image' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
+mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
+```
+
+Require both archived files, verify their backup hashes, and do not replace an
+existing GC-root link without inspecting its target. This produces a new local
+store path; surviving guests require a separate reviewed seed/replacement decision
+or recovery of the original state/store identity. Do not silently change their
+seed input. A completely empty host may choose a new seed path while retaining
+restored data volumes.
+Restore operator/machine keys or [update recipients](secrets.md) while preserving
+secret values. Do not initialize all-new crypto for a restored database.
 
 For an empty host, first recreate the two application projects with the declared
 feature settings so volumes can be restored into their original namespaces:
@@ -148,26 +175,6 @@ seed cache image in its owning project and recreating it from exactly the
 backed-up archives; do not
 delete guests or volumes. Confirm the recreated fingerprint matches the guest
 import identity before accepting the plan.
-
-On a new workstation, rebuild the recorded seed revision and retain its GC root.
-On a completely empty host, alternatively restore archived seed files into an
-immutable store directory with native Nix:
-
-```fish
-set -l GARDEN_IMAGE (nix store add-path "$GARDEN_BACKUP/seed")
-ln -s "$GARDEN_IMAGE" result-edge-image
-jq --arg image "$GARDEN_IMAGE" '.image_directory = $image' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
-mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
-```
-
-Require both archived files, verify their backup hashes, and do not replace an
-existing GC-root link without inspecting its target. This produces a new local
-store path; surviving guests require a separate reviewed seed/replacement decision
-or recovery of the original state/store identity. Do not silently change their
-seed input. A completely empty host may choose a new seed path while retaining
-restored data volumes.
-Restore operator/machine keys or [update recipients](secrets.md) while preserving
-secret values. Do not initialize all-new crypto for a restored database.
 
 Select stage 1 for an empty host's new guests, keeping restored volumes. Review the
 full plan: only missing resources are additions, restored volumes are retained;

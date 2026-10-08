@@ -13,6 +13,8 @@ All workloads/clients able to route to the private bridge are trusted infrastruc
 WebUI additionally requires OIDC. A separate bridge alone does not enforce caller
 isolation. Do not attach untrusted guests without adding a reviewed network policy.
 
+## 1. Build the WebUI configuration
+
 ```fish
 jq '.stage = 4' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
 mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
@@ -20,8 +22,19 @@ nix build .#nixosConfigurations.open-webui.config.system.build.toplevel --out-li
 ```
 
 This builds the complete package with the [pinned authorization patch](../nix/patches/README.md).
+
+## 2. Create the guest and install its machine key
+
 Run [plan/apply](runbook.md#native-planapply-and-activation): one guest addition,
-no deletion/replacement, existing volumes unchanged. Install only the restored or
+no deletion/replacement, existing volumes unchanged. Set the target:
+
+```fish
+set -gx GARDEN_PROJECT ai
+set -gx GARDEN_GUEST open-webui
+set -gx GARDEN_CONFIG open-webui
+```
+
+Complete [guest readiness](readiness.md) for the seed. Install only the restored or
 new prepared key after confirming it is absent (skip transfer if the existing
 correct key is already present):
 
@@ -29,22 +42,37 @@ correct key is already present):
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -- mountpoint /var/lib/open-webui
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -- mountpoint /var/lib/garden-secrets
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -- test ! -e /var/lib/garden-secrets/age.key
-incus file push "$GARDEN_SECRET_WORK/webui.agekey" "$GARDEN_REMOTE:open-webui/var/lib/garden-secrets/age.key" --project ai --uid 0 --gid 0 --mode 0600
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail https://auth.archaic.work/.well-known/openid-configuration
-set -gx GARDEN_PROJECT ai
-set -gx GARDEN_GUEST open-webui
-set -gx GARDEN_CONFIG open-webui
 ```
 
-Stop for failed mount/path/discovery checks. [Activate](activation.md) and verify:
+Require both mounts and absence-test exit 0 before this separate transfer:
 
 ```fish
-incus exec "$GARDEN_REMOTE:edge" --project ai -- getent hosts open-webui.garden.internal
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- systemctl is-active open-webui
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- test -s /run/secrets/environment
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --retry 30 --retry-connrefused --retry-delay 2 http://127.0.0.1:8080/health
-curl --fail https://ai.archaic.work/health
+incus file push "$GARDEN_SECRET_WORK/webui.agekey" "$GARDEN_REMOTE:open-webui/var/lib/garden-secrets/age.key" --project ai --uid 0 --gid 0 --mode 0600
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --connect-timeout 5 --max-time 30 --fail https://auth.archaic.work/.well-known/openid-configuration
 ```
+
+Stop for failed mount/path/discovery checks. Run the absence test separately;
+if the key already exists, verify/reuse the intended identity and skip transfer.
+Never continue from a failed absence check into a key overwrite.
+
+## 3. Activate and verify WebUI
+
+Complete every step of [activation](activation.md) with `GARDEN_CONFIG=open-webui`.
+A newly created guest is still the minimal seed until this switch. Complete
+[guest readiness](readiness.md) again, then verify:
+
+```fish
+incus exec "$GARDEN_REMOTE:edge" --project default -- getent hosts open-webui.garden.internal
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -T -- env TERM=xterm systemctl is-active open-webui
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- test -s /run/secrets/environment
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --connect-timeout 5 --max-time 30 --fail --retry 30 --retry-max-time 90 --retry-connrefused --retry-delay 2 http://127.0.0.1:8080/health
+curl --connect-timeout 5 --max-time 30 --fail https://ai.archaic.work/health
+```
+
+Expect edge DNS to resolve WebUI, `active`, a nonempty runtime secret file,
+successful local health and trusted public health. Stop on a failed check.
+
+## 4. Verify authorization and restart persistence
 
 Browser gate in a private window: only Authelia login, TOTP required, admins receive
 admin role, ai-users receive user role, unrelated or absent groups are denied.
@@ -57,12 +85,21 @@ database cannot exercise bootstrap behavior; never delete its database to test.
 If the IdP always supplies groups, test absent groups with a separate user with no
 groups and verify no claim from another source silently grants access.
 
-Restart WebUI and edge, then log in again; the account/settings remain and a new
+Restart WebUI and edge; complete [guest readiness](readiness.md) for each project
+and repeat the step-3 health checks before logging in again; the account/settings remain and a new
 private window requires login. Inference is expected to be unavailable until stage
 5. Gate: both permitted-role behavior and denial/first-user behavior passed,
 matching identity and state persist. Login alone is insufficient.
 
-Failure/resume: inspect service/sops-nix journals, ownership of the mounted state,
+## Failure and resume
+
+```fish
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -T -- env TERM=xterm systemctl status open-webui sops-install-secrets --no-pager -l
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -T -- journalctl -u open-webui -u sops-install-secrets -b --no-pager -n 80
+incus exec "$GARDEN_REMOTE:edge" --project default -T -- getent hosts open-webui.garden.internal
+```
+
+Review journals locally before sharing redacted errors. Then inspect service/sops-nix journals, ownership of the mounted state,
 DNS/hairpin routing, issuer/callback URL, client hash/plaintext pairing, PKCE and
 IdP groups. Correct declared config/ciphertext and reactivate; do not enable local
 signup as a workaround. Rollback uses the recorded previous generation plus a
