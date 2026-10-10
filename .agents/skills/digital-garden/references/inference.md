@@ -1,17 +1,16 @@
 # Provide private GPU inference
 
-- [Contract](#contract)
-- [Execute](#execute)
-- [Verify](#verify)
+- [Scope and inputs](#scope-and-inputs)
+- [Apply the change](#apply-the-change)
+- [Check the result](#check-the-result)
 - [Resume and rollback](#resume-and-rollback)
-- [Acceptance gate](#acceptance-gate)
 
-## Contract
+## Scope and inputs
 
 | Field | Requirement |
 |---|---|
 | Goal | Provide generated text with verified GPU offload and persistent model cache. |
-| Prerequisites | [WebUI](open-webui.md) accepted for this composition; inspected AMD PCI/KFD support, compatible ROCm, capacity and model access. |
+| Prerequisites | Private networking and a trusted API caller; inspected AMD PCI/KFD support, compatible ROCm, capacity and model access. |
 | Sources | `tofu/llama.tf`, `llama/image.lock.json`, `llama/models.ini`, `llama/models.lock.json`. |
 | Execution and inputs | Workstation, trusted backend and browser; stage 5 and inspected GPU PCI address. |
 | Expected infrastructure effects | One OCI guest addition; no new volumes or earlier guest replacement/deletion. |
@@ -20,6 +19,9 @@ Inspect IncusOS driver/firmware, `/dev/kfd` and available GPU/RAM capacity
 before creating the guest.
 
 The OCI guest, cache and configuration volumes belong to project `inference`.
+The checks below use the configured WebUI guest as a trusted caller; another
+trusted caller may exercise the same endpoints. The current HCL selection
+creates WebUI together with inference; see [platform selection](platform.md#interpret-the-current-resource-selection).
 Open WebUI callers run in `ai`; both use the shared bridge in `default`.
 
 `tofu/llama.tf` uses the upstream digest in `llama/image.lock.json`, explicit
@@ -34,7 +36,7 @@ access control. Do not publish/forward it. Host administrators and routable gues
 can call it; gardenbr0 is not an authorization boundary. Verify intended caller
 reachability and lack of public routing rather than assuming address privacy.
 
-## Execute
+## Apply the change
 
 ### 1. Set inspected inputs on the workstation
 
@@ -45,7 +47,7 @@ mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
 
 ### 2. Apply the OCI workload
 
-Run [native plan/apply](deployment.md#native-planapply-and-activation): one OCI guest
+Run [native plan/apply](infrastructure.md#review-and-apply-the-whole-plan): one OCI guest
 addition, no volume addition or earlier guest replacement/deletion. Provider
 schema validation is mandatory. Its file content is public and may enter state;
 never use this path for secrets. Initial apply must finish public file delivery
@@ -54,7 +56,7 @@ start the service manually; repair it and reapply the whole plan. This workload
 starts directly through OpenTofu; it does **not** use NixOS activation or the
 systemd readiness loop.
 
-## Verify
+## Check the result
 
 ### 3. Verify API readiness before requesting models
 
@@ -66,7 +68,7 @@ incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --connect-timeout 5 
 ```
 
 Stop unless health succeeds within the retry budget and the catalog is available.
-A running OCI process or device enumeration alone does not pass the gate.
+A running OCI process or device enumeration alone does not pass the check.
 
 ### 4. Verify model output, GPU use and persistence
 
@@ -81,7 +83,7 @@ incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --connect-timeout 5 
 incus console "$GARDEN_REMOTE:garden-llama" --project inference --show-log
 ```
 
-Gate: responses contain actual generated text; logs show ROCm and layers
+Require responses contain actual generated text; logs show ROCm and layers
 **offloaded**, not merely enumerated devices. Catalog status shows only the
 selected model loaded (models-max 1). In WebUI select MiMo -> Qwen -> MiMo and
 chat; switching needs no infrastructure apply/restart. First download/load may
@@ -127,12 +129,6 @@ Rollback: restore the previously recorded public preset/image/launch declaration
 stop the guest, review/apply a new whole plan, and repeat inference checks. Retain
 cache and identities. Never lower stage or unset PCI to troubleshoot.
 After rollback reconcile repository versus running state before continuation.
-
-## Acceptance gate
-
-Accept this capability only after every [verification](#verify), including
-restart persistence, passes. Record revision, date, environment and results
-privately. Continue to [backup and restore](recovery.md) only after acceptance.
 
 Sources: [pinned llama server](https://github.com/ggml-org/llama.cpp/blob/b11382/tools/server/README.md),
 [pinned provider files](https://github.com/lxc/terraform-provider-incus/blob/v1.2.0/docs/resources/storage_volume.md),

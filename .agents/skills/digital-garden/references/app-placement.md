@@ -34,5 +34,5 @@ files through sops-nix and maintain a separate immutable seed identity. Document
 closure activation and application-aware rollback.
 
 Declare project scope, callers, state, keys, readiness and restore requirements
-using the [shared composition workflow](../SKILL.md#compose-a-new-service),
+using the [shared composition workflow](../SKILL.md#compose-or-extend-a-service),
 [project rules](projects.md) and [secret delivery](secrets.md#secret-delivery-for-a-new-service).

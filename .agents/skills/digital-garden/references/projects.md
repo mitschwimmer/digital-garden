@@ -14,7 +14,7 @@ Use this initial placement for the current baseline:
 | `ai` | Open WebUI; user data and application secrets | User-facing AI application without GPU privileges |
 | `inference` | llama.cpp; model cache and public configuration | GPU/KFD access and larger memory/storage requirements |
 
-Re-evaluate future workloads rather than placing every application in `ai`. Describe each project's purpose and dependencies in the operator runbook.
+Re-evaluate future workloads rather than placing every application in `ai`. Record each project's purpose and dependencies in its service reference.
 
 ## Configure resource scope explicitly
 

@@ -1,17 +1,16 @@
 # Maintain direct OCI configuration
 
-- [Contract](#contract)
-- [Execute](#execute)
-- [Verify](#verify)
+- [Scope and inputs](#scope-and-inputs)
+- [Apply the change](#apply-the-change)
+- [Check the result](#check-the-result)
 - [Resume and rollback](#resume-and-rollback)
-- [Acceptance gate](#acceptance-gate)
 
-## Contract
+## Scope and inputs
 
 | Field | Requirement |
 |---|---|
 | Goal | Change public presets, image or launch settings with declared ownership and safe restart. |
-| Prerequisites | [Inference](inference.md) accepted; retain stage 5, GPU input, state and configuration backups. |
+| Prerequisites | A working [inference service](inference.md); retain stage 5, GPU input, state and configuration backups. |
 | Sources | `llama/models.ini`, image/model locks and `tofu/llama.tf`. |
 | Execution and inputs | Fish workstation from repository root; changed declared files and reviewed whole plan. |
 | Expected infrastructure effects | Preset-only change updates config file and running state; review image/launch changes separately. |
@@ -30,11 +29,11 @@ secret-heavy workloads use NixOS/sops-nix instead.
 On updates, stop before applying mounted config-file changes, then let the reviewed
 whole plan restore declared running/autostart state after config delivery. Reboot
 and partial-failure behavior, acceptance and rollback are covered in
-[milestone 5](inference.md). Stop live application at a failed gate.
+[inference service](inference.md). Stop live application at a failed check.
 
-## Execute
+## Apply the change
 
-Run in fish from the repository root after milestone 5 is accepted. Keep local
+Run in fish from the repository root against an existing inference service. Keep local
 inputs at stage 5 with the inspected GPU PCI address. This OCI workload needs no
 NixOS build or activation.
 
@@ -56,14 +55,14 @@ and avoid duplicate sections or keys.
 For a new model, use an immutable download revision, a distinct cache path under
 `/var/cache/llama`, and record its expected SHA256 and size in the lock. The lock
 is an acceptance record, not an automatic checksum verifier. After download,
-check the bytes as described in [milestone 5](inference.md). Retain aliases used
+check the bytes as described in [inference service](inference.md). Retain aliases used
 by clients, or update their selections and acceptance checks when renaming them.
 Higher context/concurrency can require more RAM/VRAM; review available capacity.
 
 ### 2. Stop, review and apply
 
 Record the previous Git revision and diff privately before editing/deploying, and
-save state using the [runbook checkpoint procedure](deployment.md#starting-state-and-retained-resources).
+save state using the [state backup procedure](platform.md#starting-state-and-retained-resources).
 Use a new protected backup directory per checkpoint. Stop the guest before
 changing its mounted configuration:
 
@@ -71,7 +70,7 @@ changing its mounted configuration:
 incus stop "$GARDEN_REMOTE:garden-llama" --project inference
 ```
 
-Require success, then run the [whole plan/apply procedure](deployment.md#native-planapply-and-activation).
+Require success, then run the [whole plan/apply procedure](infrastructure.md#review-and-apply-the-whole-plan).
 For a preset-only edit, expect the config volume's file content to update and the
 stopped instance's running state to return to true. No guest replacement, volume
 deletion or changes to edge/WebUI are expected. Apply only the reviewed saved
@@ -81,7 +80,7 @@ Do not push files manually, edit the guest's read-only mount, or use a targeted
 apply. If delivery/apply fails, keep the guest stopped and repair the declared
 configuration before retrying.
 
-## Verify
+## Check the result
 
 ### 3. Verify and keep the change
 
@@ -92,7 +91,7 @@ incus console "$GARDEN_REMOTE:garden-llama" --project inference --show-log
 ```
 
 Run each check separately. Require successful health, the intended aliases and no
-preset/load errors. Repeat milestone 5's generated-text/GPU checks for each
+preset/load errors. Repeat the inference service’s generated-text/GPU checks for each
 affected model, then test it in WebUI. New models may download on their first
 request. After restarting llama, repeat health and generation and confirm the
 cache persists. Record the accepted revision and commit the public changes.
@@ -106,10 +105,5 @@ To roll back, restore the previous declared presets (and matching lock/launch
 settings if changed), stop llama, review/apply a new whole plan, and repeat the
 checks. Keep both config/cache volumes; changing a preset does not require
 deleting cached models or application identities.
-
-## Acceptance gate
-
-Accept only after the [verification](#verify) passes for every affected model
-and after restart. Record the revision and results; retain config/cache volumes.
 
 Preset syntax: [pinned llama.cpp router documentation](https://github.com/ggml-org/llama.cpp/blob/b11382/tools/server/README.md).

@@ -5,7 +5,7 @@
 - [Ownership](#ownership)
 - [Preserve resource identity](#preserve-resource-identity)
 - [Declare exposure and authentication](#declare-exposure-and-authentication)
-- [Respect the current deployment shape](#respect-the-current-deployment-shape)
+- [Compose services with explicit dependencies](#compose-services-with-explicit-dependencies)
 
 Digital Garden composes self-hosted services from declarative infrastructure,
 guest configuration, ingress, identity and persistent storage. A new service
@@ -95,16 +95,14 @@ and signing/private material. Test denied access and role assignment as well as
 login. The WebUI [source patch](../../../../nix/patches/README.md) handles pinned upstream
 exceptions and must be re-evaluated on upgrades.
 
-## Respect the current deployment shape
+## Compose services with explicit dependencies
 
-The current HCL exposes a cumulative `stage` from 1 to 5. It creates both
-application projects, both seed imports and all seven volumes at stage 1;
-later stages attach edge LAN networking and add the application guests. NixOS
-activation selects services independently of the HCL stage. See the
-[runbook table](deployment.md#cumulative-capabilities) for exact gates.
+Model each service as a composition of infrastructure, guest configuration,
+network endpoints, identity, secrets and state. Reuse only the blocks it needs.
+Describe dependency interfaces rather than requiring a platform-wide task order.
 
-This selector describes today's composition. It is not an independent
-feature-toggle interface: stage 5 includes WebUI and the earlier stages.
-When adding a service, make its dependencies and selection explicit in HCL and
-the runbook; do not silently force an unrelated service to depend on inference.
-Lowering the stage removes resources and is never a troubleshooting retry.
+The current resource selector still couples WebUI and inference. Consult
+[platform inputs](platform.md#interpret-the-current-resource-selection) for its
+exact effects, and [infrastructure reconciliation](infrastructure.md) before
+changing selection. Treat that selector as an implementation detail when designing
+new services; declare their selection and dependencies deliberately.

@@ -1,19 +1,19 @@
 # Expose trusted HTTPS through Caddy
 
-- [Contract](#contract)
-- [Execute](#execute)
-- [Verify](#verify)
+- [Scope and inputs](#scope-and-inputs)
+- [Choose initial setup or an existing-edge change](#choose-initial-setup-or-an-existing-edge-change)
+- [Apply the change](#apply-the-change)
+- [Check the result](#check-the-result)
 - [Resume and rollback](#resume-and-rollback)
-- [Acceptance gate](#acceptance-gate)
 
-## Contract
+## Scope and inputs
 
 | Field | Requirement |
 |---|---|
 | Goal | Provide intended public IPv4/IPv6 HTTPS with persistent certificate state. |
-| Prerequisites | [Private guest](private-guest.md) accepted; inspected LAN bridge, stable MAC, DHCP reservation and DNS/router access. |
-| Sources | `nix/modules/edge-ingress.nix`, `flake.nix`, edge LAN device in `tofu/main.tf`. |
-| Execution and inputs | Workstation and external caller; stage 2, LAN bridge/MAC, edge-ingress closure. |
+| Prerequisites | An existing edge guest and private networking; inspected LAN bridge, stable MAC, DHCP reservation and DNS/router access. |
+| Sources | `nix/modules/edge-ingress.nix`, route additions in `nix/modules/edge-auth.nix`, `flake.nix`, edge LAN device in `tofu/main.tf`. |
+| Execution and inputs | Workstation and external caller; LAN bridge/MAC, edge-ingress closure. |
 | Expected infrastructure effects | One edge NIC update; no additions, replacement or deletion. |
 
 Record existing DNS/router rules for rollback.
@@ -21,12 +21,27 @@ NixOS configures eth0 private DHCP with high route metric and eth1 LAN DHCP/IPv6
 RA. Only TCP 80/443 is allowed inbound on eth1. HTTP/3 is disabled; Caddy admin
 and local health remain loopback. Certificate state uses the protected volume.
 
-## Execute
+## Choose initial setup or an existing-edge change
+
+For a minimal edge without identity services, the recipe below builds and
+activates `edge-ingress`. For an existing edge that provides Authelia and WebUI
+routes, use the [full-edge build and activation](identity.md#apply-the-change)
+with `GARDEN_CONFIG=edge` and its `result-edge-system` closure. Preserve existing
+ciphertext, machine keys and resource selection.
+
+Current test/health routes live in `edge-ingress.nix`; auth and WebUI hostname
+routes are added by `edge-auth.nix`. Edit the owning module. A route-only change
+needs configuration build, activation and verification, with no infrastructure
+apply unless NICs or other Incus resources change. `edge-ingress` omits the
+full edge's identity and application routes; select the complete intended role
+when updating a running guest.
+
+## Apply the change
 
 ### 1. Build guest configuration on the workstation
 
 ```fish
-jq --arg parent "$GARDEN_LAN_PARENT" --arg mac "$GARDEN_LAN_MAC" '.stage = 2 | .edge_lan_parent = $parent | .edge_lan_mac = $mac' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
+jq --arg parent "$GARDEN_LAN_PARENT" --arg mac "$GARDEN_LAN_MAC" '.stage = ([.stage, 2] | max) | .edge_lan_parent = $parent | .edge_lan_mac = $mac' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
 mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
 set -gx GARDEN_PROJECT default
 set -gx GARDEN_GUEST edge
@@ -40,7 +55,7 @@ it does not issue certificates. Stop if either build fails.
 
 ### 2. Apply the LAN device and inspect prerequisites
 
-Run the [whole plan/apply](deployment.md#native-planapply-and-activation): expect one
+Run the [whole plan/apply](infrastructure.md#review-and-apply-the-whole-plan): expect one
 edge NIC update, no additions, replacement or deletion. Applying this plan only
 attaches the LAN NIC; it does not install or start Caddy.
 
@@ -59,7 +74,7 @@ That procedure exports/imports the closure, sets the guest system profile, and
 runs `switch-to-configuration switch`. A successful build or OpenTofu apply does
 not substitute for this activation. Stop on transfer or activation failure.
 
-## Verify
+## Check the result
 
 ### 4. Verify local service health
 
@@ -129,11 +144,5 @@ mounts before retrying activation; Caddy refuses to run on disposable root state
 Never weaken the guest firewall to bypass routing issues. Rollback: restore
 recorded DNS/router rules and the [previous NixOS generation](activation.md),
 retaining the LAN attachment and state volume until verified. Removing LAN later
-is a separately reviewed plan. Gate: trusted intended IPv4/IPv6 ingress and restart
+is a separately reviewed plan. Require trusted intended IPv4/IPv6 ingress and restart
 persistence.
-
-## Acceptance gate
-
-Accept this capability only after every [verification](#verify), including
-restart persistence, passes. Record revision, date, environment and results
-privately. Continue to [identity](identity.md) only after acceptance.

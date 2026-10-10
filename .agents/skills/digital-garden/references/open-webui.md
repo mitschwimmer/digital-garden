@@ -1,19 +1,18 @@
 # Compose Open WebUI with native OIDC
 
-- [Contract](#contract)
-- [Execute](#execute)
-- [Verify](#verify)
+- [Scope and inputs](#scope-and-inputs)
+- [Apply the change](#apply-the-change)
+- [Check the result](#check-the-result)
 - [Resume and rollback](#resume-and-rollback)
-- [Acceptance gate](#acceptance-gate)
 
-## Contract
+## Scope and inputs
 
 | Field | Requirement |
 |---|---|
 | Goal | Provide a private AI application with public HTTPS and enforced IdP roles. |
-| Prerequisites | [Identity](identity.md) accepted; ai hostname routed, discovery reachable, matching client secret and machine key prepared. |
+| Prerequisites | Working [OIDC identity](identity.md); ai hostname routed, discovery reachable, matching client secret and machine key prepared. |
 | Sources | `tofu/open-webui.tf`, `nix/hosts/open-webui.nix`, `nix/patches/`, `secrets/open-webui.yaml`. |
-| Execution and inputs | Workstation and browser; stage 4, WebUI closure and machine key. |
+| Execution and inputs | Workstation and browser; WebUI closure and machine key. |
 | Expected infrastructure effects | One guest addition; existing volumes retained; no deletion or replacement. |
 
 Reuse the edge Caddy route and two-factor OIDC client. Use native OIDC without
@@ -27,12 +26,12 @@ All workloads/clients able to route to the private bridge are trusted infrastruc
 WebUI additionally requires OIDC. A separate bridge alone does not enforce caller
 isolation. Do not attach untrusted guests without adding a reviewed network policy.
 
-## Execute
+## Apply the change
 
 ### 1. Build the WebUI configuration
 
 ```fish
-jq '.stage = 4' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
+jq '.stage = ([.stage, 4] | max)' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
 mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
 nix build .#nixosConfigurations.open-webui.config.system.build.toplevel --out-link result-open-webui-system
 ```
@@ -41,7 +40,7 @@ This builds the complete package with the [pinned authorization patch](../../../
 
 ### 2. Create the guest and install its machine key
 
-Run [plan/apply](deployment.md#native-planapply-and-activation): one guest addition,
+Run [plan/apply](infrastructure.md#review-and-apply-the-whole-plan): one guest addition,
 no deletion/replacement, existing volumes unchanged. Set the target:
 
 ```fish
@@ -77,7 +76,7 @@ Complete every step of [activation](activation.md) with `GARDEN_CONFIG=open-webu
 A newly created guest is still the minimal seed until this switch. Complete
 [guest readiness](readiness.md) again.
 
-## Verify
+## Check the result
 
 ### 4. Verify service health
 
@@ -96,7 +95,7 @@ successful local health and trusted public health. Stop on a failed check.
 
 ### 5. Verify authorization and restart persistence
 
-Browser gate in a private window: only Authelia login, TOTP required, admins receive
+Browser checks in a private window: only Authelia login, TOTP required, admins receive
 admin role, ai-users receive user role, unrelated or absent groups are denied.
 Test with separate identities through encrypted users configuration; retain your
 operator admin. For an **empty** WebUI database, try denied and ai-users identities
@@ -109,8 +108,7 @@ groups and verify no claim from another source silently grants access.
 
 Restart WebUI and edge; complete [guest readiness](readiness.md) for each project
 and repeat the step-4 health checks before logging in again; the account/settings remain and a new
-private window requires login. Inference is expected to be unavailable until stage
-5. Gate: both permitted-role behavior and denial/first-user behavior passed,
+private window requires login. Chat inference additionally requires the configured inference backend. Require both permitted-role behavior and denial/first-user behavior passed,
 matching identity and state persist. Login alone is insufficient.
 
 ## Resume and rollback
@@ -126,11 +124,5 @@ DNS/hairpin routing, issuer/callback URL, client hash/plaintext pairing, PKCE an
 IdP groups. Correct declared config/ciphertext and reactivate; do not enable local
 signup as a workaround. Rollback uses the recorded previous generation plus a
 matching data backup for migrations, retaining state and keys.
-
-## Acceptance gate
-
-Accept this capability only after every [verification](#verify), including
-restart persistence, passes. Record revision, date, environment and results
-privately. Continue to [inference](inference.md) only after acceptance.
 
 Source: [pinned NixOS WebUI module](https://github.com/NixOS/nixpkgs/blob/0d9e9b832d03ac387417e16ce1febf73b2e631e1/nixos/modules/services/misc/open-webui.nix).

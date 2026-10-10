@@ -1,23 +1,23 @@
 # Activate and roll back NixOS guests
 
-## Contract
+## Scope and inputs
 
 Activate guest services from a built closure while retaining the previous
 generation, machine identities and application data. Infrastructure identity
 and persistent volumes remain unchanged.
 
-Run in fish on the workstation in the repository shell. The milestone sets
+Run in fish on the workstation in the repository shell. The service procedure sets
 `GARDEN_GUEST` (`edge` or `open-webui`), `GARDEN_PROJECT` (`default` for edge,
 `ai` for WebUI), and `GARDEN_CONFIG` (`edge-ingress`, `edge`, or `open-webui`). Before activating, confirm the guest's required volume mounts;
 edge requires Caddy state, full edge additionally requires Authelia state and its
 machine key; WebUI requires application state and its machine key. Ciphertext must
 be staged in Git so flake source includes it. Never build plaintext into a flake.
 
-## Execute
+## Apply the change
 
 ### 1. Check target and retain the previous generation
 
-Verify the three target variables match the milestone. Complete [guest readiness](readiness.md)
+Verify the three target variables match the intended service. Complete [guest readiness](readiness.md)
 and its mount prerequisites. Then record the previous path:
 
 ```fish
@@ -28,7 +28,7 @@ Stop if this fails or does not return one `/nix/store/` path. Save it privately.
 
 ### 2. Select the built closure
 
-Each milestone builds `result-$GARDEN_CONFIG-system` on the workstation. Reuse it:
+Build the selected `result-$GARDEN_CONFIG-system` on the workstation. Reuse it:
 
 ```fish
 set -l GARDEN_CLOSURE (readlink -f "result-$GARDEN_CONFIG-system")
@@ -36,7 +36,7 @@ test -x "$GARDEN_CLOSURE/bin/switch-to-configuration"
 ```
 
 Require an existing `/nix/store/` path and test exit 0. If the link is missing,
-finish the milestone build first; do not substitute `image_directory` here.
+finish the selected closure build first; do not substitute `image_directory` here.
 
 ### 3. Transfer the closure
 
@@ -66,12 +66,12 @@ services different. Inspect journals and mounts, repair the prerequisite and
 repeat activation of the same closure; export/import is safe to repeat. Do not
 advance merely because the profile points at the new system.
 
-## Verify
+## Check the result
 
-Complete [guest readiness](readiness.md), then run the milestone's service/health,
-external, authorization and restart gates. No failed units are expected. An
+Complete [guest readiness](readiness.md), then run the affected service's service/health,
+external, authorization and restart checks. No failed units are expected. An
 inactive/missing service requires diagnostics; successful profile selection alone
-is not acceptance. Preserve the previous generation until these gates pass.
+is not acceptance. Preserve the previous generation until these checks pass.
 
 ## Resume and rollback
 
@@ -89,9 +89,3 @@ its schema. Leave volumes and machine identities intact. Restore previous manual
 DNS/router rules if ingress changed. Reconcile repository configuration with the
 accepted running generation before resuming; an OpenTofu no-change plan cannot
 detect a NixOS rollback. Do not garbage-collect the needed previous generation.
-
-## Acceptance gate
-
-Accept the activation only after the affected capability's service, access and
-restart checks pass. Record the running generation and tested revision; retain
-the previous generation until acceptance.

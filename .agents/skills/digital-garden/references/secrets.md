@@ -1,15 +1,14 @@
 # Protect identities and deliver encrypted inputs
 
-- [Contract](#contract)
+- [Scope and inputs](#scope-and-inputs)
 - [Secret delivery for a new service](#secret-delivery-for-a-new-service)
 - [Reuse encrypted identities](#reuse-encrypted-identities)
 - [Machine identities for a fresh host](#machine-identities-for-a-fresh-host)
 - [Intentionally create all-new identities](#intentionally-create-all-new-identities)
-- [Verify consumer interfaces and rotation](#verify-consumer-interfaces-and-rotation)
+- [Check the result consumer interfaces and rotation](#check-the-result-consumer-interfaces-and-rotation)
 - [Resume and rollback](#resume-and-rollback)
-- [Acceptance gate](#acceptance-gate)
 
-## Contract
+## Scope and inputs
 
 Preserve stable secret values and recoverable identities. Use the fish
 workstation, `.sops.yaml`, consumer ciphertext and persistent machine-key mounts;
@@ -21,7 +20,7 @@ policy belongs in `.sops.yaml`; operator and machine private keys stay outside
 Git and on securely backed-up persistent storage. Never put plaintext secrets
 in the Nix store, OpenTofu inputs/state, normal logs or documentation.
 
-The procedures below run on the fish workstation before milestone 3. Existing
+The procedures below run on the fish workstation before activating a secret-consuming service. Existing
 ciphertext is kept in this repository. A rebuild restores its operator key and
 machine keys or updates recipients while preserving secret values. Losing all
 recipient private keys makes existing ciphertext unrecoverable. Restore matching
@@ -87,8 +86,8 @@ chmod 0700 "$HOME/.config/digital-garden"
 age-keygen -o "$SOPS_AGE_KEY_FILE"
 ```
 
-After milestone 1, generate replacement machine keys locally. WebUI need not
-exist yet; its key is securely retained locally until milestone 4:
+Generate machine keys locally only when creating or replacing the consumer identity. WebUI need not
+exist yet; its key is securely retained locally until the consuming guest exists:
 
 ```fish
 set -gx GARDEN_SECRET_WORK (mktemp -d)
@@ -121,7 +120,7 @@ incus file push "$GARDEN_SECRET_WORK/edge.agekey" "$GARDEN_REMOTE:edge/var/lib/g
 
 Stop on a failed check; these are separate guarded operator steps. Native file
 transfer does not carry keys through OpenTofu or the Nix store. The analogous
-WebUI transfer appears in milestone 4. Keep operator and machine-key backups apart
+WebUI key delivery is documented in [its service reference](open-webui.md). Keep operator and machine-key backups apart
 from the host, with protected/encrypted backup access.
 
 ## Intentionally create all-new identities
@@ -184,7 +183,7 @@ backups of machine keys before deleting this temporary directory. Remove it afte
 successful deployment and separately verified backups; do not rely on secure erase
 on SSDs. Plaintext temp files are never committed or used as flake inputs.
 
-## Verify consumer interfaces and rotation
+## Check the result consumer interfaces and rotation
 
 | Consumer | Encrypted source | Runtime interface |
 |---|---|---|
@@ -205,13 +204,6 @@ keys, repair the failed step and repeat private decryption before activation.
 For intentional rotation, restore the matching previous credentials and
 application data when required; follow [recovery](recovery.md). Never regenerate
 storage encryption or signing material as a service retry.
-
-## Acceptance gate
-
-Require operator and intended consumer decryption, narrow runtime permissions,
-matching integration credentials and independently secured key backups. Repeat
-the affected identity/application gates after activation; operator decryption
-alone does not accept secret delivery.
 
 Sources: [Authelia secure values](https://www.authelia.com/reference/guides/generating-secure-values/),
 [pinned NixOS Authelia module](https://github.com/NixOS/nixpkgs/blob/0d9e9b832d03ac387417e16ce1febf73b2e631e1/nixos/modules/services/security/authelia.nix).

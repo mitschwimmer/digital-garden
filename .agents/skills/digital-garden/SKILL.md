@@ -1,133 +1,149 @@
 ---
 name: digital-garden
-description: Work on mitschwimmer/digital-garden, Henner's building blocks for self-hosted services on IncusOS with OpenTofu, NixOS, Caddy, Authelia, SOPS and direct OCI workloads. Use for repository changes, new service composition, upgrades, documentation, reviews, deployment and recovery in this project.
+description: Work on mitschwimmer/digital-garden, Henner's building blocks for self-hosted services on IncusOS with OpenTofu, NixOS, Caddy, Authelia, SOPS and direct OCI workloads. Use for composing services, provisioning and reconciling infrastructure, configuration changes, upgrades, identity and secret management, troubleshooting, backup and recovery, documentation and reviews in this project.
 ---
 
 # Work on Digital Garden
 
-Use this handbook for human and agent work alike. Compose digital services from
-the project's building blocks; follow the same ownership, change and acceptance
-contracts when reviewing, extending or operating them. Read
-[architecture](references/architecture.md) to understand the current composition.
-Load only the detailed references needed for the task. Interpret source paths
-relative to the repository root and run workstation command blocks there,
-inside the documented fish development shell.
+Use this handbook for human and agent work alike. Select a lifecycle workflow,
+identify the building blocks it touches and read only the relevant references.
+Workflows describe recurring activities; building blocks describe what services
+compose and who owns it. Start from the current installation and requested change.
+
+Interpret source paths relative to the repository root. Run workstation commands
+there in the documented fish development shell. Inspect [platform inputs](references/platform.md)
+before operating on a target; build on the workstation, never on IncusOS.
 
 ## Start every task
 
-1. Inspect the maintained checkout and relevant source. Identify whether the task
-   is review, documentation, configuration, extension, deployment or recovery.
-2. State the intended behavior, affected building blocks and dependencies,
-   existing identities/data to preserve, and observable acceptance checks.
-3. Read the task's references below. Verify changed version-sensitive interfaces
-   against official documentation or pinned upstream source.
-4. Make repository changes in a branch. Complete implementation and operating
-   instructions together. Apply live changes only within the requested scope;
-   treat destructive replacement or data loss as an explicit separate decision.
+1. Inspect the maintained checkout, relevant source and actual state where
+   available. State the desired result, affected services and dependencies.
+2. Identify resource identities, keys and data to preserve. Distinguish repository
+   work from authorized live changes; review destructive replacement separately.
+3. Choose a workflow below. Verify changed version-sensitive interfaces against
+   official documentation or pinned upstream source.
+4. Make changes in a branch and update their owning references. For documentation
+   and reviews, verify against source without inventing live operations.
 
-For reviews and documentation changes, inspect the source and validate the
-result without inventing deployment steps or runtime acceptance.
+## Select building blocks
 
-## Select task references
+Read [architecture](references/architecture.md) for ownership and the current
+composition. Use these references for each block's interfaces and operation:
 
-| Change | Sources and guidance |
+| Building block | Source and reference |
 |---|---|
-| Incus resources, mounts, limits or guest selection | `tofu/`; [projects](references/projects.md), [runbook](references/deployment.md) |
-| Guest packages, services, firewall or application settings | `nix/hosts/`, `nix/modules/`, `flake.nix`; [activation](references/activation.md) |
-| Public routes or authentication policy | Caddy/Authelia modules and consuming application; [ingress](references/ingress.md), [identity](references/identity.md) |
-| Accept the current service capabilities | [Private guest](references/private-guest.md), [ingress](references/ingress.md), [identity](references/identity.md), [WebUI](references/open-webui.md), [inference](references/inference.md) |
-| Boot readiness or NixOS activation | [Readiness](references/readiness.md), [activation](references/activation.md) |
-| Backups, host loss or data restoration | [Recovery](references/recovery.md) |
-| Keys, recipients or secret consumers | `.sops.yaml`, `secrets/`, consumer Nix configuration; [secrets](references/secrets.md) |
-| Inference image, models or launch settings | `llama/`, `tofu/llama.tf`; [OCI configuration](references/oci-configuration.md) |
-| Dependency upgrade or upstream exception | `flake.nix`, `flake.lock`, `tofu/.terraform.lock.hcl`, image/model locks, `nix/patches/`; [validation](references/validation.md) |
+| Resource namespaces and private networking | `tofu/main.tf`, `tofu/projects.tf`; [projects](references/projects.md), [platform inputs](references/platform.md) |
+| NixOS seed and guest configuration | `flake.nix`, `nix/hosts/`, `nix/modules/`; [guest provisioning](references/nixos-guests.md), [activation](references/activation.md), [readiness](references/readiness.md) |
+| HTTPS ingress | `nix/modules/edge-ingress.nix`, route additions in `edge-auth.nix`; [Caddy](references/ingress.md) |
+| Identity and authorization | `nix/modules/edge-auth.nix`, `nix/modules/oidc-client.nix`; [Authelia](references/identity.md) |
+| Encrypted identities and runtime secrets | `.sops.yaml`, `secrets/`, consumer Nix configuration; [secret delivery](references/secrets.md) |
+| Persistent application state | Volume resources in `tofu/`; [backup and restoration](references/recovery.md) |
+| Direct OCI runtime and public configuration | `tofu/llama.tf`, `llama/`; [inference](references/inference.md), [OCI configuration](references/oci-configuration.md) |
 
-## Compose a new service
+Open WebUI is a [service composition](references/open-webui.md) using several
+blocks. Reuse its patterns deliberately; replace application-specific names,
+paths and policy. Choose [application placement](references/app-placement.md)
+from packaging, secret interfaces, state, isolation and hardware requirements.
 
-1. Describe the service's purpose, callers, state, secret interfaces, hardware
-   needs and upgrade/rollback behavior. Choose [placement](references/app-placement.md)
-   and a [project](references/projects.md) from those needs.
-2. Declare infrastructure in `tofu/`: explicit project, private NIC, image,
-   resource limits, persistent data volumes and required devices. Use stable
-   resource identities. Reuse shared networking; grant LAN/GPU access only where
-   required. Specify how the service is selected without making unrelated
-   capabilities prerequisites.
-3. For NixOS, add a host composition and a flake configuration, reusing or
-   extracting the relevant modules. Keep its seed import project-local. For OCI,
-   pin the upstream image and use supported launch/configuration interfaces;
-   define delivery-before-start and update/restart behavior.
-4. Add [secret delivery](references/secrets.md#secret-delivery-for-a-new-service) if needed.
-   Keep machine identities and mutable state on persistent mounts. Declare
-   readiness and mount prerequisites so services cannot write irreplaceable
-   state into a disposable root.
-5. If public access is needed, add the Caddy hostname/backend and document DNS,
-   routing and IPv4/IPv6 exposure. For OIDC, configure issuer/client/callback,
-   scopes and role policy on both sides; encrypt matching client credentials.
-   The current `oidc-client.nix` describes one WebUI client and `edge-auth.nix`
-   builds a single-client list. Extend that composition while preserving the
-   existing client; it is not yet a generic client registry.
-6. Document deployment, health, allowed/denied access, restart persistence,
-   failure resume, rollback and data restoration. Link the service from the
-   README and runbook; update the architecture map if it adds a reusable block.
-7. Run the relevant [validation](references/validation.md). Review the complete OpenTofu
-   plan before live application and repeat affected dependency gates. A new
-   independent service need not recheck unrelated accepted services.
+## Preserve ownership
 
-For example, another NixOS web application can reuse the private seed/network,
-Caddy ingress and Authelia, while declaring its own guest, data volume and secret
-consumer. It need not use the llama workload. Treat Open WebUI as a concrete
-example: replace its names, paths, roles and application settings rather than
-copying its AI-specific policy wholesale.
-
-## Preserve the project conventions
-
-Keep infrastructure identity and persistent-data changes separately reviewable.
-Preserve existing ciphertext and keys unless rotation is the intended change.
-Pin dependencies and record why an upstream patch exists and when it can be
-removed. Verify changed version-sensitive interfaces using official documentation
-or the pinned upstream source.
-
-Prefer native configuration and commands over bespoke scripts or new control
-planes. Explain architectural exceptions before implementing them. Do not move
-a large program into a Nix string or documentation block to hide its cost.
-
-Keep one authoritative owner per setting: OpenTofu for Incus and OCI lifecycle,
+Give each setting one owner: OpenTofu for Incus resources and OCI lifecycle,
 NixOS for guest services, SOPS + age for stable managed secrets, sops-nix for
 runtime secret delivery, and applications for mutable state on explicit volumes.
-Follow the [ownership contract](references/architecture.md#ownership).
-Keep seed identity separate from guest configuration and backups separate from
-protected volumes. Keep backend callers and public exposure explicit.
+Keep plaintext secrets out of Git, Nix store paths, OpenTofu inputs/state and logs.
+Keep seed identity separate from guest updates and protected volumes separate
+from backups. Declare trusted callers and public IPv4/IPv6 exposure explicitly.
 
-Put detailed decisions and commands in the relevant reference and link them
-here. Keep this handbook and its references authoritative for both humans and
-agents; do not add a parallel contribution guide or agent-only runbook.
+Prefer HCL, Nix, upstream configuration and native commands. Before adding a
+helper or control plane, explain the unmet requirement, alternatives and
+maintenance cost. Do not hide a bespoke program in a Nix string or procedure.
+Pin dependencies and review upstream patches with explicit removal conditions.
 
-## Document a capability contract
+## Workflows
 
-Write procedures in this order. Use imperative headings and observable results.
+### Compose or extend a service
 
-| Section | Required content |
-|---|---|
-| Contract | Goal, dependencies, starting state, declarative sources, execution location, inputs and expected infrastructure effects |
-| Execute | Ordered native build, plan/apply, transfer and activation steps; stop conditions before dependent commands |
-| Verify | Bounded readiness, service/access checks, allowed/denied roles and restart persistence where applicable |
-| Resume and rollback | Diagnosis, safe retry with retained state/keys, previous generation/configuration and matching data restoration |
-| Acceptance gate | Conditions that must pass before the capability or a dependent capability is accepted |
+1. Define purpose, callers, dependencies, state, secrets, hardware and rollback
+   behavior. Choose a runtime and project using the block references.
+2. Declare infrastructure, private connectivity, resource limits, persistent
+   mounts and service selection. Make dependencies explicit; avoid coupling
+   unrelated services through today's numeric resource selector.
+3. Compose NixOS modules and a flake configuration, or pin an upstream OCI image
+   and define supported configuration delivery before startup. Require necessary
+   mounts before services can write state.
+4. Add ingress, OIDC and secret delivery where needed. Configure both sides of
+   integrations and verify allowed/denied access. The current OIDC composition
+   contains one WebUI client; extend it while preserving that client.
+5. Document the new service's interfaces, operation and recovery. Reconcile
+   infrastructure and configure services using the workflows below, then verify
+   the resulting behavior and affected dependencies.
 
-For reference pages that define policy rather than execution, use imperative
-rules, decision tables and links to the applicable capability contract. Keep
-commands in procedures, and keep reusable rules in their owning reference.
+### Provision or reconcile infrastructure
 
-Use the maintained checkout, not historical branches or remembered chat steps.
-Keep placeholders in the input step. Run commands separately and stop live
-application at a failed gate; complete the documentation even if live validation
-is unavailable. See [runbook](references/deployment.md) and [readiness](references/readiness.md).
+Inspect [platform inputs](references/platform.md), inventory and matching state.
+Build a missing seed using [guest provisioning](references/nixos-guests.md);
+import surviving resources through [recovery](references/recovery.md).
+Follow [infrastructure reconciliation](references/infrastructure.md) to review
+and apply a whole saved plan. Compare actual changes to declared intent, not
+remembered resource counts. Verify affected devices, mounts and connectivity.
+NixOS services require separate activation; a successful apply is not service health.
+
+### Configure or upgrade a service
+
+Preserve current resource selection, immutable seed identity and unrelated
+services. Back up affected application data before upgrades or storage changes.
+Edit the authoritative source and relevant pins; build/validate the affected
+configuration. Use [NixOS activation](references/activation.md) for guest services
+or [OCI configuration](references/oci-configuration.md) for direct containers.
+Apply infrastructure changes only when required. Verify health, authorization,
+caller reachability and persistence for the changed service and dependencies.
+NixOS rollback does not reverse database migrations.
+
+### Publish a service or change access
+
+Use [ingress](references/ingress.md) for hostname/backend routing, certificates,
+manual DNS and IPv4/IPv6 exposure. Use [identity](references/identity.md) for
+issuer/client/callback, scopes and role policy; prefer native OIDC, with
+forward-auth where a suitable native integration is unavailable. Keep backend
+and management endpoints private. Test denied access and role assignment as
+well as successful login, and retain working operator access.
+
+### Manage secrets and identities
+
+Follow [secrets](references/secrets.md). Choose reuse, recipient replacement or
+intentional rotation explicitly. Persist machine keys independently of disposable
+roots; preserve secret values when changing recipients. Coordinate credentials
+on both integration endpoints and verify consumer decryption without printing
+plaintext. Confirm secured recovery-key backups and application compatibility.
+
+### Diagnose, resume or roll back
+
+Inspect actual state, mounts, runtime configuration, service logs and dependency
+reachability. Use [bounded readiness](references/readiness.md) for NixOS boot,
+then the affected block/service diagnostics. Stop dependent operations when a
+required check fails. Repair declared state and repeat the failed operation;
+retain data, keys and seed identity. Do not reset selection, erase state records
+or replace storage to repair a service. Use previous closures/configuration and
+matching data backups for rollback, then reconcile declared and running state.
+
+### Back up or restore
+
+Use [recovery](references/recovery.md) to preserve matching source, local inputs,
+state, seed archives, keys and application data outside the host. Inspect what
+survived before choosing state or imports. Restore identities with their data,
+reconcile missing infrastructure and configure restored services. Verify an
+independent restore and repeat affected service checks; archive inspection alone
+is not restoration evidence.
 
 ## Validate and finish
 
-Describe the resulting behavior, affected blocks, operational/data impact and
-checks performed. Distinguish static review, native validation, builds, plans and
-live acceptance. Mark unavailable checks precisely; do not infer a healthy
-service from merge, CI or a no-change plan. Keep private inventory, state, plans,
-keys and secret-bearing logs outside Git. Record live acceptance privately with
-revision, date, environment, check and result.
+Use [validation](references/validation.md) for appropriate native checks. Record
+what was inspected, validated, built, planned, applied and verified live. Mark
+unavailable checks precisely. A merge, green CI or no-change plan does not prove
+a healthy service. Keep acceptance records private with revision, date,
+environment and observed results; recheck relevant behavior after changes.
+
+Keep this handbook organized by workflows and building blocks. In a reference,
+state relevant inputs and dependencies, ordered actions, expected results and
+failure/rollback behavior. Link reusable rules and commands from their owner;
+keep one shared set of lifecycle instructions for humans and agents. Complete implementation and its operating documentation together.

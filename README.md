@@ -8,19 +8,17 @@ with native OIDC and llama.cpp with AMD GPU/KFD access.
 ## Follow the project handbook
 
 Start with [Work on Digital Garden](.agents/skills/digital-garden/SKILL.md).
-The skill is the shared handbook for humans and agents: start every task,
-select the relevant references, preserve ownership, compose a capability,
-validate it and record acceptance. Its references hold the detailed rules and
-native operating procedures; there is one documentation contract for both audiences.
+Humans and agents share its lifecycle workflows: compose services, reconcile
+infrastructure, configure and upgrade, publish and manage access, maintain
+identities, troubleshoot, and back up or restore. Select the building blocks
+needed for the activity and follow their referenced operating procedures.
 
 ## Establish the execution environment
 
 Use a Nix workstation and authenticated Incus client. Inspect host storage,
 network roles, AMD support, router rules and manual wildcard A/AAAA DNS for
-`*.archaic.work` before deployment. Host, domain and hardware settings belong to
-this installation; adapt them deliberately for another target.
+`*.archaic.work` before live changes. Host, domain and hardware settings belong
+to this installation; adapt them deliberately for another target.
 
-Treat the current configuration as a composition to extend. Its five-stage HCL
-selector is cumulative; define explicit dependencies for additional services.
-CI checks whitespace. Require the handbook's build, plan and live gates before
-accepting a running capability.
+CI checks whitespace. Verify the affected configuration and running behavior
+using the handbook; a successful apply alone does not establish service health.

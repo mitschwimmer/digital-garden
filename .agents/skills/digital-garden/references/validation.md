@@ -42,27 +42,27 @@ nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.authelia-conf
 Staged ciphertext is needed for the consumer builds. Never generate fixture
 secrets just to force CI green. The config check uses clearly synthetic values
 inside an isolated derivation, never the real decrypted values. Reuse built
-closures during milestone activation; do not repeat expensive builds unchanged.
-CI only checks whitespace and cannot establish schema, build, plan or live gates.
+closures during guest activation; do not repeat expensive builds unchanged.
+CI only checks whitespace and cannot establish schema, build, plan or live checks.
 
-Native validation must be followed by a real first-create whole plan and plan at
-each advanced stage; computed bridge addresses and instance outputs must resolve
+For infrastructure changes, follow native validation with a whole plan on the
+actual target. Include first-create behavior when new resources are introduced; computed bridge addresses and instance outputs must resolve
 without treating unknown first-create values as existing-host facts. Inspect
-actual changes against the runbook counts. No mocked plan proves host behavior.
+actual changes against inspected inventory and declared intent. No mocked plan proves host behavior.
 
-## Record acceptance
+## Record verification
 
 Keep a private record for the tested revision:
 
-| Revision | Date | Environment | Capability/check | Result and evidence |
+| Revision | Date | Environment | Service/check | Result and evidence |
 |---|---|---|---|---|
-| Commit SHA | ISO date | Workstation, target or caller | Exact gate exercised | Passed, failed or pending; concise observed result |
+| Commit SHA | ISO date | Workstation, target or caller | Exact check exercised | Passed, failed or pending; concise observed result |
 
 A relevant configuration change invalidates or qualifies earlier evidence.
 Do not infer live status from historical PR reports, merge or CI. Record
 unavailable tools, target access, keys or hardware as precise pending checks.
-The capability procedures in the [runbook](deployment.md) define the live gates;
-stop dependent application at failures. An inspected backup archive is not an
+Use the affected building-block or service reference for live checks. Stop
+dependent operations at failures. An inspected backup archive is not an
 independent restore test.
 
 Use native validators rather than a second automation layer or tests that merely

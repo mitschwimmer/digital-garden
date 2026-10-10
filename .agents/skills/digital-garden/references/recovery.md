@@ -1,23 +1,22 @@
 # Back up and restore identities and data
 
-- [Contract](#contract)
-- [Execute: back up with native commands](#execute-back-up-with-native-commands)
+- [Scope and inputs](#scope-and-inputs)
+- [Apply the change: back up with native commands](#apply-the-change-back-up-with-native-commands)
 - [Resume and rollback: replace a guest with storage intact](#resume-and-rollback-replace-a-guest-with-storage-intact)
-- [Execute: restore after host loss](#execute-restore-after-host-loss)
-- [Verify an independent restore](#verify-an-independent-restore)
-- [Acceptance gate](#acceptance-gate)
+- [Apply the change: restore after host loss](#apply-the-change-restore-after-host-loss)
+- [Check an independent restore](#check-an-independent-restore)
 
-## Contract
+## Scope and inputs
 
 Restore matching source, inputs, infrastructure records, identities and data.
-Require accepted capability records and a secure off-host backup destination;
+Require the tested revision, matching backups and a secure off-host backup destination;
 inspect the surviving target before choosing state or importing resources.
 Run native backup/restore commands from the fish workstation.
 Preserve encrypted consumer files, the operator recovery key, persistent machine
 keys, corresponding application data, current source/lockfiles, local inputs,
 OpenTofu state and the immutable seed archives. Protected volumes are not backups.
 
-## Execute: back up with native commands
+## Apply the change: back up with native commands
 
 On the workstation, with `GARDEN_BACKUP` pointing at a new secured backup set
 outside the checkout (0700), back up state and local inputs. This is a workstation
@@ -56,8 +55,8 @@ incus exec "$GARDEN_REMOTE:edge" --project default -T -- env TERM=xterm systemct
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -T -- env TERM=xterm systemctl start open-webui
 ```
 
-Check every exit status; do not resume dependent capability use on a failed backup
-or restart gate. Repeat the stage-3/4 service and health checks after starting
+Check every exit status; do not resume dependent service use on a failed backup
+or restart check. Repeat the identity and WebUI service/health checks after starting
 them, and the bounded inference health check if inference was stopped. If restart
 requires boot readiness, use [guest readiness](readiness.md) for the exact project.
 Private keys are inside secret-volume exports: encrypt and restrict
@@ -74,13 +73,13 @@ seed/guest closures; inspect a full plan with `-replace=incus_instance.edge` (or
 `incus_instance.webui[0]` / `incus_instance.llama[0]`) only when replacement is
 actually required. Save and review that plan: only the intended guest may be
 replaced. Apply it, reactivate the matching NixOS generation and repeat that
-capability and its affected dependency gates. No secrets initialization occurs.
+service and its affected dependencies. No secrets initialization occurs.
 For llama, provider-delivered config/cache precede startup automatically.
 
-## Execute: restore after host loss
+## Apply the change: restore after host loss
 
 Restore IncusOS installation, trusted client access, correct pools and LAN roles,
-AMD support, then inspect instance/network/volume inventory from the runbook.
+AMD support, then inspect instance/network/volume inventory from [platform inspection](platform.md).
 Check whether any referenced volume/image/guest exists before choosing state.
 Never blindly push old state or apply it against a different host.
 
@@ -187,14 +186,16 @@ backed-up archives; do not
 delete guests or volumes. Confirm the recreated fingerprint matches the guest
 import identity before accepting the plan.
 
-Select stage 1 for an empty host's new guests, keeping restored volumes. Review the
+Choose the intended resource selection for an empty host, keeping restored
+volumes and providing the required LAN/GPU inputs. Review the
 full plan: only missing resources are additions, restored volumes are retained;
-inspect any configuration updates. Apply and re-enter milestones 1 through 5,
-using restored keys/ciphertext/data, not the fresh secret-generation procedure.
-For partially surviving infrastructure keep the existing accepted stage and
-reconcile only missing resources. All live gates are pending until repeated.
+inspect any configuration updates. Apply missing infrastructure and activate the appropriate guest closures,
+using restored keys/ciphertext/data. Verify the restored services and their
+dependencies; do not run fresh secret generation.
+For partially surviving infrastructure keep the existing resource selection and
+reconcile only missing resources. All live checks are pending until repeated.
 
-## Verify an independent restore
+## Check an independent restore
 
 Use an isolated spare host/pool and copied state/inputs with a reviewed fresh target;
 do not import restored copies into production state. Restore selected irreplaceable
@@ -204,15 +205,8 @@ so recovery testing cannot take over production public names. Verify decryption,
 existing TOTP/user identity, allowed/denied roles, retained chats/uploads and
 application health; test restored Caddy state and optional cache as appropriate.
 Record revision/date/environment/result. If a spare target is unavailable, mark
-this gate pending; inspecting an archive is not a restore test. Cleanup of the
+the restore test pending; inspecting an archive is not a restore test. Cleanup of the
 isolated test has its own reviewed deletion list.
-
-## Acceptance gate
-
-Accept recovery only after the [independent restore](#verify-an-independent-restore)
-passes for matching identities and data, with repeated affected capability gates.
-Record revision, date, environment and results. Keep an unavailable restore
-target explicitly pending; archive inspection alone cannot pass this gate.
 
 Sources: [Incus volume backup](https://linuxcontainers.org/incus/docs/main/howto/storage_backup_volume/),
 [pinned volume import IDs](https://github.com/lxc/terraform-provider-incus/blob/v1.2.0/docs/resources/storage_volume.md).
