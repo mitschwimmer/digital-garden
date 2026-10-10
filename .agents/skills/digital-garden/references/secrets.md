@@ -1,9 +1,54 @@
-# Identities and encrypted inputs
+# Protect identities and deliver encrypted inputs
 
-Run on the workstation, in fish, before milestone 3. Existing ciphertext is kept
-in this repository. A rebuild normally restores its operator key and machine keys
-or updates recipients; it does **not** create new secret values. Losing the
-operator key and all recipient keys makes existing ciphertext unrecoverable.
+- [Scope and inputs](#scope-and-inputs)
+- [Secret delivery for a new service](#secret-delivery-for-a-new-service)
+- [Reuse encrypted identities](#reuse-encrypted-identities)
+- [Machine identities for a fresh host](#machine-identities-for-a-fresh-host)
+- [Intentionally create all-new identities](#intentionally-create-all-new-identities)
+- [Check the result consumer interfaces and rotation](#check-the-result-consumer-interfaces-and-rotation)
+- [Resume and rollback](#resume-and-rollback)
+
+## Scope and inputs
+
+Preserve stable secret values and recoverable identities. Use the fish
+workstation, `.sops.yaml`, consumer ciphertext and persistent machine-key mounts;
+select recovery, recipient replacement or deliberate initialization before
+executing any key or secret generation.
+
+Keep stable managed secrets as SOPS + age ciphertext in Git. Public recipient
+policy belongs in `.sops.yaml`; operator and machine private keys stay outside
+Git and on securely backed-up persistent storage. Never put plaintext secrets
+in the Nix store, OpenTofu inputs/state, normal logs or documentation.
+
+The procedures below run on the fish workstation before activating a secret-consuming service. Existing
+ciphertext is kept in this repository. A rebuild restores its operator key and
+machine keys or updates recipients while preserving secret values. Losing all
+recipient private keys makes existing ciphertext unrecoverable. Restore matching
+application data when stable encryption keys and databases are coupled.
+
+## Secret delivery for a new service
+
+Organize encrypted files by consumer and lifecycle. Retain an operator recovery
+recipient and add the consuming guest's public recipient to `.sops.yaml`.
+
+For NixOS, use sops-nix runtime files with narrow owner/group/mode settings. Feed
+services secret-file paths, systemd credentials or an environment file, rather
+than interpolating plaintext into Nix expressions. Keep the consumer's machine
+age key on a persistent secret volume across guest replacement. The edge and
+WebUI Nix configurations are examples of secret-file and environment-file wiring.
+
+For OCI, prefer application-supported secret files mounted read-only. If delivery
+requires a runtime transfer, specify a protected volume, narrow permissions and
+readiness/restart behavior; keep plaintext out of provider attributes and state.
+Choose a NixOS guest when environment-only or numerous secrets would otherwise
+require bespoke secret infrastructure. Public OCI config-file delivery described
+in [OCI configuration](oci-configuration.md) must not be used for secret plaintext.
+
+Treat rotation as an explicit change: generate material privately, re-encrypt,
+update both integration endpoints, deploy, verify authentication and revoke
+superseded credentials when supported. Understand session/data consequences
+before rotating storage or signing keys. Recipient replacement during recovery
+preserves the encrypted values; it is not secret rotation.
 
 ## Reuse encrypted identities
 
@@ -41,8 +86,8 @@ chmod 0700 "$HOME/.config/digital-garden"
 age-keygen -o "$SOPS_AGE_KEY_FILE"
 ```
 
-After milestone 1, generate replacement machine keys locally. WebUI need not
-exist yet; its key is securely retained locally until milestone 4:
+Generate machine keys locally only when creating or replacing the consumer identity. WebUI need not
+exist yet; its key is securely retained locally until the consuming guest exists:
 
 ```fish
 set -gx GARDEN_SECRET_WORK (mktemp -d)
@@ -75,7 +120,7 @@ incus file push "$GARDEN_SECRET_WORK/edge.agekey" "$GARDEN_REMOTE:edge/var/lib/g
 
 Stop on a failed check; these are separate guarded operator steps. Native file
 transfer does not carry keys through OpenTofu or the Nix store. The analogous
-WebUI transfer appears in milestone 4. Keep operator and machine-key backups apart
+WebUI key delivery is documented in [its service reference](open-webui.md). Keep operator and machine-key backups apart
 from the host, with protected/encrypted backup access.
 
 ## Intentionally create all-new identities
@@ -138,7 +183,7 @@ backups of machine keys before deleting this temporary directory. Remove it afte
 successful deployment and separately verified backups; do not rely on secure erase
 on SSDs. Plaintext temp files are never committed or used as flake inputs.
 
-## Secret contract and rotation
+## Check the result consumer interfaces and rotation
 
 | Consumer | Encrypted source | Runtime interface |
 |---|---|---|
@@ -151,6 +196,14 @@ The signing key uses the module's native JWKS template. For intentional rotation
 edit ciphertext with SOPS, coordinate both sides of the client integration,
 activate both guests, verify login/denial, then revoke obsolete credentials.
 Storage/signing-key rotation needs application-specific consequences reviewed.
+
+## Resume and rollback
+
+On a failed recipient update or transfer, retain the original ciphertext and
+keys, repair the failed step and repeat private decryption before activation.
+For intentional rotation, restore the matching previous credentials and
+application data when required; follow [recovery](recovery.md). Never regenerate
+storage encryption or signing material as a service retry.
 
 Sources: [Authelia secure values](https://www.authelia.com/reference/guides/generating-secure-values/),
 [pinned NixOS Authelia module](https://github.com/NixOS/nixpkgs/blob/0d9e9b832d03ac387417e16ce1febf73b2e631e1/nixos/modules/services/security/authelia.nix).

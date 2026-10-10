@@ -1,0 +1,4 @@
+interface:
+  display_name: "Digital Garden"
+  short_description: "Compose and maintain self-hosted digital services"
+  default_prompt: "Use $digital-garden to choose a lifecycle workflow and work with the platform and service building blocks."

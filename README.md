@@ -1,29 +1,24 @@
 # Digital Garden
 
-Henner's IncusOS homelab: OpenTofu infrastructure, NixOS guests, Caddy ingress,
-Authelia identity, private Open WebUI with native OIDC, and direct OCI llama.cpp
-with AMD GPU/KFD access. Stable secrets use SOPS + age; mutable application state
-and machine identities have separate protected volumes.
+Compose self-hosted digital services from IncusOS infrastructure, NixOS guests,
+Caddy HTTPS ingress, Authelia identity, SOPS + age secrets and direct OCI
+workloads. The current composition combines a shared edge, private Open WebUI
+with native OIDC and llama.cpp with AMD GPU/KFD access.
 
-Shared Caddy/Authelia services and bridge networking stay in `default`; Open WebUI
-runs in `ai`, and llama.cpp runs in `inference`, with project-local data and images.
+## Follow the project handbook
 
-Start at the [current operator runbook](docs/runbook.md). It covers a fresh
-installation, cumulative acceptance gates, maintenance, interrupted deployment,
-and recovery from host loss. All procedures use this checkout, without historical
-branches or repository deployment scripts. No migration of the previous install
-is required. Existing names must be cleared or recovered deliberately before a
-fresh state is applied; unrelated infrastructure must remain untouched.
+Start with [Work on Digital Garden](.agents/skills/digital-garden/SKILL.md).
+Humans and agents share its lifecycle workflows: compose services, reconcile
+infrastructure, configure and upgrade, publish and manage access, maintain
+identities, troubleshoot, and back up or restore. Select the building blocks
+needed for the activity and follow their referenced operating procedures.
 
-Manual wildcard A/AAAA DNS for `*.archaic.work`, router rules, IncusOS LAN roles,
-storage pools and host GPU support remain operator prerequisites. Backend callers
-are trusted explicitly; a private bridge alone is not isolation.
+## Establish the execution environment
 
-The [versioned homelab skill](.agents/skills/incusos-homelab/SKILL.md) is the
-architecture contract. OpenTofu also delivers ordinary non-secret OCI presets;
-NixOS and sops-nix own guest configuration and secret delivery. No plaintext secret
-belongs in the Nix store or OpenTofu inputs/state.
+Use a Nix workstation and authenticated Incus client. Inspect host storage,
+network roles, AMD support, router rules and manual wildcard A/AAAA DNS for
+`*.archaic.work` before live changes. Host, domain and hardware settings belong
+to this installation; adapt them deliberately for another target.
 
-[Validation evidence](docs/validation.md) distinguishes static inspection from
-builds, host plans and live acceptance. The refactor has not been applied to the
-host. CI checks whitespace only; operator builds and runtime gates are mandatory.
+CI checks whitespace. Verify the affected configuration and running behavior
+using the handbook; a successful apply alone does not establish service health.

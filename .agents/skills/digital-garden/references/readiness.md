@@ -1,11 +1,17 @@
-# Guest readiness after creation, activation or restart
+# Wait for guest readiness
+
+## Scope and inputs
+
+Wait for a healthy NixOS system and private IPv4 address before application
+checks. This procedure observes the guest; it does not change infrastructure
+or prove application readiness.
 
 Run on the fish workstation with `GARDEN_GUEST` and `GARDEN_PROJECT` set by the
-milestone. Incus reporting RUNNING does not mean the guest system bus or DHCP is
-ready. Run each block separately; do not continue after a failed gate. Use native
+service procedure. Incus reporting RUNNING does not mean the guest system bus or DHCP is
+ready. Run each block separately; do not continue after a failed check. Use native
 workstation `timeout`, `seq` and `sleep` from coreutils.
 
-## 1. Wait for a healthy NixOS system
+## Apply the change
 
 Poll up to 30 times, with a five-second limit per call and two seconds between
 attempts (at most approximately 210 seconds). Temporary early-boot bus errors are
@@ -24,9 +30,9 @@ test "$GARDEN_READY" = 1
 ```
 
 The final `test` must exit 0 (`echo $status` immediately afterward). If it exits 1,
-stop and collect the diagnostics below. Do not extend the wait indefinitely.
+stop and collect the [diagnostics](#resume-and-rollback). Do not extend the wait indefinitely.
 
-## 2. Check services, address and failed units
+## Check the result
 
 ```fish
 incus exec "$GARDEN_REMOTE:$GARDEN_GUEST" --project "$GARDEN_PROJECT" -T -- env TERM=xterm systemctl is-system-running
@@ -35,10 +41,10 @@ incus exec "$GARDEN_REMOTE:$GARDEN_GUEST" --project "$GARDEN_PROJECT" -T -- ip -
 ```
 
 Expect `running`, zero failed units and a global IPv4 address on eth0. System
-readiness does not prove network or application readiness: repeat the milestone's
+readiness does not prove network or application readiness: repeat the affected service's
 DNS, health, external and persistence checks after restart.
 
-## Failure diagnostics
+## Resume and rollback
 
 ```fish
 incus info "$GARDEN_REMOTE:$GARDEN_GUEST" --project "$GARDEN_PROJECT"
