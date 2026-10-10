@@ -1,11 +1,19 @@
-# Current operator runbook
+# Deploy and maintain the current composition
+
+- [Contract: workstation and target inputs](#contract-workstation-and-target-inputs)
+- [Starting state and retained resources](#starting-state-and-retained-resources)
+- [Execute native operations](#execute-native-operations)
+- [Project ownership](#project-ownership)
+- [Cumulative capabilities](#cumulative-capabilities)
+- [Native plan/apply and activation](#native-planapply-and-activation)
+- [Maintenance, extension and resume](#maintenance-extension-and-resume)
 
 Use the maintained checkout for deployment and operation of the current
 composition. Record `git rev-parse HEAD` in a private acceptance record. For
-configuration changes and new services, start with the [contribution guide](contributing.md).
+configuration changes and new services, start with the [task workflow](../SKILL.md).
 For host/data restoration, use [recovery](recovery.md).
 
-## Workstation and target inputs
+## Contract: workstation and target inputs
 
 Commands use fish on an x86_64-linux Nix workstation (or configured Linux builder)
 with flakes enabled. `nix develop --command fish` supplies tools from `flake.lock`;
@@ -89,7 +97,7 @@ conceal surviving resources or fix a failed service. The pinned image resource
 has no importer; [image recovery](recovery.md) explains surviving seeds.
 Review actual plans against the reconciled inventory, not addition counts alone.
 
-## Operator execution rules
+## Execute native operations
 
 Run each numbered step separately and check its result before continuing. A pasted
 block keeps executing after a failed command. `echo $status` reports only the
@@ -102,11 +110,8 @@ NixOS activation installs/starts guest services. Complete all three when require
 
 ## Project ownership
 
-| Project | Guests and owned resources |
-|---|---|
-| `default` | Shared `edge` (Caddy/Authelia), its three volumes, edge seed image and `gardenbr0` |
-| `ai` | `open-webui`, its two volumes and a separate import of the immutable NixOS seed |
-| `inference` | `garden-llama`, its cache/config volumes and OCI image cache |
+Follow [project placement and scope](projects.md#choose-boundaries-by-purpose)
+for the authoritative resource map.
 
 OpenTofu creates both named projects at stage 1 with local images, profiles,
 volumes and buckets; networks and network zones use `default`. Existing storage
@@ -126,11 +131,11 @@ impacts explicitly when changing project ownership.
 
 | Stage | Guest activation | Gate | Expected infrastructure change from preceding accepted stage |
 |---|---|---|---|
-| 1 | Minimal seed | [Private guest](01-edge-bootstrap.md) | 13 additions: two projects, bridge, two seed images, edge, seven volumes |
-| 2 | `edge-ingress` | [Caddy ingress](02-caddy-ingress.md) | One edge NIC update; no replacement/deletion |
-| 3 | `edge` | [Authelia](03-authelia.md) | None; NixOS activation changes services |
-| 4 | `open-webui` | [OIDC login](04-open-webui.md) | One WebUI guest addition |
-| 5 | Keep edge/WebUI | [GPU inference](05-inference.md) | One OCI guest addition |
+| 1 | Minimal seed | [Private guest](private-guest.md) | 13 additions: two projects, bridge, two seed images, edge, seven volumes |
+| 2 | `edge-ingress` | [Caddy ingress](ingress.md) | One edge NIC update; no replacement/deletion |
+| 3 | `edge` | [Authelia](identity.md) | None; NixOS activation changes services |
+| 4 | `open-webui` | [OIDC login](open-webui.md) | One WebUI guest addition |
+| 5 | Keep edge/WebUI | [GPU inference](inference.md) | One OCI guest addition |
 | Recovery | Restored matching systems/data | [Restore test](recovery.md) | Depends on surviving inventory; reviewed separately |
 
 All seven volumes are created at stage 1, independently of guest stage selection:

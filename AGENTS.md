@@ -1,9 +1,7 @@
-# Working in Digital Garden
+# Work on Digital Garden
 
-Read [README.md](README.md) for the project map and
-[docs/contributing.md](docs/contributing.md) for the shared change workflow.
-Architecture and operating procedures in `docs/` apply to humans and agents alike.
-
-Use [.agents/skills/digital-garden/SKILL.md](.agents/skills/digital-garden/SKILL.md)
-for task-specific navigation. Keep project rules and commands in the shared docs;
-do not create a parallel agent-only architecture or runbook.
+Read [.agents/skills/digital-garden/SKILL.md](.agents/skills/digital-garden/SKILL.md)
+and follow its task workflow, conventions and referenced capability contracts.
+This skill and its references are the shared handbook for humans and agents.
+Keep each rule and procedure there once; update the owning reference with the
+implementation instead of adding separate audience-specific documentation.

@@ -1,4 +1,20 @@
-# Identities and encrypted inputs
+# Protect identities and deliver encrypted inputs
+
+- [Contract](#contract)
+- [Secret delivery for a new service](#secret-delivery-for-a-new-service)
+- [Reuse encrypted identities](#reuse-encrypted-identities)
+- [Machine identities for a fresh host](#machine-identities-for-a-fresh-host)
+- [Intentionally create all-new identities](#intentionally-create-all-new-identities)
+- [Verify consumer interfaces and rotation](#verify-consumer-interfaces-and-rotation)
+- [Resume and rollback](#resume-and-rollback)
+- [Acceptance gate](#acceptance-gate)
+
+## Contract
+
+Preserve stable secret values and recoverable identities. Use the fish
+workstation, `.sops.yaml`, consumer ciphertext and persistent machine-key mounts;
+select recovery, recipient replacement or deliberate initialization before
+executing any key or secret generation.
 
 Keep stable managed secrets as SOPS + age ciphertext in Git. Public recipient
 policy belongs in `.sops.yaml`; operator and machine private keys stay outside
@@ -27,7 +43,7 @@ requires a runtime transfer, specify a protected volume, narrow permissions and
 readiness/restart behavior; keep plaintext out of provider attributes and state.
 Choose a NixOS guest when environment-only or numerous secrets would otherwise
 require bespoke secret infrastructure. Public OCI config-file delivery described
-in [OCI configuration](06-oci-config.md) must not be used for secret plaintext.
+in [OCI configuration](oci-configuration.md) must not be used for secret plaintext.
 
 Treat rotation as an explicit change: generate material privately, re-encrypt,
 update both integration endpoints, deploy, verify authentication and revoke
@@ -168,7 +184,7 @@ backups of machine keys before deleting this temporary directory. Remove it afte
 successful deployment and separately verified backups; do not rely on secure erase
 on SSDs. Plaintext temp files are never committed or used as flake inputs.
 
-## Secret contract and rotation
+## Verify consumer interfaces and rotation
 
 | Consumer | Encrypted source | Runtime interface |
 |---|---|---|
@@ -181,6 +197,21 @@ The signing key uses the module's native JWKS template. For intentional rotation
 edit ciphertext with SOPS, coordinate both sides of the client integration,
 activate both guests, verify login/denial, then revoke obsolete credentials.
 Storage/signing-key rotation needs application-specific consequences reviewed.
+
+## Resume and rollback
+
+On a failed recipient update or transfer, retain the original ciphertext and
+keys, repair the failed step and repeat private decryption before activation.
+For intentional rotation, restore the matching previous credentials and
+application data when required; follow [recovery](recovery.md). Never regenerate
+storage encryption or signing material as a service retry.
+
+## Acceptance gate
+
+Require operator and intended consumer decryption, narrow runtime permissions,
+matching integration credentials and independently secured key backups. Repeat
+the affected identity/application gates after activation; operator decryption
+alone does not accept secret delivery.
 
 Sources: [Authelia secure values](https://www.authelia.com/reference/guides/generating-secure-values/),
 [pinned NixOS Authelia module](https://github.com/NixOS/nixpkgs/blob/0d9e9b832d03ac387417e16ce1febf73b2e631e1/nixos/modules/services/security/authelia.nix).

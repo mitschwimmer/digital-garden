@@ -1,17 +1,28 @@
-# Recovery and restore gate
+# Back up and restore identities and data
 
-Prerequisite: accepted milestones and a secure off-host backup destination.
+- [Contract](#contract)
+- [Execute: back up with native commands](#execute-back-up-with-native-commands)
+- [Resume and rollback: replace a guest with storage intact](#resume-and-rollback-replace-a-guest-with-storage-intact)
+- [Execute: restore after host loss](#execute-restore-after-host-loss)
+- [Verify an independent restore](#verify-an-independent-restore)
+- [Acceptance gate](#acceptance-gate)
+
+## Contract
+
+Restore matching source, inputs, infrastructure records, identities and data.
+Require accepted capability records and a secure off-host backup destination;
+inspect the surviving target before choosing state or importing resources.
+Run native backup/restore commands from the fish workstation.
 Preserve encrypted consumer files, the operator recovery key, persistent machine
 keys, corresponding application data, current source/lockfiles, local inputs,
 OpenTofu state and the immutable seed archives. Protected volumes are not backups.
 
-## Backup with native commands
+## Execute: back up with native commands
 
 On the workstation, with `GARDEN_BACKUP` pointing at a new secured backup set
 outside the checkout (0700), back up state and local inputs. This is a workstation
 filesystem path, not a volume inside the Incus pool. Retain a copy on storage
 independent of the IncusOS host and its pools:
-
 
 ```fish
 umask 077
@@ -55,7 +66,7 @@ from Git. Model cache may be exported similarly after stopping inference, or
 redownloaded from pinned URLs if acceptable. Verify backup hashes, readable archive
 metadata and off-host replication. Restore acceptance is mandatory below.
 
-## Guest replacement with host/storage intact
+## Resume and rollback: replace a guest with storage intact
 
 Keep existing inputs/state, stage, machine identities and all volumes. Back up
 application state before replacing a disposable root. Build/retain the required
@@ -66,7 +77,7 @@ replaced. Apply it, reactivate the matching NixOS generation and repeat that
 capability and its affected dependency gates. No secrets initialization occurs.
 For llama, provider-delivered config/cache precede startup automatically.
 
-## Host reset: establish what survived first
+## Execute: restore after host loss
 
 Restore IncusOS installation, trusted client access, correct pools and LAN roles,
 AMD support, then inspect instance/network/volume inventory from the runbook.
@@ -183,7 +194,7 @@ using restored keys/ciphertext/data, not the fresh secret-generation procedure.
 For partially surviving infrastructure keep the existing accepted stage and
 reconcile only missing resources. All live gates are pending until repeated.
 
-## Independent restore test
+## Verify an independent restore
 
 Use an isolated spare host/pool and copied state/inputs with a reviewed fresh target;
 do not import restored copies into production state. Restore selected irreplaceable
@@ -195,6 +206,13 @@ application health; test restored Caddy state and optional cache as appropriate.
 Record revision/date/environment/result. If a spare target is unavailable, mark
 this gate pending; inspecting an archive is not a restore test. Cleanup of the
 isolated test has its own reviewed deletion list.
+
+## Acceptance gate
+
+Accept recovery only after the [independent restore](#verify-an-independent-restore)
+passes for matching identities and data, with repeated affected capability gates.
+Record revision, date, environment and results. Keep an unavailable restore
+target explicitly pending; archive inspection alone cannot pass this gate.
 
 Sources: [Incus volume backup](https://linuxcontainers.org/incus/docs/main/howto/storage_backup_volume/),
 [pinned volume import IDs](https://github.com/lxc/terraform-provider-incus/blob/v1.2.0/docs/resources/storage_volume.md).

@@ -1,4 +1,4 @@
-# Validation and acceptance
+# Validate changes and record acceptance
 
 Choose checks for the affected building blocks. Distinguish repository review,
 native validation, builds, saved plans and live acceptance; one layer cannot
@@ -61,7 +61,7 @@ Keep a private record for the tested revision:
 A relevant configuration change invalidates or qualifies earlier evidence.
 Do not infer live status from historical PR reports, merge or CI. Record
 unavailable tools, target access, keys or hardware as precise pending checks.
-The capability procedures in the [runbook](runbook.md) define the live gates;
+The capability procedures in the [runbook](deployment.md) define the live gates;
 stop dependent application at failures. An inspected backup archive is not an
 independent restore test.
 

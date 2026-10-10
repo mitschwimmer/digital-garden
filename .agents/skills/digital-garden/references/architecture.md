@@ -1,4 +1,11 @@
-# Architecture and building blocks
+# Preserve ownership and compose building blocks
+
+- [Select building blocks](#select-building-blocks)
+- [Inspect the current composition](#inspect-the-current-composition)
+- [Ownership](#ownership)
+- [Preserve resource identity](#preserve-resource-identity)
+- [Declare exposure and authentication](#declare-exposure-and-authentication)
+- [Respect the current deployment shape](#respect-the-current-deployment-shape)
 
 Digital Garden composes self-hosted services from declarative infrastructure,
 guest configuration, ingress, identity and persistent storage. A new service
@@ -6,7 +13,7 @@ selects the pieces it needs. The current AI composition demonstrates those
 interfaces; it does not require every future service to use GPU inference or
 Open WebUI.
 
-## Building blocks
+## Select building blocks
 
 | Block | Implementation | Interface for another service |
 |---|---|---|
@@ -25,7 +32,7 @@ including its hostname and network policy; inspect and override those assumption
 when composing a new host. Extract a shared module when another consumer needs it, keeping
 application names, paths and policy in that consumer's configuration.
 
-## Current composition
+## Inspect the current composition
 
 Caddy and Authelia share the NixOS `edge` guest in `default`. Caddy routes
 `auth.archaic.work` to Authelia's loopback listener and `ai.archaic.work` to Open
@@ -62,7 +69,7 @@ explain the unmet requirement, alternatives and maintenance cost. Use upstream
 OCI images pinned by digest; publishing a derived image solely to ship ordinary
 configuration adds unnecessary ownership.
 
-## Resource identity and updates
+## Preserve resource identity
 
 The minimal NixOS seed creates a guest; subsequent closure activation updates
 its services. Preserve `image_directory` during maintenance so a service change
@@ -74,7 +81,7 @@ host/storage loss; `prevent_destroy` is not a backup. Review image replacement,
 project moves, storage changes and secret rotation explicitly. NixOS rollback
 does not reverse database migrations.
 
-## Exposure and authentication
+## Declare exposure and authentication
 
 Caddy owns public HTTP/TLS ingress and persistent ACME state. Wildcard DNS for
 `*.archaic.work` is manual; Caddy uses explicit hostname certificates. Inspect
@@ -85,16 +92,16 @@ Authelia is the shared identity provider. Prefer native OIDC; use forward-auth
 when a suitable native integration is unavailable. Public URLs, callback URIs,
 client IDs, scopes and claims are ordinary configuration; encrypt client secrets
 and signing/private material. Test denied access and role assignment as well as
-login. The WebUI [source patch](../nix/patches/README.md) handles pinned upstream
+login. The WebUI [source patch](../../../../nix/patches/README.md) handles pinned upstream
 exceptions and must be re-evaluated on upgrades.
 
-## Deployment shape
+## Respect the current deployment shape
 
 The current HCL exposes a cumulative `stage` from 1 to 5. It creates both
 application projects, both seed imports and all seven volumes at stage 1;
 later stages attach edge LAN networking and add the application guests. NixOS
 activation selects services independently of the HCL stage. See the
-[runbook table](runbook.md#cumulative-capabilities) for exact gates.
+[runbook table](deployment.md#cumulative-capabilities) for exact gates.
 
 This selector describes today's composition. It is not an independent
 feature-toggle interface: stage 5 includes WebUI and the earlier stages.

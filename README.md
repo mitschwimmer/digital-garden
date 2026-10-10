@@ -1,37 +1,26 @@
 # Digital Garden
 
-Digital Garden is Henner's collection of building blocks for self-hosted digital
-services on IncusOS. OpenTofu describes infrastructure, NixOS configures system
-containers, Caddy provides HTTPS ingress, Authelia provides identity, and SOPS +
-age keeps stable secrets encrypted. Services compose these pieces according to
-their needs.
+Compose self-hosted digital services from IncusOS infrastructure, NixOS guests,
+Caddy HTTPS ingress, Authelia identity, SOPS + age secrets and direct OCI
+workloads. The current composition combines a shared edge, private Open WebUI
+with native OIDC and llama.cpp with AMD GPU/KFD access.
 
-The current composition is an AI service: a shared Caddy/Authelia edge, private
-Open WebUI with native OIDC, and direct OCI llama.cpp with AMD GPU/KFD access.
-It is a working configuration to extend, rather than a general-purpose deployment
-framework. Host addresses, domains and hardware choices are specific to this
-installation.
+## Follow the project handbook
 
-## Work with the project
+Start with [Work on Digital Garden](.agents/skills/digital-garden/SKILL.md).
+The skill is the shared handbook for humans and agents: start every task,
+select the relevant references, preserve ownership, compose a capability,
+validate it and record acceptance. Its references hold the detailed rules and
+native operating procedures; there is one documentation contract for both audiences.
 
-Humans and agents use the same project documentation:
+## Establish the execution environment
 
-| Goal | Start here |
-|---|---|
-| Understand the building blocks and their ownership | [Architecture](docs/architecture.md) |
-| Change configuration or compose another service | [Contribution guide](docs/contributing.md) |
-| Choose a runtime and resource namespace | [Application placement](docs/app-placement.md), [Incus projects](docs/projects.md) |
-| Deploy or maintain the current composition | [Operator runbook](docs/runbook.md) |
-| Manage keys, ciphertext and secret delivery | [Secrets](docs/secrets.md) |
-| Check a change and record acceptance | [Validation](docs/validation.md) |
-| Back up or restore an installation | [Recovery](docs/recovery.md) |
-| Change inference models or presets | [OCI configuration](docs/06-oci-config.md) |
+Use a Nix workstation and authenticated Incus client. Inspect host storage,
+network roles, AMD support, router rules and manual wildcard A/AAAA DNS for
+`*.archaic.work` before deployment. Host, domain and hardware settings belong to
+this installation; adapt them deliberately for another target.
 
-The repository's [Digital Garden skill](.agents/skills/digital-garden/SKILL.md)
-helps agents select and follow these documents. Project conventions live in
-`docs/`, alongside the procedures used by human contributors and operators.
-
-Deployment requires a Nix workstation and authenticated Incus client. Host
-storage, IncusOS network roles, AMD support, router rules and wildcard A/AAAA DNS
-for `*.archaic.work` are manual prerequisites. See the runbook before applying
-anything. CI checks whitespace; it does not establish build or live acceptance.
+Treat the current configuration as a composition to extend. Its five-stage HCL
+selector is cumulative; define explicit dependencies for additional services.
+CI checks whitespace. Require the handbook's build, plan and live gates before
+accepting a running capability.

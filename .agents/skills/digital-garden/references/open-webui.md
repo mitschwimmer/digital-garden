@@ -1,9 +1,23 @@
-# Milestone 4: Open WebUI native OIDC
+# Compose Open WebUI with native OIDC
 
-Prerequisite: identity gate passed, ai.archaic.work manually routed to edge,
-private/public DNS and trusted HTTPS discovery reachable from the WebUI guest,
-WebUI ciphertext with matching client secret, and its machine key. Edge already
-contains the Caddy route and two-factor OIDC client. No forward-auth layer is added.
+- [Contract](#contract)
+- [Execute](#execute)
+- [Verify](#verify)
+- [Resume and rollback](#resume-and-rollback)
+- [Acceptance gate](#acceptance-gate)
+
+## Contract
+
+| Field | Requirement |
+|---|---|
+| Goal | Provide a private AI application with public HTTPS and enforced IdP roles. |
+| Prerequisites | [Identity](identity.md) accepted; ai hostname routed, discovery reachable, matching client secret and machine key prepared. |
+| Sources | `tofu/open-webui.tf`, `nix/hosts/open-webui.nix`, `nix/patches/`, `secrets/open-webui.yaml`. |
+| Execution and inputs | Workstation and browser; stage 4, WebUI closure and machine key. |
+| Expected infrastructure effects | One guest addition; existing volumes retained; no deletion or replacement. |
+
+Reuse the edge Caddy route and two-factor OIDC client. Use native OIDC without
+a forward-auth layer.
 
 WebUI and its state/secrets belong to project `ai`. The shared edge remains in
 `default`. WebUI uses a private NixOS system container because native environment-file
@@ -13,7 +27,9 @@ All workloads/clients able to route to the private bridge are trusted infrastruc
 WebUI additionally requires OIDC. A separate bridge alone does not enforce caller
 isolation. Do not attach untrusted guests without adding a reviewed network policy.
 
-## 1. Build the WebUI configuration
+## Execute
+
+### 1. Build the WebUI configuration
 
 ```fish
 jq '.stage = 4' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
@@ -21,11 +37,11 @@ mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
 nix build .#nixosConfigurations.open-webui.config.system.build.toplevel --out-link result-open-webui-system
 ```
 
-This builds the complete package with the [pinned authorization patch](../nix/patches/README.md).
+This builds the complete package with the [pinned authorization patch](../../../../nix/patches/README.md).
 
-## 2. Create the guest and install its machine key
+### 2. Create the guest and install its machine key
 
-Run [plan/apply](runbook.md#native-planapply-and-activation): one guest addition,
+Run [plan/apply](deployment.md#native-planapply-and-activation): one guest addition,
 no deletion/replacement, existing volumes unchanged. Set the target:
 
 ```fish
@@ -55,11 +71,17 @@ Stop for failed mount/path/discovery checks. Run the absence test separately;
 if the key already exists, verify/reuse the intended identity and skip transfer.
 Never continue from a failed absence check into a key overwrite.
 
-## 3. Activate and verify WebUI
+### 3. Activate WebUI
 
 Complete every step of [activation](activation.md) with `GARDEN_CONFIG=open-webui`.
 A newly created guest is still the minimal seed until this switch. Complete
-[guest readiness](readiness.md) again, then verify:
+[guest readiness](readiness.md) again.
+
+## Verify
+
+### 4. Verify service health
+
+Run:
 
 ```fish
 incus exec "$GARDEN_REMOTE:edge" --project default -- getent hosts open-webui.garden.internal
@@ -72,7 +94,7 @@ curl --connect-timeout 5 --max-time 30 --fail https://ai.archaic.work/health
 Expect edge DNS to resolve WebUI, `active`, a nonempty runtime secret file,
 successful local health and trusted public health. Stop on a failed check.
 
-## 4. Verify authorization and restart persistence
+### 5. Verify authorization and restart persistence
 
 Browser gate in a private window: only Authelia login, TOTP required, admins receive
 admin role, ai-users receive user role, unrelated or absent groups are denied.
@@ -86,12 +108,12 @@ If the IdP always supplies groups, test absent groups with a separate user with 
 groups and verify no claim from another source silently grants access.
 
 Restart WebUI and edge; complete [guest readiness](readiness.md) for each project
-and repeat the step-3 health checks before logging in again; the account/settings remain and a new
+and repeat the step-4 health checks before logging in again; the account/settings remain and a new
 private window requires login. Inference is expected to be unavailable until stage
 5. Gate: both permitted-role behavior and denial/first-user behavior passed,
 matching identity and state persist. Login alone is insufficient.
 
-## Failure and resume
+## Resume and rollback
 
 ```fish
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -T -- env TERM=xterm systemctl status open-webui sops-install-secrets --no-pager -l
@@ -103,6 +125,12 @@ Review journals locally before sharing redacted errors. Then inspect service/sop
 DNS/hairpin routing, issuer/callback URL, client hash/plaintext pairing, PKCE and
 IdP groups. Correct declared config/ciphertext and reactivate; do not enable local
 signup as a workaround. Rollback uses the recorded previous generation plus a
-matching data backup for migrations, retaining state and keys. Next: [inference](05-inference.md).
+matching data backup for migrations, retaining state and keys.
+
+## Acceptance gate
+
+Accept this capability only after every [verification](#verify), including
+restart persistence, passes. Record revision, date, environment and results
+privately. Continue to [inference](inference.md) only after acceptance.
 
 Source: [pinned NixOS WebUI module](https://github.com/NixOS/nixpkgs/blob/0d9e9b832d03ac387417e16ce1febf73b2e631e1/nixos/modules/services/misc/open-webui.nix).

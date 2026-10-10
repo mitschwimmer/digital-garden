@@ -1,9 +1,23 @@
-# Milestone 5: private GPU inference
+# Provide private GPU inference
 
-Prerequisite: WebUI gate passed, inspected AMD GPU PCI address, IncusOS driver/
-firmware and `/dev/kfd`, enough pool capacity, compatible ROCm hardware, Internet
-access to the pinned model URLs. Check available GPU/RAM capacity before creating
-the guest.
+- [Contract](#contract)
+- [Execute](#execute)
+- [Verify](#verify)
+- [Resume and rollback](#resume-and-rollback)
+- [Acceptance gate](#acceptance-gate)
+
+## Contract
+
+| Field | Requirement |
+|---|---|
+| Goal | Provide generated text with verified GPU offload and persistent model cache. |
+| Prerequisites | [WebUI](open-webui.md) accepted for this composition; inspected AMD PCI/KFD support, compatible ROCm, capacity and model access. |
+| Sources | `tofu/llama.tf`, `llama/image.lock.json`, `llama/models.ini`, `llama/models.lock.json`. |
+| Execution and inputs | Workstation, trusted backend and browser; stage 5 and inspected GPU PCI address. |
+| Expected infrastructure effects | One OCI guest addition; no new volumes or earlier guest replacement/deletion. |
+
+Inspect IncusOS driver/firmware, `/dev/kfd` and available GPU/RAM capacity
+before creating the guest.
 
 The OCI guest, cache and configuration volumes belong to project `inference`.
 Open WebUI callers run in `ai`; both use the shared bridge in `default`.
@@ -20,16 +34,18 @@ access control. Do not publish/forward it. Host administrators and routable gues
 can call it; gardenbr0 is not an authorization boundary. Verify intended caller
 reachability and lack of public routing rather than assuming address privacy.
 
-## 1. Set inspected inputs on the workstation
+## Execute
+
+### 1. Set inspected inputs on the workstation
 
 ```fish
 jq --arg pci "$GARDEN_GPU_PCI" '.stage = 5 | .llama_gpu_pci = $pci' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
 mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
 ```
 
-## 2. Apply the OCI workload
+### 2. Apply the OCI workload
 
-Run [native plan/apply](runbook.md#native-planapply-and-activation): one OCI guest
+Run [native plan/apply](deployment.md#native-planapply-and-activation): one OCI guest
 addition, no volume addition or earlier guest replacement/deletion. Provider
 schema validation is mandatory. Its file content is public and may enter state;
 never use this path for secrets. Initial apply must finish public file delivery
@@ -38,7 +54,9 @@ start the service manually; repair it and reapply the whole plan. This workload
 starts directly through OpenTofu; it does **not** use NixOS activation or the
 systemd readiness loop.
 
-## 3. Verify API readiness before requesting models
+## Verify
+
+### 3. Verify API readiness before requesting models
 
 ```fish
 incus info "$GARDEN_REMOTE:garden-llama" --project inference
@@ -50,7 +68,7 @@ incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --connect-timeout 5 
 Stop unless health succeeds within the retry budget and the catalog is available.
 A running OCI process or device enumeration alone does not pass the gate.
 
-## 4. Verify model output, GPU use and persistence
+### 4. Verify model output, GPU use and persistence
 
 Both aliases `mimo` and `qwen36` must appear even before downloads. Send native
 API requests from the trusted WebUI guest, one model at a time:
@@ -79,13 +97,13 @@ After download, verify each file with `sha256sum` inside llama and compare again
 the lock. Also check file sizes with `stat -c %s`. This can be expensive once;
 record verified results and repeat after changing bytes, not every restart.
 
-Failure/resume: inspect container log, GPU devices/permissions, memory and cache
+## Resume and rollback
+
+Inspect container log, GPU devices/permissions, memory and cache
 capacity, outbound Hugging Face DNS/TLS, selected model status and WebUI backend
 URL. If Qwen cannot fit, review an explicit context/offload change. Do not enable
 privileged mode or bypass checks with an architecture override. A failed initial
 apply resumes with the same state/volumes and whole plan.
-
-## Configuration changes and rollback
 
 Before an update, save the current Git revision, image/launch settings, state,
 and public presets outside the checkout. Stop the OCI guest before modifying a
@@ -109,7 +127,12 @@ Rollback: restore the previously recorded public preset/image/launch declaration
 stop the guest, review/apply a new whole plan, and repeat inference checks. Retain
 cache and identities. Never lower stage or unset PCI to troubleshoot.
 After rollback reconcile repository versus running state before continuation.
-Next: [backup/restore gate](recovery.md).
+
+## Acceptance gate
+
+Accept this capability only after every [verification](#verify), including
+restart persistence, passes. Record revision, date, environment and results
+privately. Continue to [backup and restore](recovery.md) only after acceptance.
 
 Sources: [pinned llama server](https://github.com/ggml-org/llama.cpp/blob/b11382/tools/server/README.md),
 [pinned provider files](https://github.com/lxc/terraform-provider-incus/blob/v1.2.0/docs/resources/storage_volume.md),

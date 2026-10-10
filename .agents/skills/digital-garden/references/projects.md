@@ -1,4 +1,4 @@
-# Incus project guidance
+# Scope Incus projects deliberately
 
 ## Choose boundaries by purpose
 

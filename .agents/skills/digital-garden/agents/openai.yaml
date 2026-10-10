@@ -1,4 +1,4 @@
 interface:
   display_name: "Digital Garden"
   short_description: "Compose and maintain self-hosted digital services"
-  default_prompt: "Use $digital-garden to work on this project using its shared architecture, contribution guide and operating procedures."
+  default_prompt: "Use $digital-garden to follow the shared project handbook when composing, changing or operating a service."

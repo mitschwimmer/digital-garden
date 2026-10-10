@@ -1,15 +1,26 @@
-# Milestone 3: Authelia identity
+# Provide Authelia identity
 
-Prerequisite: trusted Caddy ingress passed, auth.archaic.work manually routed to
-edge, reachable SMTP with valid credentials, persistent machine key and all three
-consumer ciphertext files prepared through [secrets](secrets.md). Preparing OIDC
-now does not require starting WebUI. Keep protected local WebUI key for stage 4.
+## Contract
+
+| Field | Requirement |
+|---|---|
+| Goal | Provide discovery, SMTP enrollment, TOTP and persistent identity through Caddy. |
+| Prerequisites | [Ingress](ingress.md) accepted; auth hostname routed, SMTP credentials and [encrypted identities](secrets.md) prepared. |
+| Sources | `nix/modules/edge-auth.nix`, `nix/modules/oidc-client.nix`, `nix/hosts/edge.nix`, consumer ciphertext. |
+| Execution and inputs | Workstation and browser; stage 3, full edge closure, edge machine key. |
+| Expected infrastructure effects | No infrastructure change; NixOS activation enables identity services. |
+
+Prepare all three consumer ciphertext files through [secrets](secrets.md).
+Preparing OIDC does not require starting WebUI. Retain its protected machine key
+for stage 4.
 
 Authelia listens only on 127.0.0.1:9091 behind Caddy. Its SQLite state and TOTP
 registrations persist at `/var/lib/authelia-main`; stable keys use sops-nix runtime
 files. The private bridge resolver remains available alongside LAN DNS.
 
-## 1. Prepare identities and build on the workstation
+## Execute
+
+### 1. Prepare identities and build on the workstation
 
 Choose exactly one [secrets path](secrets.md): reuse existing encrypted identities,
 or intentionally create new ones for an empty application database. Do not run
@@ -30,15 +41,17 @@ set -gx GARDEN_GUEST edge
 set -gx GARDEN_CONFIG edge
 ```
 
-## 2. Review infrastructure and activate the full edge
+### 2. Review infrastructure and activate the full edge
 
-Run the [whole plan](runbook.md#native-planapply-and-activation): expect no resource
+Run the [whole plan](deployment.md#native-planapply-and-activation): expect no resource
 changes. Then complete all steps of [activation](activation.md) with `GARDEN_CONFIG=edge`,
 including transfer and switching the guest configuration. This enables Authelia;
 setting stage 3 alone does not start it. The synthetic config validator proves
 settings structure only; live SMTP, credentials and decryption are separate gates.
 
-## 3. Verify service and identity gates
+## Verify
+
+### 3. Verify service and identity gates
 
 Complete [guest readiness](readiness.md) for edge/default first. Then run:
 
@@ -60,7 +73,7 @@ identity. Confirm Authelia is loopback-only with `ss -lntp` inside edge, and the
 sops-nix unit/services have no failures. Machine-only successful decryption is
 shown by runtime secret creation/service activation, without printing secrets.
 
-## Failure and resume
+## Resume and rollback
 
 ```fish
 incus exec "$GARDEN_REMOTE:edge" --project default -T -- env TERM=xterm systemctl status authelia-main sops-install-secrets --no-pager -l
@@ -74,4 +87,9 @@ secrets or post verification links/tokens in logs. Fix ciphertext via SOPS and
 reactivate the same guest. Never regenerate the storage encryption key to fix a
 decryption problem. Rollback uses the [previous generation](activation.md) and
 matching database backup if schema changed; retain identity and state volumes.
-Next: [WebUI authorization](04-open-webui.md) only after this identity gate passes.
+
+## Acceptance gate
+
+Accept this capability only after every [verification](#verify), including
+restart persistence, passes. Record revision, date, environment and results
+privately. Continue to [WebUI authorization](open-webui.md) only after acceptance.
