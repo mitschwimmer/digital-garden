@@ -101,8 +101,8 @@ Model each service as a composition of infrastructure, guest configuration,
 network endpoints, identity, secrets and state. Reuse only the blocks it needs.
 Describe dependency interfaces rather than requiring a platform-wide task order.
 
-The current resource selector still couples WebUI and inference. Consult
-[platform inputs](platform.md#interpret-the-current-resource-selection) for its
-exact effects, and [infrastructure reconciliation](infrastructure.md) before
-changing selection. Treat that selector as an implementation detail when designing
-new services; declare their selection and dependencies deliberately.
+Independent service settings select edge LAN attachment, WebUI and inference. Consult
+[platform inputs](platform.md#select-infrastructure-and-services-explicitly) for its
+exact effects and legacy-input conversion, and [infrastructure reconciliation](infrastructure.md) before
+changing selection. Preserve unrelated settings and state while declaring
+new services and their dependencies deliberately.

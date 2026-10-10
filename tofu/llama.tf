@@ -1,5 +1,5 @@
 variable "llama_gpu_pci" {
-  description = "AMD GPU PCI address from inspected local host inputs; required at stage 5."
+  description = "AMD GPU PCI address from inspected local host inputs; required when inference is enabled."
   type        = string
   default     = null
 
@@ -59,7 +59,7 @@ resource "incus_storage_volume" "llama_config" {
 
 # OpenTofu delivers public presets before creating/starting the OCI instance.
 resource "incus_instance" "llama" {
-  count       = local.llama_enabled ? 1 : 0
+  count       = var.enable_inference ? 1 : 0
   name        = "garden-llama"
   description = "Digital Garden private ROCm inference router"
   image       = "garden-ghcr:${local.llama_image.repository}@${local.llama_image.digest}"
@@ -72,7 +72,7 @@ resource "incus_instance" "llama" {
   lifecycle {
     precondition {
       condition     = var.llama_gpu_pci != null
-      error_message = "Stage 5 requires an inspected AMD GPU PCI address and host /dev/kfd."
+      error_message = "Inference requires an inspected AMD GPU PCI address and host /dev/kfd."
     }
   }
 
@@ -147,5 +147,5 @@ resource "incus_instance" "llama" {
 }
 
 output "llama_ipv4" {
-  value = local.llama_enabled ? incus_instance.llama[0].ipv4_address : null
+  value = var.enable_inference ? incus_instance.llama[0].ipv4_address : null
 }

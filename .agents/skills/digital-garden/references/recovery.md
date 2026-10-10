@@ -67,7 +67,7 @@ metadata and off-host replication. Restore acceptance is mandatory below.
 
 ## Resume and rollback: replace a guest with storage intact
 
-Keep existing inputs/state, stage, machine identities and all volumes. Back up
+Keep existing inputs/state, service selection, machine identities and all volumes. Back up
 application state before replacing a disposable root. Build/retain the required
 seed/guest closures; inspect a full plan with `-replace=incus_instance.edge` (or
 `incus_instance.webui[0]` / `incus_instance.llama[0]`) only when replacement is

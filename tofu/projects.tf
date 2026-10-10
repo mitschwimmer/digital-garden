@@ -1,5 +1,5 @@
 # Shared ingress/identity and bridge networks remain in the built-in default project.
-# Create application projects at stage 1 so their persistent volumes exist before guests.
+# Keep application projects and persistent volumes independent of guest selection.
 resource "incus_project" "ai" {
   name        = "ai"
   description = "Digital Garden user-facing AI applications"

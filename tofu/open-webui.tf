@@ -35,7 +35,7 @@ resource "incus_storage_volume" "webui_secrets" {
 }
 
 resource "incus_instance" "webui" {
-  count       = local.webui_enabled ? 1 : 0
+  count       = var.enable_webui ? 1 : 0
   name        = "open-webui"
   description = "Digital Garden private Open WebUI"
   type        = "container"
@@ -100,5 +100,5 @@ resource "incus_instance" "webui" {
 }
 
 output "open_webui_ipv4" {
-  value = local.webui_enabled ? incus_instance.webui[0].ipv4_address : null
+  value = var.enable_webui ? incus_instance.webui[0].ipv4_address : null
 }

@@ -41,7 +41,7 @@ when updating a running guest.
 ### 1. Build guest configuration on the workstation
 
 ```fish
-jq --arg parent "$GARDEN_LAN_PARENT" --arg mac "$GARDEN_LAN_MAC" '.stage = ([.stage, 2] | max) | .edge_lan_parent = $parent | .edge_lan_mac = $mac' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
+jq --arg parent "$GARDEN_LAN_PARENT" --arg mac "$GARDEN_LAN_MAC" '.enable_edge_lan = true | .edge_lan_parent = $parent | .edge_lan_mac = $mac' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
 mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
 set -gx GARDEN_PROJECT default
 set -gx GARDEN_GUEST edge

@@ -12,7 +12,7 @@
 | Goal | Provide generated text with verified GPU offload and persistent model cache. |
 | Prerequisites | Private networking and a trusted API caller; inspected AMD PCI/KFD support, compatible ROCm, capacity and model access. |
 | Sources | `tofu/llama.tf`, `llama/image.lock.json`, `llama/models.ini`, `llama/models.lock.json`. |
-| Execution and inputs | Workstation, trusted backend and browser; stage 5 and inspected GPU PCI address. |
+| Execution and inputs | Workstation, trusted backend and browser; `enable_inference=true` and inspected GPU PCI address. |
 | Expected infrastructure effects | One OCI guest addition; no new volumes or earlier guest replacement/deletion. |
 
 Inspect IncusOS driver/firmware, `/dev/kfd` and available GPU/RAM capacity
@@ -20,8 +20,8 @@ before creating the guest.
 
 The OCI guest, cache and configuration volumes belong to project `inference`.
 The checks below use the configured WebUI guest as a trusted caller; another
-trusted caller may exercise the same endpoints. The current HCL selection
-creates WebUI together with inference; see [platform selection](platform.md#interpret-the-current-resource-selection).
+trusted caller may exercise the same endpoints. Enable inference independently of WebUI and LAN attachment; see
+[service selection](platform.md#select-infrastructure-and-services-explicitly).
 Open WebUI callers run in `ai`; both use the shared bridge in `default`.
 
 `tofu/llama.tf` uses the upstream digest in `llama/image.lock.json`, explicit
@@ -41,7 +41,7 @@ reachability and lack of public routing rather than assuming address privacy.
 ### 1. Set inspected inputs on the workstation
 
 ```fish
-jq --arg pci "$GARDEN_GPU_PCI" '.stage = 5 | .llama_gpu_pci = $pci' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
+jq --arg pci "$GARDEN_GPU_PCI" '.enable_inference = true | .llama_gpu_pci = $pci' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
 mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
 ```
 
@@ -85,13 +85,13 @@ incus console "$GARDEN_REMOTE:garden-llama" --project inference --show-log
 
 Require responses contain actual generated text; logs show ROCm and layers
 **offloaded**, not merely enumerated devices. Catalog status shows only the
-selected model loaded (models-max 1). In WebUI select MiMo -> Qwen -> MiMo and
+selected model loaded (models-max 1). When WebUI is enabled, select MiMo -> Qwen -> MiMo and
 chat; switching needs no infrastructure apply/restart. First download/load may
 be slow. Cold model requests may take up to the documented 7200-second timeout;
-do not treat this as the short API readiness check. Cached models and chat state
-must survive restarting both guests. Wait for WebUI via [guest readiness](readiness.md)
+do not treat this as the short API readiness check. Cached models must survive restarting inference. If WebUI is enabled, its chat
+state and client integration must also survive restarting both guests. Wait for WebUI via [guest readiness](readiness.md)
 in `ai`, and repeat the bounded inference health check above before requests. Repeat
-an API request and browser chat after restart and ensure no full re-download.
+an API request and, when enabled, browser chat after restart and ensure no full re-download.
 
 The immutable source URLs and expected SHA256/size are recorded in
 `llama/models.lock.json`; checksum-named cache paths alone do not verify bytes.
@@ -127,7 +127,7 @@ separately from persistent-data changes.
 
 Rollback: restore the previously recorded public preset/image/launch declarations,
 stop the guest, review/apply a new whole plan, and repeat inference checks. Retain
-cache and identities. Never lower stage or unset PCI to troubleshoot.
+cache and identities. Never disable inference or unset PCI to troubleshoot.
 After rollback reconcile repository versus running state before continuation.
 
 Sources: [pinned llama server](https://github.com/ggml-org/llama.cpp/blob/b11382/tools/server/README.md),

@@ -8,7 +8,7 @@ NixOS guest services require separate [activation](activation.md).
 ## Inspect and prepare
 
 1. Identify requested additions, updates and removals from source and inventory.
-   Use the [resource-selection reference](platform.md#interpret-the-current-resource-selection)
+   Use the [resource-selection reference](platform.md#select-infrastructure-and-services-explicitly)
    for the current HCL. Keep unrelated services and retained volumes intact.
 2. Preserve matching state, local inputs and seed identity. Back up affected data
    before replacement or storage changes. Import surviving resources using

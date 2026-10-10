@@ -1,6 +1,6 @@
 ---
 name: digital-garden
-description: Work on mitschwimmer/digital-garden, Henner's building blocks for self-hosted services on IncusOS with OpenTofu, NixOS, Caddy, Authelia, SOPS and direct OCI workloads. Use for composing services, provisioning and reconciling infrastructure, configuration changes, upgrades, identity and secret management, troubleshooting, backup and recovery, documentation and reviews in this project.
+description: Work on mitschwimmer/digital-garden, Henner's building blocks for self-hosted services on IncusOS with OpenTofu, NixOS, Caddy, Authelia, SOPS and direct OCI workloads. Use for composing services, provisioning and reconciling infrastructure, configuration changes, upgrades, identity and secret management, troubleshooting, backup, recovery and service retirement, documentation and reviews in this project.
 ---
 
 # Work on Digital Garden
@@ -67,7 +67,7 @@ Pin dependencies and review upstream patches with explicit removal conditions.
    behavior. Choose a runtime and project using the block references.
 2. Declare infrastructure, private connectivity, resource limits, persistent
    mounts and service selection. Make dependencies explicit; avoid coupling
-   unrelated services through today's numeric resource selector.
+   unrelated services through shared state or unrelated service switches.
 3. Compose NixOS modules and a flake configuration, or pin an upstream OCI image
    and define supported configuration delivery before startup. Require necessary
    mounts before services can write state.
@@ -134,6 +134,15 @@ survived before choosing state or imports. Restore identities with their data,
 reconcile missing infrastructure and configure restored services. Verify an
 independent restore and repeat affected service checks; archive inspection alone
 is not restoration evidence.
+
+### Retire a service
+
+Follow [service retirement](references/retirement.md). Identify dependents and
+owned routes, clients, credentials, guests and data. Withdraw access, make a
+verified archive where required, revoke dedicated credentials and review the
+explicit guest-removal plan. Retain shared resources and persistent volumes
+unless their deletion is separately intended. Verify surviving services and
+record what remains archived, retained or intentionally deleted.
 
 ## Validate and finish
 

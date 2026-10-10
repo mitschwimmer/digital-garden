@@ -34,10 +34,15 @@ tofu -chdir=tofu fmt -check -diff
 tofu -chdir=tofu init -backend=false -input=false -lockfile=readonly
 tofu -chdir=tofu validate
 nix flake check --no-build
-nix build .#edge-image --out-link result-edge-image
+nix build .#edge-image --out-link result-edge-image-validation
 nix build .#nixosConfigurations.edge-ingress.config.system.build.toplevel .#nixosConfigurations.edge.config.system.build.toplevel .#nixosConfigurations.open-webui.config.system.build.toplevel --no-link
 nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.authelia-config --no-link
 ```
+
+Use `result-edge-image-validation` only to validate the current seed definition.
+Keep the deployed seed's `result-edge-image` GC root and `image_directory`
+unchanged. Compare paths when planning an intentional seed change; never copy a
+validation output into local deployment inputs as part of routine checks.
 
 Staged ciphertext is needed for the consumer builds. Never generate fixture
 secrets just to force CI green. The config check uses clearly synthetic values
@@ -49,6 +54,23 @@ For infrastructure changes, follow native validation with a whole plan on the
 actual target. Include first-create behavior when new resources are introduced; computed bridge addresses and instance outputs must resolve
 without treating unknown first-create values as existing-host facts. Inspect
 actual changes against inspected inventory and declared intent. No mocked plan proves host behavior.
+
+## Test independent service selection
+
+The plan-only suite in `tofu/tests/service-selection.tftest.hcl` uses a mocked
+Incus provider to check all eight service combinations, retained application
+volumes, rejection of old selectors and required LAN/GPU inputs. It makes no
+live Incus calls. Supply an existing built seed directory so the real seed-input
+validation also applies:
+
+```fish
+tofu -chdir=tofu test -var "image_directory=$GARDEN_IMAGE"
+```
+
+Set `GARDEN_IMAGE` from the retained deployment seed or the separate validation
+output. This command does not update local deployment inputs. Mocked plans do
+not establish host/provider runtime behavior; review real saved plans and verify
+affected services before live application.
 
 ## Record verification
 
