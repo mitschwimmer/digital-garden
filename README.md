@@ -10,7 +10,7 @@ with native OIDC and llama.cpp with AMD GPU/KFD access.
 Start with [Work on Digital Garden](.agents/skills/digital-garden/SKILL.md).
 Humans and agents share its lifecycle workflows: compose services, reconcile
 infrastructure, configure and upgrade, publish and manage access, maintain
-identities, troubleshoot, and back up or restore. Select the building blocks
+identities, troubleshoot, back up or restore, and retire services. Select the building blocks
 needed for the activity and follow their referenced operating procedures.
 
 ## Establish the execution environment

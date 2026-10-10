@@ -1,0 +1,4 @@
+interface:
+  display_name: "IncusOS Homelab"
+  short_description: "Use the current Digital Garden project handbook"
+  default_prompt: "Use $incusos-homelab to load the current Digital Garden handbook and select its lifecycle workflow."

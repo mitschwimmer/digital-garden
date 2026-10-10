@@ -31,7 +31,7 @@ isolation. Do not attach untrusted guests without adding a reviewed network poli
 ### 1. Build the WebUI configuration
 
 ```fish
-jq '.stage = ([.stage, 4] | max)' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
+jq '.enable_webui = true' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
 mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
 nix build .#nixosConfigurations.open-webui.config.system.build.toplevel --out-link result-open-webui-system
 ```

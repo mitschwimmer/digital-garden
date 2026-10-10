@@ -10,7 +10,7 @@
 | Field | Requirement |
 |---|---|
 | Goal | Change public presets, image or launch settings with declared ownership and safe restart. |
-| Prerequisites | A working [inference service](inference.md); retain stage 5, GPU input, state and configuration backups. |
+| Prerequisites | A working [inference service](inference.md); retain inference selection, GPU input, state and configuration backups. |
 | Sources | `llama/models.ini`, image/model locks and `tofu/llama.tf`. |
 | Execution and inputs | Fish workstation from repository root; changed declared files and reviewed whole plan. |
 | Expected infrastructure effects | Preset-only change updates config file and running state; review image/launch changes separately. |
@@ -34,7 +34,7 @@ and partial-failure behavior, acceptance and rollback are covered in
 ## Apply the change
 
 Run in fish from the repository root against an existing inference service. Keep local
-inputs at stage 5 with the inspected GPU PCI address. This OCI workload needs no
+inputs with inference enabled with the inspected GPU PCI address. This OCI workload needs no
 NixOS build or activation.
 
 ### 1. Edit the source

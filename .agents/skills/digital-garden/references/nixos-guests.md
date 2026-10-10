@@ -1,5 +1,10 @@
 # Provision NixOS guests from an immutable seed
 
+- [Scope and inputs](#scope-and-inputs)
+- [Apply the change](#apply-the-change)
+- [Check the result](#check-the-result)
+- [Resume and rollback](#resume-and-rollback)
+
 ## Scope and inputs
 
 | Field | Requirement |
@@ -21,13 +26,20 @@ and outbound NAT/DNS. It does not isolate traffic routed from other host bridges
 
 Check [starting state](platform.md#starting-state-and-retained-resources) first.
 For an existing or restored installation, preserve its inputs and seed identity
-and use [recovery](recovery.md). For a new installation, build the seed and
-initialize local inputs on the workstation:
+and use [recovery](recovery.md). For a new installation, first require the retained seed link and local inputs
+to be absent. Run these checks separately and stop on an existing path:
+
+```fish
+test ! -e result-edge-image; and test ! -L result-edge-image
+test ! -e tofu/site.auto.tfvars.json
+```
+
+Then build the seed and initialize local inputs on the workstation:
 
 ```fish
 nix build .#edge-image --out-link result-edge-image
 set -l GARDEN_IMAGE (readlink -f result-edge-image)
-jq -n --arg remote "$GARDEN_REMOTE" --arg pool "$GARDEN_POOL" --arg image "$GARDEN_IMAGE" '{incus_remote: $remote, storage_pool: $pool, image_directory: $image, stage: 1}' > tofu/site.auto.tfvars.json
+jq -n --arg remote "$GARDEN_REMOTE" --arg pool "$GARDEN_POOL" --arg image "$GARDEN_IMAGE" '{incus_remote: $remote, storage_pool: $pool, image_directory: $image, enable_edge_lan: false, enable_webui: false, enable_inference: false}' > tofu/site.auto.tfvars.json
 ```
 
 Keep `result-edge-image` as a GC root; do not rebuild/update the seed input for

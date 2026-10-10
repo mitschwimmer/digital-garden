@@ -2,7 +2,8 @@
 
 - [Establish workstation and target inputs](#establish-workstation-and-target-inputs)
 - [Starting state and retained resources](#starting-state-and-retained-resources)
-- [Interpret the current resource selection](#interpret-the-current-resource-selection)
+- [Select infrastructure and services explicitly](#select-infrastructure-and-services-explicitly)
+- [Migrate an existing selector once](#migrate-an-existing-selector-once)
 
 Use this reference when provisioning, reconciling, troubleshooting or restoring
 infrastructure. Inspect the intended target before choosing inputs or state.
@@ -92,27 +93,60 @@ conceal surviving resources or fix a failed service. The pinned image resource
 has no importer; [image recovery](recovery.md) explains surviving seeds.
 Review actual plans against the reconciled inventory, not addition counts alone.
 
-## Interpret the current resource selection
+## Select infrastructure and services explicitly
 
-`tofu/stages.tf` currently exposes a numeric `stage` input. Treat it as the
-existing resource-selection interface, not a task order or verification record.
+`tofu/services.tf` defines independent boolean inputs, all defaulting to false:
 
-| Input | Resource behavior |
-|---|---|
-| Any allowed value (1–5) | Edge seed guest, shared bridge, both application projects, both NixOS seed imports and all seven volumes exist |
-| `stage >= 2` | Edge LAN NIC is present; inspected parent and stable MAC are required |
-| `stage >= 4` | Open WebUI guest is present |
-| `stage >= 5` | llama.cpp guest is present; inspected GPU PCI/KFD support is required |
+| Input | Effect when true | Required inputs |
+|---|---|---|
+| `enable_edge_lan` | Attach edge's LAN NIC | Inspected `edge_lan_parent` and stable `edge_lan_mac` |
+| `enable_webui` | Create the Open WebUI guest | Existing immutable seed and application secret preparation before activation |
+| `enable_inference` | Create the private llama.cpp guest | Inspected `llama_gpu_pci`, host KFD/ROCm support and capacity |
 
-Values 2 and 3 select the same infrastructure. Guest services are determined
-separately by NixOS closure activation. Setting the input does not prove service
-health or install Caddy/Authelia. Preserve the current selection during service
-maintenance; reducing it can remove guests or the LAN device.
+The shared edge guest, bridge, application projects, NixOS seed imports and all
+seven persistent volumes exist independently of these settings. Disabling a
+service removes its disposable guest, retaining its volumes; disabling edge LAN
+detaches its NIC. These are reviewed lifecycle changes, never troubleshooting
+resets. Resource addresses stay unchanged when migrating existing inputs.
 
-The selector couples the current AI composition: selecting inference also
-selects WebUI. Define explicit service selection and dependencies when extending
-HCL; do not infer an architectural dependency from this numeric interface.
+NixOS closure activation still determines guest services. Enabling WebUI does
+not enable inference; enabling inference does not create WebUI or attach the
+edge LAN NIC. A service's dependencies and reachability remain explicit.
 
 Reserve capacity for a 32 GiB OCI root, 24 GiB WebUI root, 8 GiB edge root,
 64 GiB inference cache quota and backups. Quotas do not guarantee available
-storage. Refer to [projects](projects.md) for namespaces and volume ownership.
+storage. Refer to [projects](projects.md) for namespace and volume ownership.
+
+## Migrate an existing selector once
+
+The removed `stage` input is retained only as a rejecting compatibility guard.
+Supplying a non-null value fails validation instead of silently selecting the
+new false defaults. Preserve current inventory, state, seed path, keys and data;
+back up ignored local inputs before converting them.
+
+| Previous value | `enable_edge_lan` | `enable_webui` | `enable_inference` |
+|---|---|---|---|
+| 1 | false | false | false |
+| 2 or 3 | true | false | false |
+| 4 | true | true | false |
+| 5 | true | true | true |
+
+For the ignored JSON inputs, run on the fish workstation after backup:
+
+```fish
+cp tofu/site.auto.tfvars.json "$GARDEN_BACKUP/before-service-inputs.json"
+jq 'if has("stage") then if (.stage | IN(1, 2, 3, 4, 5)) then . + {enable_edge_lan: (.stage >= 2), enable_webui: (.stage >= 4), enable_inference: (.stage >= 5)} | del(.stage) else error("Invalid legacy stage; inspect the inputs") end else . end' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
+```
+
+Require jq success before moving the temporary file into place:
+
+```fish
+mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
+```
+
+For HCL inputs, use the table to replace `stage` with all three explicit booleans.
+Inspect actual target/state, validate and review the whole plan. A conversion
+alone must not detach LAN, add/remove guests or replace images/volumes. Stop and
+reconcile any mismatch before apply. This input conversion does not change state
+addresses or authorize service removal. Subsequent edits change only the intended
+boolean; all other service settings remain intact.
