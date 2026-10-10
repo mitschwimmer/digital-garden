@@ -196,18 +196,5 @@ Record revision/date/environment/result. If a spare target is unavailable, mark
 this gate pending; inspecting an archive is not a restore test. Cleanup of the
 isolated test has its own reviewed deletion list.
 
-## Intentional reset without migration
-
-No old-install migration is required for this refactor. Before a destructive fresh
-reset, make a local exact deletion list from inventory, confirm backup/restore or
-explicitly accept losing that state, and withdraw old public routes. Only the
-managed guests, bridge, two seed images, seven named volumes and the now-empty
-`ai`/`inference` projects are candidates; existing
-pools, IncusOS-managed backups/images/log volumes and unrelated services are not.
-Removing `prevent_destroy`, detaching/removing old resources, or discarding their
-state is a separate reviewed destructive action, never a runbook troubleshooting
-step. Once the approved names are absent, archive old state/inputs and follow the
-fresh-install milestones. No reset has been performed by this refactor.
-
 Sources: [Incus volume backup](https://linuxcontainers.org/incus/docs/main/howto/storage_backup_volume/),
 [pinned volume import IDs](https://github.com/lxc/terraform-provider-incus/blob/v1.2.0/docs/resources/storage_volume.md).

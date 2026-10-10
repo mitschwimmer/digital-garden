@@ -14,7 +14,7 @@ Prefer when all/most are true:
 
 Pin an accepted image by digest. Give mutable data/models explicit persistent volumes.
 
-Current example: `llama.cpp`, including the already-proven AMD GPU mapping under IncusOS.
+Current example: `llama.cpp`, with explicit AMD GPU/KFD mapping; verify actual GPU offload at acceptance.
 
 ## NixOS system container
 

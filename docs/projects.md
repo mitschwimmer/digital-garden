@@ -35,8 +35,11 @@ Reach Caddy and Authelia through explicitly configured network endpoints. Hostin
 
 Apply appropriate project restrictions and resource limits. Keep GPU/KFD exceptions in `inference`; permit NixOS nesting only where required. Verify restriction compatibility with actual NIC and disk devices, backups, activation, and recovery before applying. Shared bridges do not imply that every application should have LAN access. Keep operator administration separate from any delegated project access.
 
-## Fresh installation and existing hosts
+## Changes to an existing installation
 
-For the requested project refactor, target an empty IncusOS host with no migration of existing workloads or data. Create the intended projects and resource scopes declaratively from the start. Do not interpret this fresh-install preference as permission to erase an arbitrary live host during later maintenance. For an existing installation, inspect identity and data impacts before changing project ownership; do not assume a project-field edit performs a safe move.
+Inspect resource identity and data impacts before changing project ownership.
+A project-field edit is not a safe resource move by itself. Review replacement,
+volume/image namespace and recovery effects separately. For surviving or restored
+resources, use the [recovery procedure](recovery.md).
 
 Sources: [Incus project semantics](https://linuxcontainers.org/incus/docs/main/explanation/projects/), [project features and restrictions](https://linuxcontainers.org/incus/docs/main/reference/projects/), and [project API implementation](https://github.com/lxc/incus/blob/main/cmd/incusd/api_project.go). Recheck version-sensitive capabilities against official documentation or pinned source.

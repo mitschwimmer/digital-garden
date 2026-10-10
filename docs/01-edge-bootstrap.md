@@ -6,12 +6,12 @@ guest inbound ports are closed, and management uses authenticated Incus exec.
 IPv6 is disabled until ingress. The new bridge gets an Incus-assigned IPv4 subnet
 and outbound NAT/DNS. It does not isolate traffic routed from other host bridges.
 
-## 1. Inspect retained resources and build the seed
+## 1. Build the seed and establish new inputs
 
-Inspect [starting state and retained resources](runbook.md#starting-state-and-retained-resources)
-first; complete any required imports after valid local inputs are available. Preserve a retained seed's `image_directory`; do not overwrite existing
-inputs with the initialization command below. For genuinely new inputs only,
-build the seed and initialize stage 1 on the workstation:
+Check [starting state](runbook.md#starting-state-and-retained-resources) first.
+For an existing or restored installation, preserve its inputs and seed identity
+and use [recovery](recovery.md). For a new installation, build the seed and
+initialize stage 1 on the workstation:
 
 ```fish
 nix build .#edge-image --out-link result-edge-image
@@ -25,9 +25,8 @@ plan/apply procedure](runbook.md#native-planapply-and-activation). First apply:
 13 additions on a wholly fresh target: two projects, two project-scoped seed images, the bridge, edge,
 and seven volumes; no modifications/deletions. Seven volumes are established now so
 later guest removal cannot accidentally remove their state. WebUI/llama are absent.
-A retained tracked bridge reduces additions to 12; a retained tracked edge seed
-as well reduces them to 11. Review actual updates separately; never assume counts
-alone prove that the plan is safe.
+For restored or surviving resources, review the plan against actual inventory;
+addition counts alone do not establish safety.
 
 ## 2. Apply infrastructure and wait for guest readiness
 
@@ -83,6 +82,6 @@ Use [boot diagnostics](readiness.md#failure-diagnostics) first. Then inspect `in
 failed-unit journals. Check pool capacity, Incus NAT/DHCP and outbound routing.
 Complete a failed apply with the same seed/state and a new whole plan. Do not
 invent a subnet from a partial inventory. For rollback keep volumes; stop edge
-while investigating or follow [explicit reset/recovery](recovery.md). A routine
+while investigating or follow [recovery](recovery.md). A routine
 `tofu destroy` is blocked by protected volumes and is not a recovery operation.
 Continue to [ingress](02-caddy-ingress.md) only after the gate passes.

@@ -2,9 +2,8 @@
 
 Prerequisite: WebUI gate passed, inspected AMD GPU PCI address, IncusOS driver/
 firmware and `/dev/kfd`, enough pool capacity, compatible ROCm hardware, Internet
-access to the pinned model URLs. Stop a conflicting old inference workload only
-if its GPU/RAM use must be freed; record that action for rollback. No data migration
-or old-resource deletion is needed to deploy this capability.
+access to the pinned model URLs. Check available GPU/RAM capacity before creating
+the guest.
 
 The OCI guest, cache and configuration volumes belong to project `inference`.
 Open WebUI callers run in `ai`; both use the shared bridge in `default`.
@@ -108,8 +107,7 @@ separately from persistent-data changes.
 
 Rollback: restore the previously recorded public preset/image/launch declarations,
 stop the guest, review/apply a new whole plan, and repeat inference checks. Retain
-cache and identities. Restore the old workload only if it was stopped earlier and
-new inference is also stopped. Never lower stage or unset PCI to troubleshoot.
+cache and identities. Never lower stage or unset PCI to troubleshoot.
 After rollback reconcile repository versus running state before continuation.
 Next: [backup/restore gate](recovery.md).
 

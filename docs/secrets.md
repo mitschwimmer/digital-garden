@@ -1,9 +1,39 @@
 # Identities and encrypted inputs
 
-Run on the workstation, in fish, before milestone 3. Existing ciphertext is kept
-in this repository. A rebuild normally restores its operator key and machine keys
-or updates recipients; it does **not** create new secret values. Losing the
-operator key and all recipient keys makes existing ciphertext unrecoverable.
+Keep stable managed secrets as SOPS + age ciphertext in Git. Public recipient
+policy belongs in `.sops.yaml`; operator and machine private keys stay outside
+Git and on securely backed-up persistent storage. Never put plaintext secrets
+in the Nix store, OpenTofu inputs/state, normal logs or documentation.
+
+The procedures below run on the fish workstation before milestone 3. Existing
+ciphertext is kept in this repository. A rebuild restores its operator key and
+machine keys or updates recipients while preserving secret values. Losing all
+recipient private keys makes existing ciphertext unrecoverable. Restore matching
+application data when stable encryption keys and databases are coupled.
+
+## Secret delivery for a new service
+
+Organize encrypted files by consumer and lifecycle. Retain an operator recovery
+recipient and add the consuming guest's public recipient to `.sops.yaml`.
+
+For NixOS, use sops-nix runtime files with narrow owner/group/mode settings. Feed
+services secret-file paths, systemd credentials or an environment file, rather
+than interpolating plaintext into Nix expressions. Keep the consumer's machine
+age key on a persistent secret volume across guest replacement. The edge and
+WebUI Nix configurations are examples of secret-file and environment-file wiring.
+
+For OCI, prefer application-supported secret files mounted read-only. If delivery
+requires a runtime transfer, specify a protected volume, narrow permissions and
+readiness/restart behavior; keep plaintext out of provider attributes and state.
+Choose a NixOS guest when environment-only or numerous secrets would otherwise
+require bespoke secret infrastructure. Public OCI config-file delivery described
+in [OCI configuration](06-oci-config.md) must not be used for secret plaintext.
+
+Treat rotation as an explicit change: generate material privately, re-encrypt,
+update both integration endpoints, deploy, verify authentication and revoke
+superseded credentials when supported. Understand session/data consequences
+before rotating storage or signing keys. Recipient replacement during recovery
+preserves the encrypted values; it is not secret rotation.
 
 ## Reuse encrypted identities
 

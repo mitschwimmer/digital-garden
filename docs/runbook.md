@@ -1,9 +1,9 @@
 # Current operator runbook
 
-Use the current maintained checkout for every milestone. After this refactor is
-merged, start from `main`; while reviewing it, use the PR head. Record `git rev-parse
-HEAD` in a local acceptance record. Historical branches and old deployment scripts
-are unnecessary. This is a fresh-install contract, not a migration of old state.
+Use the maintained checkout for deployment and operation of the current
+composition. Record `git rev-parse HEAD` in a private acceptance record. For
+configuration changes and new services, start with the [contribution guide](contributing.md).
+For host/data restoration, use [recovery](recovery.md).
 
 ## Workstation and target inputs
 
@@ -58,58 +58,36 @@ IncusOS network configuration. Management API exposure/trusted client certificat
 are separate from guest HTTP ingress. Maintain IncusOS's AMD driver/firmware and
 `/dev/kfd`; PCI selection alone does not establish ROCm compatibility.
 
-A wholly fresh installation has no managed guests, application volumes or named
-application projects. Existing bridges and tracked seed images may be retained
-using the procedure below. Keep IncusOS-managed storage and unrelated workloads
-outside this configuration's lifecycle. Keep state and raw inventory private.
-
 ## Starting state and retained resources
 
-Inspect both Incus inventory above and OpenTofu's records before initializing or
-applying. A state entry does not prove the remote object still exists:
+A fresh installation has no managed guests, named application projects, volumes,
+bridge or seed imports. Keep IncusOS-managed pools and unrelated workloads outside
+this configuration's lifecycle. If managed objects already exist, inspect their
+identity and state before proceeding; use [recovery](recovery.md) for imports or
+restoration. Do not initialize over an existing installation.
+
+Inspect OpenTofu's records alongside the host inventory above. A state entry does
+not prove that the corresponding remote object exists:
 
 ```fish
 tofu -chdir=tofu state list
 ```
 
-If state is present, save it privately before editing it:
+If state is present, save it privately before changes. Use a new secured backup
+directory per checkpoint:
 
 ```fish
 umask 077
 mkdir -p "$GARDEN_BACKUP"
 chmod 0700 "$GARDEN_BACKUP"
-tofu -chdir=tofu state pull > "$GARDEN_BACKUP/before-reconciliation.tfstate"
+tofu -chdir=tofu state pull > "$GARDEN_BACKUP/before-change.tfstate"
 ```
 
-Use a new backup directory per checkpoint. Inspect individual records with
-`tofu state show`; compare their remote, project, name and image identity to host
-inventory. Keep valid bridge/image records. For an explicitly requested reset,
-remove only records for workloads/volumes confirmed deleted using `tofu state rm`
-with the exact addresses from `state list` (quote addresses containing brackets).
-This changes state only; it must never be used to conceal a surviving resource or
-as routine failure recovery. Do not assume old indexed addresses match current HCL.
-For an active installation, keep state and use the recovery/resume procedure.
-
-For a retained `gardenbr0` not tracked by the current state, establish valid
-milestone-1 inputs and run `tofu init`, then import before the first plan:
-
-```fish
-tofu -chdir=tofu import incus_network.private "$GARDEN_REMOTE:default/gardenbr0"
-```
-
-If it is already tracked correctly, **skip import**; an already-managed error is
-not a reason to forget the bridge. Keep its allocated subnet and inspect any
-proposed config updates. Other host bridges remain prerequisites, not imported
-into `incus_network.private`.
-
-The pinned image resource has no importer. Preserve a valid `incus_image.edge`
-record and its original immutable `image_directory` when retaining that image.
-For a surviving seed without matching state, follow [image recovery](recovery.md)
-instead of pretending the host is empty. Archive old state only when deliberately
-starting a separate new state; import retained resources before creating them.
-The stage-1 count is 13 additions for a wholly fresh target, 12 with only the
-bridge tracked, or 11 with bridge and edge seed already tracked. Other retained
-resources change these counts; review the whole plan against actual inventory.
+Compare individual `tofu state show` records with the target inventory. Preserve
+valid records and the immutable `image_directory`; do not remove records to
+conceal surviving resources or fix a failed service. The pinned image resource
+has no importer; [image recovery](recovery.md) explains surviving seeds.
+Review actual plans against the reconciled inventory, not addition counts alone.
 
 ## Operator execution rules
 
@@ -140,10 +118,9 @@ unique on the shared bridge and verify cross-project DNS/reachability at stages
 Use explicit `--project` on guest/volume operations. Activation uses
 `GARDEN_PROJECT`, set by each NixOS milestone. Project-local profiles are available
 for future workloads; current guests keep `profiles = []` and explicit devices.
-No project restrictions or new quotas are introduced by this placement change.
-Follow the [project guidance](../.agents/skills/incusos-homelab/references/projects.md)
-for future additions. This layout targets fresh state on an empty host, not an
-in-place project migration.
+The current projects declare no restrictions or quotas. Follow the
+[project guidance](projects.md) for future additions. Review identity and data
+impacts explicitly when changing project ownership.
 
 ## Cumulative capabilities
 
