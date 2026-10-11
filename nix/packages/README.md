@@ -4,6 +4,9 @@
 shared NixOS 26.05 pin. Source/npm hashes and the new `pyotp` and `qrcode`
 dependencies follow [Nixpkgs PR 572794](https://github.com/NixOS/nixpkgs/pull/572794).
 The existing frontend recipe, Pyodide pin and runtime packaging remain in use.
+Override Python dependencies through `passthru.dependencies`, which the pinned
+Python builder uses to calculate runtime inputs. Override the frontend and its
+`npmDeps` fetch explicitly so both use the new source and dependency hash.
 
 There is no local OIDC source patch. The operator intentionally accepts upstream
 first/sole-user admin promotion and will initialize the application as its admin.
