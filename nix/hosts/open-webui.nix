@@ -18,10 +18,7 @@
   };
   services.open-webui = {
     enable = true;
-    # Keep group authorization effective for the first/sole user; suppress callback logs.
-    package = pkgs.open-webui.overrideAttrs (old: {
-      patches = (old.patches or [ ]) ++ [ ../patches/open-webui-oidc.patch ];
-    });
+    package = pkgs.callPackage ../packages/open-webui.nix { };
     host = "0.0.0.0";
     port = 8080;
     openFirewall = false;

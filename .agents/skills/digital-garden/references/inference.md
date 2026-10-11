@@ -15,8 +15,10 @@
 | Execution and inputs | Workstation, trusted backend and browser; `enable_inference=true` and inspected GPU PCI address. |
 | Expected infrastructure effects | One OCI guest addition; no new volumes or earlier guest replacement/deletion. |
 
+The pinned image is `server-rocm-b11552` (linux/amd64), built with ROCm 7.2.1.
 Inspect IncusOS driver/firmware, `/dev/kfd` and available GPU/RAM capacity
-before creating the guest.
+before creating or upgrading the guest. Newer source releases may precede
+publication of their ROCm images; use a verified published image digest.
 
 The OCI guest, cache and configuration volumes belong to project `inference`.
 The checks below use the configured WebUI guest as a trusted caller; another
@@ -130,6 +132,6 @@ stop the guest, review/apply a new whole plan, and repeat inference checks. Reta
 cache and identities. Never disable inference or unset PCI to troubleshoot.
 After rollback reconcile repository versus running state before continuation.
 
-Sources: [pinned llama server](https://github.com/ggml-org/llama.cpp/blob/b11382/tools/server/README.md),
+Sources: [pinned llama server](https://github.com/ggml-org/llama.cpp/blob/b11552/tools/server/README.md),
 [pinned provider files](https://github.com/lxc/terraform-provider-incus/blob/v1.2.0/docs/resources/storage_volume.md),
 [Incus instance options](https://linuxcontainers.org/incus/docs/main/reference/instance_options/).

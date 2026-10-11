@@ -29,7 +29,7 @@ Run once for the affected revision in `nix develop --command fish`:
 
 ```fish
 git diff --check
-nixfmt --check flake.nix nix/hosts/*.nix nix/modules/*.nix
+nixfmt --check flake.nix nix/hosts/*.nix nix/modules/*.nix nix/packages/*.nix
 tofu -chdir=tofu fmt -check -diff
 tofu -chdir=tofu init -backend=false -input=false -lockfile=readonly
 tofu -chdir=tofu validate
