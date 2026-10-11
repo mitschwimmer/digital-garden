@@ -106,4 +106,4 @@ settings if changed), stop llama, review/apply a new whole plan, and repeat the
 checks. Keep both config/cache volumes; changing a preset does not require
 deleting cached models or application identities.
 
-Preset syntax: [pinned llama.cpp router documentation](https://github.com/ggml-org/llama.cpp/blob/b11382/tools/server/README.md).
+Preset syntax: [pinned llama.cpp router documentation](https://github.com/ggml-org/llama.cpp/blob/b11552/tools/server/README.md).

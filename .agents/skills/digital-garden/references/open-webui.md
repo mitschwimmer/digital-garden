@@ -9,9 +9,9 @@
 
 | Field | Requirement |
 |---|---|
-| Goal | Provide a private AI application with public HTTPS and enforced IdP roles. |
+| Goal | Provide a private AI application with public HTTPS, native OIDC and an operator admin. |
 | Prerequisites | Working [OIDC identity](identity.md); ai hostname routed, discovery reachable, matching client secret and machine key prepared. |
-| Sources | `tofu/open-webui.tf`, `nix/hosts/open-webui.nix`, `nix/patches/`, `secrets/open-webui.yaml`. |
+| Sources | `tofu/open-webui.tf`, `nix/hosts/open-webui.nix`, `nix/packages/open-webui.nix`, `secrets/open-webui.yaml`. |
 | Execution and inputs | Workstation and browser; WebUI closure and machine key. |
 | Expected infrastructure effects | One guest addition; existing volumes retained; no deletion or replacement. |
 
@@ -36,7 +36,10 @@ mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
 nix build .#nixosConfigurations.open-webui.config.system.build.toplevel --out-link result-open-webui-system
 ```
 
-This builds the complete package with the [pinned authorization patch](../../../../nix/patches/README.md).
+This builds Open WebUI 0.12.0 using the [package backport](../../../../nix/packages/README.md).
+Back up application data before upgrading an existing guest, preserve service
+selection and skip guest creation/key transfer when the existing guest and key
+are already correct. Use the activation workflow to switch its closure.
 
 ### 2. Create the guest and install its machine key
 
@@ -95,20 +98,17 @@ successful local health and trusted public health. Stop on a failed check.
 
 ### 5. Verify authorization and restart persistence
 
-Browser checks in a private window: only Authelia login, TOTP required, admins receive
-admin role, ai-users receive user role, unrelated or absent groups are denied.
-Test with separate identities through encrypted users configuration; retain your
-operator admin. For an **empty** WebUI database, try denied and ai-users identities
-before the first admin: denied identities must not create/promote the initial user;
-first ai-users must remain a user. Test sole-user subsequent login and missing
-claims as well. Use a disposable backed-up test state if a populated production
-database cannot exercise bootstrap behavior; never delete its database to test.
-If the IdP always supplies groups, test absent groups with a separate user with no
-groups and verify no claim from another source silently grants access.
+Initialize an empty database with the operator admin account first. Upstream
+promotes the first/sole user to admin; this is an intentional installation
+assumption, not a guarantee that IdP groups gate bootstrap. Native OIDC remains
+the login path, with Authelia TOTP required. Verify the operator remains admin
+on subsequent login. If additional users are admitted, verify ai-users receive
+user role and unrelated groups are denied after bootstrap. Missing-claim handling
+follows upstream and must be reviewed before extending access.
 
 Restart WebUI and edge; complete [guest readiness](readiness.md) for each project
 and repeat the step-4 health checks before logging in again; the account/settings remain and a new
-private window requires login. Chat inference additionally requires the configured inference backend. Require both permitted-role behavior and denial/first-user behavior passed,
+private window requires login. Chat inference additionally requires the configured inference backend. Require operator-admin behavior and, when additional users are admitted, permitted/denied-group checks passed,
 matching identity and state persist. Login alone is insufficient.
 
 ## Resume and rollback

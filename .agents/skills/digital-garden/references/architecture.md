@@ -92,8 +92,9 @@ Authelia is the shared identity provider. Prefer native OIDC; use forward-auth
 when a suitable native integration is unavailable. Public URLs, callback URIs,
 client IDs, scopes and claims are ordinary configuration; encrypt client secrets
 and signing/private material. Test denied access and role assignment as well as
-login. The WebUI [source patch](../../../../nix/patches/README.md) handles pinned upstream
-exceptions and must be re-evaluated on upgrades.
+login. WebUI uses an unpatched [package backport](../../../../nix/packages/README.md).
+The operator initializes the first account as admin and accepts upstream
+first/sole-user promotion; reassess this assumption before extending access.
 
 ## Compose services with explicit dependencies
 
