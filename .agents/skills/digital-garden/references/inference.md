@@ -11,9 +11,9 @@
 |---|---|
 | Goal | Provide generated text with verified GPU offload and persistent model cache. |
 | Prerequisites | Private networking and a trusted API caller; inspected AMD PCI/KFD support, compatible ROCm, capacity and model access. |
-| Sources | `tofu/llama.tf`, `llama/image.lock.json`, `llama/models.ini`, `llama/models.lock.json`. |
-| Execution and inputs | Workstation, trusted backend and browser; `enable_inference=true` and inspected GPU PCI address. |
-| Expected infrastructure effects | One OCI guest addition; no new volumes or earlier guest replacement/deletion. |
+| Sources | `systems/inference/main.tf`, `systems/inference/image.lock.json`, `systems/inference/models.ini`, `systems/inference/models.lock.json`. |
+| Execution and inputs | Workstation, trusted backend and browser; inspected GPU PCI address in systems/inference. |
+| Expected infrastructure effects | This root owns its OCI guest and two volumes; no other root changes. |
 
 The pinned image is `server-rocm-b11552` (linux/amd64), built with ROCm 7.2.1.
 Inspect IncusOS driver/firmware, `/dev/kfd` and available GPU/RAM capacity
@@ -22,13 +22,12 @@ publication of their ROCm images; use a verified published image digest.
 
 The OCI guest, cache and configuration volumes belong to project `inference`.
 The checks below use the configured WebUI guest as a trusted caller; another
-trusted caller may exercise the same endpoints. Enable inference independently of WebUI and LAN attachment; see
-[service selection](platform.md#select-infrastructure-and-services-explicitly).
+trusted caller may exercise the same endpoints. Operate inference independently from its own root; see [platform inputs](platform.md).
 Open WebUI callers run in `ai`; both use the shared bridge in `default`.
 
-`tofu/llama.tf` uses the upstream digest in `llama/image.lock.json`, explicit
+`systems/inference/main.tf` uses the upstream digest in `systems/inference/image.lock.json`, explicit
 unprivileged GPU/KFD mappings, UID/GID 1000, one private NIC, 32 GiB root and a
-64 GiB protected cache. OpenTofu delivers `llama/models.ini` into the read-only
+64 GiB protected cache. OpenTofu delivers `systems/inference/models.ini` into the read-only
 configuration volume **before** starting the instance, and owns running/autostart
 state. There is no delayed upload/activation window or derived image. Launch
 arguments and LLAMA_CACHE are ordinary public OpenTofu attributes.
@@ -42,15 +41,24 @@ reachability and lack of public routing rather than assuming address privacy.
 
 ### 1. Set inspected inputs on the workstation
 
+In systems/inference, set the remote and PCI from this root's reviewed local
+inputs (not another task's shell variables):
+
 ```fish
-jq --arg pci "$GARDEN_GPU_PCI" '.enable_inference = true | .llama_gpu_pci = $pci' tofu/site.auto.tfvars.json > tofu/site.auto.tfvars.json.tmp
-mv tofu/site.auto.tfvars.json.tmp tofu/site.auto.tfvars.json
+set -l GARDEN_REMOTE (jq -r .incus_remote site.auto.tfvars.json)
+set -l GARDEN_GPU_PCI (jq -r .llama_gpu_pci site.auto.tfvars.json)
+```
+
+Both values must match the inspected host inventory.
+
+```fish
+jq --arg pci "$GARDEN_GPU_PCI" '.llama_gpu_pci = $pci' site.auto.tfvars.json > site.auto.tfvars.json.tmp
+mv site.auto.tfvars.json.tmp site.auto.tfvars.json
 ```
 
 ### 2. Apply the OCI workload
 
-Run [native plan/apply](infrastructure.md#review-and-apply-the-whole-plan): one OCI guest
-addition, no volume addition or earlier guest replacement/deletion. Provider
+Run [native plan/apply](infrastructure.md#review-and-apply-the-whole-plan): the initial plan creates this root's guest and volumes; no other system changes. Provider
 schema validation is mandatory. Its file content is public and may enter state;
 never use this path for secrets. Initial apply must finish public file delivery
 before instance creation through the disk dependency. If delivery fails, do not
@@ -96,7 +104,7 @@ in `ai`, and repeat the bounded inference health check above before requests. Re
 an API request and, when enabled, browser chat after restart and ensure no full re-download.
 
 The immutable source URLs and expected SHA256/size are recorded in
-`llama/models.lock.json`; checksum-named cache paths alone do not verify bytes.
+`systems/inference/models.lock.json`; checksum-named cache paths alone do not verify bytes.
 After download, verify each file with `sha256sum` inside llama and compare against
 the lock. Also check file sizes with `stat -c %s`. This can be expensive once;
 record verified results and repeat after changing bytes, not every restart.
@@ -119,7 +127,7 @@ OpenTofu returns running to true after the config dependency is updated:
 incus stop "$GARDEN_REMOTE:garden-llama" --project inference
 ```
 
-Run the whole plan/apply and repeat health/catalog/generated-text acceptance. If
+From systems/inference, run the whole plan/apply and repeat health/catalog/generated-text acceptance. If
 an apply fails after a partial config update, keep it stopped until the declared
 configuration is complete; do not manually re-enable it with half-written files.
 For a longer repair, disable boot.autostart manually while stopped and record the

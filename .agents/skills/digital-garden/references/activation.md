@@ -1,91 +1,67 @@
-# Activate and roll back NixOS guests
+# Activate one NixOS system
 
-## Scope and inputs
-
-Activate guest services from a built closure while retaining the previous
-generation, machine identities and application data. Infrastructure identity
-and persistent volumes remain unchanged.
-
-Run in fish on the workstation in the repository shell. The service procedure sets
-`GARDEN_GUEST` (`edge` or `open-webui`), `GARDEN_PROJECT` (`default` for edge,
-`ai` for WebUI), and `GARDEN_CONFIG` (`edge-ingress`, `edge`, or `open-webui`). Before activating, confirm the guest's required volume mounts;
-edge requires Caddy state, full edge additionally requires Authelia state and its
-machine key; WebUI requires application state and its machine key. Ciphertext must
-be staged in Git so flake source includes it. Never build plaintext into a flake.
-
-## Apply the change
-
-### 1. Check target and retain the previous generation
-
-Verify the three target variables match the intended service. Complete [guest readiness](readiness.md)
-and its mount prerequisites. Then record the previous path:
+Use the repository fish development shell and enter the intended system root.
+The root, not ambient GARDEN_* variables, selects the system. Example:
 
 ```fish
-set -l GARDEN_PREVIOUS (incus exec "$GARDEN_REMOTE:$GARDEN_GUEST" --project "$GARDEN_PROJECT" -- readlink -f /nix/var/nix/profiles/system)
+cd systems/edge
+python ../../operations/activate.py deploy
 ```
 
-Stop if this fails or does not return one `/nix/store/` path. Save it privately.
+For identity/WebUI, prepare and stage their ciphertext first. All newly added
+flake files must be Git-tracked. Complete infrastructure reconciliation and
+[readiness](readiness.md) before activation; back up application state before
+upgrades that may change its schema.
 
-### 2. Select the built closure
+The entry point reads this root's applied `deployment` output, requires the
+default Tofu workspace, compares it with target.json, verifies independently
+provisioned Incus metadata and required mounts, then builds exactly one system.
+It captures the build's JSON store path and rejects a mismatched closure before
+transfer. Export and import must both succeed. Immediately before profile
+mutation it rechecks metadata, mounts and the imported closure identity.
 
-Build the selected `result-$GARDEN_CONFIG-system` on the workstation. Reuse it:
-
-```fish
-set -l GARDEN_CLOSURE (readlink -f "result-$GARDEN_CONFIG-system")
-test -x "$GARDEN_CLOSURE/bin/switch-to-configuration"
-```
-
-Require an existing `/nix/store/` path and test exit 0. If the link is missing,
-finish the selected closure build first; do not substitute `image_directory` here.
-
-### 3. Transfer the closure
-
-Use native Nix export/import; fish collects each requisite store path:
-
-```fish
-set -l GARDEN_PATHS (nix-store --query --requisites "$GARDEN_CLOSURE")
-nix-store --export $GARDEN_PATHS | incus exec "$GARDEN_REMOTE:$GARDEN_GUEST" --project "$GARDEN_PROJECT" -T -- nix-store --import
-echo $pipestatus
-```
-
-Check both entries of fish's `$pipestatus` are zero before continuing. The import
-output contains store paths only. Stop unless both statuses are 0.
-
-### 4. Activate guest services
-
-Run the profile update and switch separately, checking each exit status:
-
-```fish
-incus exec "$GARDEN_REMOTE:$GARDEN_GUEST" --project "$GARDEN_PROJECT" -- nix-env --profile /nix/var/nix/profiles/system --set "$GARDEN_CLOSURE"
-incus exec "$GARDEN_REMOTE:$GARDEN_GUEST" --project "$GARDEN_PROJECT" -- "$GARDEN_CLOSURE/bin/switch-to-configuration" switch
-incus exec "$GARDEN_REMOTE:$GARDEN_GUEST" --project "$GARDEN_PROJECT" -T -- env TERM=xterm systemctl --failed --no-pager
-```
-
-Stop on a failed command. A failed activation can leave the profile and running
-services different. Inspect journals and mounts, repair the prerequisite and
-repeat activation of the same closure; export/import is safe to repeat. Do not
-advance merely because the profile points at the new system.
+There are no separate instance/config/project flags and no reused result link.
+Each build gets a private `.operations/<id>/` directory and candidate GC root.
+Build/transfer failures leave the guest profile untouched and may have no record.
+Before switching, a deployment record captures the running generation (the
+rollback target) separately from the selected profile. The running closure is rooted on the guest
+at `/nix/var/nix/gcroots/garden-<id>-previous`. The local lock stops concurrent
+operations in the same checkout. Operators using different checkouts must
+coordinate; this is an accidental-misdeployment guard, not access control against
+a privileged host administrator or protection against concurrent host replacement.
 
 ## Check the result
 
-Complete [guest readiness](readiness.md), then run the affected service's service/health,
-external, authorization and restart checks. No failed units are expected. An
-inactive/missing service requires diagnostics; successful profile selection alone
-is not acceptance. Preserve the previous generation until these checks pass.
+The command verifies the running closure, selected units and absence of failed
+units. Finish the service's external, allowed/denied login, persistence and restart
+checks. Deployment success alone is not acceptance. Record revision and observed
+results privately; the record's revision does not imply a clean Git worktree.
+
+To inspect a locally built closure against this root without mutating a guest:
+
+```fish
+python ../../operations/activate.py check /nix/store/EXACT-SYSTEM-CLOSURE
+```
+
+A WebUI closure checked from edge must fail. Do not change metadata or copy output
+links to bypass this failure. The automated regression suite exercises this
+mismatch before profile mutation; repeat on a disposable live installation.
 
 ## Resume and rollback
 
-If the new generation fails, restore the recorded previous profile and activate
-it with these commands (in the same session, where `GARDEN_PREVIOUS` is recorded):
+After a failed switch, retain the original attempt's record even when retrying: a
+partially switched system is not necessarily healthy. On failure retain the record and inspect journals/mounts. Profile selection may
+have succeeded even when switching failed. Fix the declared prerequisite and
+repeat deploy, or roll back using that exact attempt's record:
 
 ```fish
-incus exec "$GARDEN_REMOTE:$GARDEN_GUEST" --project "$GARDEN_PROJECT" -- nix-env --profile /nix/var/nix/profiles/system --set "$GARDEN_PREVIOUS"
-incus exec "$GARDEN_REMOTE:$GARDEN_GUEST" --project "$GARDEN_PROJECT" -- "$GARDEN_PREVIOUS/bin/switch-to-configuration" switch
+python ../../operations/activate.py rollback .operations/ATTEMPT/deployment.json
 ```
 
-If returning in a new session, load the previously recorded path into
-`GARDEN_PREVIOUS` first. Restore matching database backups if the upgrade changed
-its schema. Leave volumes and machine identities intact. Restore previous manual
-DNS/router rules if ingress changed. Reconcile repository configuration with the
-accepted running generation before resuming; an OpenTofu no-change plan cannot
-detect a NixOS rollback. Do not garbage-collect the needed previous generation.
+The rollback verifies root, destination and the previous closure's identity
+before mutation. A previously misdeployed foreign closure is deliberately
+rejected; deploy the correct system instead. A rollback to the minimal seed
+stops application services and will fail service acceptance: do this only as an
+explicit recovery step. NixOS rollback does not reverse database migrations;
+restore matching data if needed. After acceptance remove obsolete candidate and
+previous-generation GC roots deliberately, preserving the selected recovery point.

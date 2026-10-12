@@ -11,13 +11,13 @@
 |---|---|
 | Goal | Change public presets, image or launch settings with declared ownership and safe restart. |
 | Prerequisites | A working [inference service](inference.md); retain inference selection, GPU input, state and configuration backups. |
-| Sources | `llama/models.ini`, image/model locks and `tofu/llama.tf`. |
+| Sources | `systems/inference/models.ini`, image/model locks and `systems/inference/main.tf`. |
 | Execution and inputs | Fish workstation from repository root; changed declared files and reviewed whole plan. |
 | Expected infrastructure effects | Preset-only change updates config file and running state; review image/launch changes separately. |
 
 OpenTofu owns image digest, entrypoint, public environment, volume mounts,
 devices/limits, running state and ordinary public config-file delivery. The pinned
-Incus provider's native `incus_storage_volume.file` puts `llama/models.ini` at
+Incus provider's native `incus_storage_volume.file` puts `systems/inference/models.ini` at
 `/models.ini` before a dependent OCI instance starts. At runtime the volume is
 mounted read-only at `/etc/llama`. llama.cpp owns writable downloads/cache.
 
@@ -33,13 +33,13 @@ and partial-failure behavior, acceptance and rollback are covered in
 
 ## Apply the change
 
-Run in fish from the repository root against an existing inference service. Keep local
-inputs with inference enabled with the inspected GPU PCI address. This OCI workload needs no
+Run in fish from the repository root against an existing inference service. Keep root-local
+inputs with the inspected GPU PCI address. This OCI workload needs no
 NixOS build or activation.
 
 ### 1. Edit the source
 
-Edit [llama/models.ini](../../../../llama/models.ini), not the file inside the guest.
+Edit [systems/inference/models.ini](../../../../systems/inference/models.ini), not the file inside the guest.
 `[*]` contains shared defaults; `[mimo]` and `[qwen36]` identify model aliases
 and override those defaults. For example, to reduce only Qwen's context, add
 `ctx-size = 4096` to its existing `[qwen36]` section. Keep `version = 1`
@@ -47,10 +47,10 @@ and avoid duplicate sections or keys.
 
 | Change | Files to edit |
 |---|---|
-| Context, sampling or GPU-layer settings for a model | `llama/models.ini` |
-| Add, remove or replace a model | `llama/models.ini` and `llama/models.lock.json` |
-| Router concurrency (`--models-max`), entrypoint, memory or cache-volume limits | `tofu/llama.tf` |
-| Server image/version | `llama/image.lock.json`; review as a separate upgrade |
+| Context, sampling or GPU-layer settings for a model | `systems/inference/models.ini` |
+| Add, remove or replace a model | `systems/inference/models.ini` and `systems/inference/models.lock.json` |
+| Router concurrency (`--models-max`), entrypoint, memory or cache-volume limits | `systems/inference/main.tf` |
+| Server image/version | `systems/inference/image.lock.json`; review as a separate upgrade |
 
 For a new model, use an immutable download revision, a distinct cache path under
 `/var/cache/llama`, and record its expected SHA256 and size in the lock. The lock
@@ -60,6 +60,14 @@ by clients, or update their selections and acceptance checks when renaming them.
 Higher context/concurrency can require more RAM/VRAM; review available capacity.
 
 ### 2. Stop, review and apply
+
+From systems/inference, load its applied remote for the diagnostic commands:
+
+```fish
+set -l GARDEN_REMOTE (jq -r .incus_remote site.auto.tfvars.json)
+```
+
+Compare it with this root's state and inspected host before proceeding.
 
 Record the previous Git revision and diff privately before editing/deploying, and
 save state using the [state backup procedure](platform.md#starting-state-and-retained-resources).

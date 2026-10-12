@@ -1,19 +1,35 @@
-# Import the immutable seed into ai; image namespaces are project-local.
-resource "incus_image" "webui" {
-  project = incus_project.ai.name
+data "incus_network" "private" {
+  name    = "gardenbr0"
+  project = "default"
   remote  = var.incus_remote
+}
+variable "image_directory" {
+  description = "Absolute immutable Nix store directory produced by this system's seed-image build."
+  type        = string
 
+  validation {
+    condition = (
+      startswith(var.image_directory, "/nix/store/") &&
+      fileexists("${var.image_directory}/metadata.tar.xz") &&
+      fileexists("${var.image_directory}/rootfs.tar.xz") &&
+      try(trimspace(file("${var.image_directory}/garden-system")) == "open-webui", false)
+    )
+    error_message = "Build this system's seed-image and provide its immutable /nix/store directory."
+  }
+}
+
+resource "incus_image" "seed" {
+  project = local.target.project
+  remote  = var.incus_remote
   source_file = {
     metadata_path = "${var.image_directory}/metadata.tar.xz"
     data_path     = "${var.image_directory}/rootfs.tar.xz"
   }
 }
-
-# Reuse the immutable minimal seed; NixOS activation sets the guest hostname.
 resource "incus_storage_volume" "webui" {
   name    = "garden-open-webui-state"
   pool    = data.incus_storage_pool.root.name
-  project = incus_project.ai.name
+  project = local.target.project
   remote  = var.incus_remote
   config  = { "initial.mode" = "0700" }
 
@@ -25,7 +41,7 @@ resource "incus_storage_volume" "webui" {
 resource "incus_storage_volume" "webui_secrets" {
   name    = "garden-open-webui-secrets"
   pool    = data.incus_storage_pool.root.name
-  project = incus_project.ai.name
+  project = local.target.project
   remote  = var.incus_remote
   config  = { "initial.mode" = "0700" }
 
@@ -35,12 +51,11 @@ resource "incus_storage_volume" "webui_secrets" {
 }
 
 resource "incus_instance" "webui" {
-  count       = var.enable_webui ? 1 : 0
-  name        = "open-webui"
+  name        = local.target.instance
   description = "Digital Garden private Open WebUI"
   type        = "container"
-  image       = incus_image.webui.fingerprint
-  project     = incus_project.ai.name
+  image       = incus_image.seed.fingerprint
+  project     = local.target.project
   remote      = var.incus_remote
   profiles    = []
   running     = true
@@ -52,6 +67,7 @@ resource "incus_instance" "webui" {
     "security.privileged"   = "false"
     "security.nesting"      = "true"
     "user.access_interface" = "eth0"
+    "user.garden.system"    = local.target.system
   }
 
   device {
@@ -68,7 +84,7 @@ resource "incus_instance" "webui" {
     name = "eth0"
     type = "nic"
     properties = {
-      network = incus_network.private.name
+      network = data.incus_network.private.name
       name    = "eth0"
     }
   }
@@ -100,5 +116,5 @@ resource "incus_instance" "webui" {
 }
 
 output "open_webui_ipv4" {
-  value = var.enable_webui ? incus_instance.webui[0].ipv4_address : null
+  value = incus_instance.webui.ipv4_address
 }

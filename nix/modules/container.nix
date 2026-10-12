@@ -1,6 +1,5 @@
 { lib, pkgs, ... }:
 {
-  networking.hostName = "edge";
   networking.useNetworkd = true;
   networking.useDHCP = true;
   networking.useHostResolvConf = false;

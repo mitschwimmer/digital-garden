@@ -1,7 +1,3 @@
-creation_rules:
-- path_regex: ^secrets/edge-oidc\.yaml$
-  age: age1yv47tnq9ganc880ss86262uxrr4xymgpavk92dm2kvyfrwaj7vrqns4let,age1askl40xgeg04ymn46setwk6uss0zkf7q804axnhn23lqzd3mjgyqzr32ps
-- path_regex: ^secrets/open-webui\.yaml$
-  age: age1yv47tnq9ganc880ss86262uxrr4xymgpavk92dm2kvyfrwaj7vrqns4let,age1jy7y7cx9jkcqk6eeyf8q0vq4kev90rkg8mgw5lz4xf6f5pe2qcns4gc29c
-- path_regex: ^secrets/edge\.yaml$
-  age: age1yv47tnq9ganc880ss86262uxrr4xymgpavk92dm2kvyfrwaj7vrqns4let,age1askl40xgeg04ymn46setwk6uss0zkf7q804axnhn23lqzd3mjgyqzr32ps
+# Before initial encryption, add the operator and each NEW consumer recipient.
+# See the secrets reference. No old installation recipients are reused implicitly.
+creation_rules: []

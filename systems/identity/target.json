@@ -1,0 +1,13 @@
+{
+  "system": "identity",
+  "project": "identity",
+  "instance": "identity",
+  "mounts": [
+    "/var/lib/kanidm",
+    "/var/lib/garden-secrets",
+    "/var/lib/acme"
+  ],
+  "units": [
+    "kanidm"
+  ]
+}

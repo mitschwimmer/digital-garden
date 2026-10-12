@@ -1,4 +1,4 @@
-name: Whitespace checks
+name: Repository checks
 on:
   pull_request:
   push:
@@ -9,7 +9,7 @@ concurrency:
 permissions:
   contents: read
 jobs:
-  whitespace:
+  validate:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -26,3 +26,34 @@ jobs:
           else
             git show --format= --check HEAD
           fi
+      - name: Test activation guards
+        run: python3 -m unittest discover -s tests -v
+  native:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@b85815f71a6de0ddee80b8a80a98d43f4bcc66c7
+      - name: Validate infrastructure schemas
+        run: |
+          nix develop --command fish -c '
+            for root in platform systems/edge systems/identity systems/open-webui systems/inference
+              tofu -chdir=$root fmt -check -diff; or exit
+              tofu -chdir=$root init -backend=false -input=false -lockfile=readonly; or exit
+              tofu -chdir=$root validate; or exit
+            end
+          '
+      - name: Evaluate identity and application module options
+        run: |
+          nix eval .#nixosConfigurations.identity.config.services.kanidm.provision --json > /dev/null
+          nix eval .#nixosConfigurations.identity.config.services.kanidm.server.settings --json > /dev/null
+          nix eval .#nixosConfigurations.identity.config.systemd.services.kanidm.unitConfig --json > /dev/null
+          nix eval .#nixosConfigurations.open-webui.config.services.open-webui.environment --json > /dev/null
+      - name: Build seeds, edge and native Caddy validation
+        run: |
+          nix build --no-link \
+            .#edge-image .#identity-image .#open-webui-image \
+            .#nixosConfigurations.edge.config.system.build.toplevel \
+            .#checks.x86_64-linux.caddy-config

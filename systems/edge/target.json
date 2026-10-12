@@ -1,0 +1,11 @@
+{
+  "system": "edge",
+  "project": "default",
+  "instance": "edge",
+  "mounts": [
+    "/var/lib/caddy"
+  ],
+  "units": [
+    "caddy"
+  ]
+}

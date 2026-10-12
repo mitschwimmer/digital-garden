@@ -1,6 +1,6 @@
 ---
 name: digital-garden
-description: Work on mitschwimmer/digital-garden, Henner's building blocks for self-hosted services on IncusOS with OpenTofu, NixOS, Caddy, Authelia, SOPS and direct OCI workloads. Use for composing services, provisioning and reconciling infrastructure, configuration changes, upgrades, identity and secret management, troubleshooting, backup, recovery and service retirement, documentation and reviews in this project.
+description: Work on mitschwimmer/digital-garden, Henner's building blocks for self-hosted services on IncusOS with OpenTofu, NixOS, Caddy, Kanidm, SOPS and direct OCI workloads. Use for composing services, provisioning and reconciling infrastructure, configuration changes, upgrades, identity and secret management, troubleshooting, backup, recovery and service retirement, documentation and reviews in this project.
 ---
 
 # Work on Digital Garden
@@ -11,12 +11,13 @@ Workflows describe recurring activities; building blocks describe what services
 compose and who owns it. Start from the current installation and requested change.
 
 Interpret source paths relative to the repository root. Run workstation commands
-there in the documented fish development shell. Inspect [platform inputs](references/platform.md)
+in the documented fish development shell, then enter the selected operation root. Inspect [platform inputs](references/platform.md)
 before operating on a target; build on the workstation, never on IncusOS.
 
 ## Start every task
 
-1. Inspect the maintained checkout, relevant source and actual state where
+1. Select exactly one operation root; never reuse another root's mutable state.
+   Inspect the maintained checkout, relevant source and actual state where
    available. State the desired result, affected services and dependencies.
 2. Identify resource identities, keys and data to preserve. Distinguish repository
    work from authorized live changes; review destructive replacement separately.
@@ -32,13 +33,13 @@ composition. Use these references for each block's interfaces and operation:
 
 | Building block | Source and reference |
 |---|---|
-| Resource namespaces and private networking | `tofu/main.tf`, `tofu/projects.tf`; [projects](references/projects.md), [platform inputs](references/platform.md) |
-| NixOS seed and guest configuration | `flake.nix`, `nix/hosts/`, `nix/modules/`; [guest provisioning](references/nixos-guests.md), [activation](references/activation.md), [readiness](references/readiness.md) |
-| HTTPS ingress | `nix/modules/edge-ingress.nix`, route additions in `edge-auth.nix`; [Caddy](references/ingress.md) |
-| Identity and authorization | `nix/modules/edge-auth.nix`, `nix/modules/oidc-client.nix`; [Authelia](references/identity.md) |
-| Encrypted identities and runtime secrets | `.sops.yaml`, `secrets/`, consumer Nix configuration; [secret delivery](references/secrets.md) |
-| Persistent application state | Volume resources in `tofu/`; [backup and restoration](references/recovery.md) |
-| Direct OCI runtime and public configuration | `tofu/llama.tf`, `llama/`; [inference](references/inference.md), [OCI configuration](references/oci-configuration.md) |
+| Resource namespaces and private networking | `platform/`, `systems/*/main.tf`; [projects](references/projects.md), [platform inputs](references/platform.md) |
+| NixOS seed and guest configuration | `flake.nix`, `nix/modules/`, `systems/*/configuration.nix`; [guest provisioning](references/nixos-guests.md), [activation](references/activation.md), [readiness](references/readiness.md) |
+| HTTPS ingress | `systems/edge/configuration.nix`; [Caddy](references/ingress.md) |
+| Identity and authorization | `systems/identity/configuration.nix`, `directory.nix`; [Kanidm](references/identity.md) |
+| Encrypted identities and runtime secrets | `.sops.yaml`, `systems/*/secrets.yaml`, consumer Nix configuration; [secret delivery](references/secrets.md) |
+| Persistent application state | Volume resources in each system root; [backup and restoration](references/recovery.md) |
+| Direct OCI runtime and public configuration | `systems/inference/`; [inference](references/inference.md), [OCI configuration](references/oci-configuration.md) |
 
 Open WebUI is a [service composition](references/open-webui.md) using several
 blocks. Reuse its patterns deliberately; replace application-specific names,
@@ -51,6 +52,8 @@ Give each setting one owner: OpenTofu for Incus resources and OCI lifecycle,
 NixOS for guest services, SOPS + age for stable managed secrets, sops-nix for
 runtime secret delivery, and applications for mutable state on explicit volumes.
 Keep plaintext secrets out of Git, Nix store paths, OpenTofu inputs/state and logs.
+Keep Caddy entirely Nix-configured: no admin API, saved config resume or auth
+proxy. Keep Kanidm directory and OAuth clients in services.kanidm.provision.
 Keep seed identity separate from guest updates and protected volumes separate
 from backups. Declare trusted callers and public IPv4/IPv6 exposure explicitly.
 
@@ -103,8 +106,8 @@ NixOS rollback does not reverse database migrations.
 
 Use [ingress](references/ingress.md) for hostname/backend routing, certificates,
 manual DNS and IPv4/IPv6 exposure. Use [identity](references/identity.md) for
-issuer/client/callback, scopes and role policy; prefer native OIDC, with
-forward-auth where a suitable native integration is unavailable. Keep backend
+issuer/client/callback, scopes and role policy. Require native OIDC for published
+user applications; applications needing forward-auth are unsupported. Keep backend
 and management endpoints private. Test denied access and role assignment as
 well as successful login, and retain working operator access.
 
