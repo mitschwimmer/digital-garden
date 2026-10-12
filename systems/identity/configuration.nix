@@ -35,7 +35,7 @@ in {
   networking.firewall.interfaces.eth0.allowedTCPPorts = [ 8443 8081 ];
   services.kanidm = {
     # Nixpkgs-maintained patches permit predetermined runtime-file secrets.
-    package = pkgs.kanidm.withSecretProvisioning;
+    package = pkgs.kanidm_1_11.withSecretProvisioning;
     server = {
       enable = true;
       settings = {
