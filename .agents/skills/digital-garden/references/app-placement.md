@@ -15,7 +15,7 @@ service before selecting a runtime:
 | Choose | When | Current example |
 |---|---|---|
 | Direct Incus OCI | A good upstream image packages one application; arguments/public configuration and supported secret files suffice; shared-host-kernel isolation is acceptable | llama.cpp with explicit AMD GPU/KFD mapping |
-| NixOS system container | Native modules, several cooperating services, sops-nix, environment-file secrets or reproducible guest rollback simplify ownership | Caddy/Authelia edge; Open WebUI |
+| NixOS system container | Native modules, several cooperating services, sops-nix, environment-file secrets or reproducible guest rollback simplify ownership | Caddy edge; Kanidm identity; Open WebUI |
 | VM | A separate kernel, guest-owned drivers, incompatible container constraints or a stronger isolation boundary is required | Select only for a concrete service requirement |
 
 If options remain comparable, prefer direct OCI, then a NixOS system container,
@@ -36,3 +36,7 @@ closure activation and application-aware rollback.
 Declare project scope, callers, state, keys, readiness and restore requirements
 using the [shared composition workflow](../SKILL.md#compose-or-extend-a-service),
 [project rules](projects.md) and [secret delivery](secrets.md#secret-delivery-for-a-new-service).
+
+Require native OIDC for every published user application. Applications needing
+forward-auth or proxy-injected identity headers are unsupported. Private backend
+APIs need explicitly trusted callers and must not be published.

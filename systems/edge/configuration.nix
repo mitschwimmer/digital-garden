@@ -7,6 +7,7 @@
       matchConfig.Name = "eth0";
       networkConfig = {
         DHCP = "ipv4";
+        Domains = [ "~garden.internal" ];
         IPv6AcceptRA = false;
       };
       dhcpV4Config = {
@@ -32,12 +33,44 @@
   services.caddy = {
     enable = true;
     openFirewall = false;
+    resume = false;
+    enableReload = false;
     globalConfig = ''
+      admin off
+      persist_config off
       servers {
         protocols h1 h2
       }
     '';
     virtualHosts = {
+      # Native OIDC belongs to the application. Caddy never authenticates users.
+      "ai.archaic.work" = {
+        logFormat = null;
+        extraConfig = "reverse_proxy open-webui.garden.internal:8080";
+      };
+      "auth.archaic.work" = {
+        logFormat = null;
+        extraConfig = ''
+          reverse_proxy https://identity.garden.internal:8443 {
+            transport http {
+              tls_server_name identity.archaic.work
+            }
+          }
+        '';
+      };
+      # The identity guest owns its backend certificate and ACME renewal.
+      # This hostname has no public application or automatic HTTPS listener.
+      "http://identity.archaic.work" = {
+        logFormat = null;
+        extraConfig = ''
+          handle /.well-known/acme-challenge/* {
+            reverse_proxy identity.garden.internal:8081
+          }
+          handle {
+            respond 404
+          }
+        '';
+      };
       "test.archaic.work" = {
         logFormat = "output stderr";
         extraConfig = ''
@@ -54,6 +87,9 @@
   };
 
   # Refuse to put certificate state on the disposable container root disk.
-  systemd.services.caddy.unitConfig.ConditionPathIsMountPoint = "/var/lib/caddy";
+  systemd.services.caddy.unitConfig = {
+    ConditionPathIsMountPoint = "/var/lib/caddy";
+    RequiresMountsFor = [ "/var/lib/caddy" ];
+  };
   systemd.services.caddy.serviceConfig.StateDirectoryMode = "0700";
 }

@@ -1,3 +1,8 @@
+data "incus_network" "private" {
+  name    = "gardenbr0"
+  project = "default"
+  remote  = var.incus_remote
+}
 variable "llama_gpu_pci" {
   description = "AMD GPU PCI address from inspected local host inputs; required when inference is enabled."
   type        = string
@@ -10,13 +15,13 @@ variable "llama_gpu_pci" {
 }
 
 locals {
-  llama_image = jsondecode(file("${path.module}/../llama/image.lock.json"))
+  llama_image = jsondecode(file("${path.module}/image.lock.json"))
 }
 
 resource "incus_storage_volume" "llama_cache" {
   name    = "garden-llama-cache"
   pool    = data.incus_storage_pool.root.name
-  project = incus_project.inference.name
+  project = "inference"
   remote  = var.incus_remote
 
   config = {
@@ -34,7 +39,7 @@ resource "incus_storage_volume" "llama_cache" {
 resource "incus_storage_volume" "llama_config" {
   name    = "garden-llama-config"
   pool    = data.incus_storage_pool.root.name
-  project = incus_project.inference.name
+  project = "inference"
   remote  = var.incus_remote
 
   config = {
@@ -44,7 +49,7 @@ resource "incus_storage_volume" "llama_config" {
   }
 
   file {
-    content            = file("${path.module}/../llama/models.ini")
+    content            = file("${path.module}/models.ini")
     target_path        = "/models.ini"
     uid                = 0
     gid                = 0
@@ -59,12 +64,11 @@ resource "incus_storage_volume" "llama_config" {
 
 # OpenTofu delivers public presets before creating/starting the OCI instance.
 resource "incus_instance" "llama" {
-  count       = var.enable_inference ? 1 : 0
   name        = "garden-llama"
   description = "Digital Garden private ROCm inference router"
   image       = "garden-ghcr:${local.llama_image.repository}@${local.llama_image.digest}"
   type        = "container"
-  project     = incus_project.inference.name
+  project     = "inference"
   remote      = var.incus_remote
   profiles    = []
   running     = true
@@ -97,7 +101,7 @@ resource "incus_instance" "llama" {
   device {
     name       = "eth0"
     type       = "nic"
-    properties = { name = "eth0", network = incus_network.private.name }
+    properties = { name = "eth0", network = data.incus_network.private.name }
   }
 
   device {
@@ -147,5 +151,5 @@ resource "incus_instance" "llama" {
 }
 
 output "llama_ipv4" {
-  value = var.enable_inference ? incus_instance.llama[0].ipv4_address : null
+  value = incus_instance.llama.ipv4_address
 }

@@ -1,9 +1,6 @@
 {
-  description = "Digital Garden IncusOS homelab";
-
-  # NixOS 26.05; upgrades are explicit changes to this immutable revision.
+  description = "Digital Garden isolated IncusOS systems";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/0d9e9b832d03ac387417e16ce1febf73b2e631e1";
-
   inputs.sops-nix = {
     url = "github:Mic92/sops-nix/dcd241ba97088c22569d1573286e1b9daad340c0";
     inputs.nixpkgs.follows = "nixpkgs";
@@ -12,62 +9,48 @@
   outputs = { nixpkgs, sops-nix, ... }:
     let
       system = "x86_64-linux";
+      lib = nixpkgs.lib;
       pkgs = import nixpkgs { inherit system; };
-      bootstrap = nixpkgs.lib.nixosSystem {
+      names = [ "edge" "identity" "open-webui" ];
+      mkSystem = name: seed: lib.nixosSystem {
         inherit system;
         modules = [
           "${nixpkgs}/nixos/modules/virtualisation/lxc-container.nix"
-          ./nix/hosts/edge-bootstrap.nix
-        ];
-      };
-      edge = nixpkgs.lib.nixosSystem {
-        inherit system;
-        modules = [
-          "${nixpkgs}/nixos/modules/virtualisation/lxc-container.nix"
+          ./nix/modules/container.nix
+          {
+            networking.hostName = name;
+            environment.etc."garden-system".text = name + "\n";
+          }
+        ] ++ lib.optionals (!seed) [
           sops-nix.nixosModules.sops
-          ./nix/hosts/edge.nix
+          (./systems + "/${name}/configuration.nix")
+          { nixpkgs.config.allowUnfreePredicate = pkg: lib.getName pkg == "open-webui"; }
         ];
       };
-      webui = nixpkgs.lib.nixosSystem {
-        inherit system;
-        modules = [
-          "${nixpkgs}/nixos/modules/virtualisation/lxc-container.nix"
-          sops-nix.nixosModules.sops
-          { nixpkgs.config.allowUnfreePredicate = pkg: nixpkgs.lib.getName pkg == "open-webui"; }
-          ./nix/hosts/open-webui.nix
-        ];
-      };
+      guests = lib.genAttrs names (name: mkSystem name false);
+      seeds = lib.genAttrs names (name: mkSystem name true);
     in {
-      nixosConfigurations.edge-private = bootstrap;
-      nixosConfigurations.edge-ingress = nixpkgs.lib.nixosSystem {
-        inherit system;
-        modules = [
-          "${nixpkgs}/nixos/modules/virtualisation/lxc-container.nix"
-          ./nix/hosts/edge-bootstrap.nix
-          ./nix/modules/edge-ingress.nix
-        ];
-      };
-      nixosConfigurations.edge = edge;
-      nixosConfigurations.open-webui = webui;
-      packages.${system} = {
-        edge-image = pkgs.runCommand "digital-garden-edge-image" { } ''
+      nixosConfigurations = guests;
+      packages.${system} = lib.genAttrs (map (name: "${name}-image") names) (image:
+        let
+          name = lib.removeSuffix "-image" image;
+          seed = seeds.${name};
+        in pkgs.runCommand "digital-garden-${name}-image" { } ''
           mkdir -p "$out"
-          cp ${bootstrap.config.system.build.metadata}/tarball/*.tar.xz "$out/metadata.tar.xz"
-          cp ${bootstrap.config.system.build.tarball}/tarball/*.tar.xz "$out/rootfs.tar.xz"
-        '';
-      };
-      checks.${system} = {
-        authelia-config = edge.config.system.build.autheliaConfigCheck;
-        caddy-config = pkgs.runCommand "check-edge-caddy-config" { } ''
+          cp ${seed.config.system.build.metadata}/tarball/*.tar.xz "$out/metadata.tar.xz"
+          cp ${seed.config.system.build.tarball}/tarball/*.tar.xz "$out/rootfs.tar.xz"
+          printf '%s\n' '${name}' > "$out/garden-system"
+        ''
+      );
+      checks.${system}.caddy-config = pkgs.runCommand "check-caddy-config" { } ''
         export HOME="$TMPDIR"
         export XDG_DATA_HOME="$TMPDIR/data"
         export XDG_CONFIG_HOME="$TMPDIR/config"
-        ${pkgs.caddy}/bin/caddy validate --config ${edge.config.services.caddy.configFile} --adapter caddyfile
+        ${pkgs.caddy}/bin/caddy validate --config ${guests.edge.config.services.caddy.configFile} --adapter caddyfile
         touch "$out"
       '';
-      };
       devShells.${system}.default = pkgs.mkShell {
-        packages = [ pkgs.opentofu pkgs.incus pkgs.fish pkgs.age pkgs.sops pkgs.openssl pkgs.jq pkgs.nixfmt pkgs.authelia ];
+        packages = with pkgs; [ opentofu incus fish age sops openssl jq nixfmt python3 kanidm ];
       };
     };
 }

@@ -1,209 +1,98 @@
-# Protect identities and deliver encrypted inputs
-
-- [Scope and inputs](#scope-and-inputs)
-- [Secret delivery for a new service](#secret-delivery-for-a-new-service)
-- [Reuse encrypted identities](#reuse-encrypted-identities)
-- [Machine identities for a fresh host](#machine-identities-for-a-fresh-host)
-- [Intentionally create all-new identities](#intentionally-create-all-new-identities)
-- [Check the result consumer interfaces and rotation](#check-the-result-consumer-interfaces-and-rotation)
-- [Resume and rollback](#resume-and-rollback)
-
-## Scope and inputs
-
-Preserve stable secret values and recoverable identities. Use the fish
-workstation, `.sops.yaml`, consumer ciphertext and persistent machine-key mounts;
-select recovery, recipient replacement or deliberate initialization before
-executing any key or secret generation.
-
-Keep stable managed secrets as SOPS + age ciphertext in Git. Public recipient
-policy belongs in `.sops.yaml`; operator and machine private keys stay outside
-Git and on securely backed-up persistent storage. Never put plaintext secrets
-in the Nix store, OpenTofu inputs/state, normal logs or documentation.
-
-The procedures below run on the fish workstation before activating a secret-consuming service. Existing
-ciphertext is kept in this repository. A rebuild restores its operator key and
-machine keys or updates recipients while preserving secret values. Losing all
-recipient private keys makes existing ciphertext unrecoverable. Restore matching
-application data when stable encryption keys and databases are coupled.
+# Prepare fresh identities and runtime secrets
 
 ## Secret delivery for a new service
 
-Organize encrypted files by consumer and lifecycle. Retain an operator recovery
-recipient and add the consuming guest's public recipient to `.sops.yaml`.
+Each consumer has its own `systems/<name>/secrets.yaml` encrypted to the operator
+recovery recipient plus that guest's age recipient. Identity and WebUI must never
+share a machine key. Edge has no SOPS credentials; Caddy owns its ACME state.
+No plaintext belongs in Git, the Nix store, OpenTofu inputs/state or logs.
 
-For NixOS, use sops-nix runtime files with narrow owner/group/mode settings. Feed
-services secret-file paths, systemd credentials or an environment file, rather
-than interpolating plaintext into Nix expressions. Keep the consumer's machine
-age key on a persistent secret volume across guest replacement. The edge and
-WebUI Nix configurations are examples of secret-file and environment-file wiring.
+The old installation's ciphertext/recipients are deliberately removed from the
+active tree; history is not a backup of private keys. This is a fresh-install
+procedure, not a data/credential migration. Do not combine new keys with old
+application databases. Back up anything to retain before an operator host wipe.
 
-For OCI, prefer application-supported secret files mounted read-only. If delivery
-requires a runtime transfer, specify a protected volume, narrow permissions and
-readiness/restart behavior; keep plaintext out of provider attributes and state.
-Choose a NixOS guest when environment-only or numerous secrets would otherwise
-require bespoke secret infrastructure. Public OCI config-file delivery described
-in [OCI configuration](oci-configuration.md) must not be used for secret plaintext.
+## Create and encrypt
 
-Treat rotation as an explicit change: generate material privately, re-encrypt,
-update both integration endpoints, deploy, verify authentication and revoke
-superseded credentials when supported. Understand session/data consequences
-before rotating storage or signing keys. Recipient replacement during recovery
-preserves the encrypted values; it is not secret rotation.
+Use a secured workstation directory outside the checkout and an existing or newly
+created operator recovery key. Set SOPS_AGE_KEY_FILE to that private key. Generate
+identity and WebUI age keys separately, refusing to overwrite existing files.
+Back them up securely off-host before cleanup. Only public recipients belong in
+`.sops.yaml`. Fill its creation_rules before encryption:
 
-## Reuse encrypted identities
-
-Restore the existing operator key to `SOPS_AGE_KEY_FILE` outside the checkout with
-mode 0600. Restore backed-up machine keys to the persistent secret volumes. If
-machine keys were lost but operator access survives, generate replacements using
-the next section, edit `.sops.yaml` to retain the operator recipient and replace
-only each consumer's machine recipient, then run:
-
-```fish
-sops updatekeys secrets/edge.yaml
-sops updatekeys secrets/edge-oidc.yaml
-sops updatekeys secrets/open-webui.yaml
-sops --decrypt secrets/edge.yaml > /dev/null
-sops --decrypt secrets/edge-oidc.yaml > /dev/null
-sops --decrypt secrets/open-webui.yaml > /dev/null
+```yaml
+creation_rules:
+  - path_regex: ^systems/identity/secrets\.yaml$
+    age: OPERATOR_PUBLIC_RECIPIENT,IDENTITY_PUBLIC_RECIPIENT
+  - path_regex: ^systems/open-webui/secrets\.yaml$
+    age: OPERATOR_PUBLIC_RECIPIENT,WEBUI_PUBLIC_RECIPIENT
 ```
 
-Each consumer must independently decrypt after deployment; operator decryption
-alone is insufficient. Recipient changes preserve storage/session/signing/client
-values. Restore matching application databases when recovering encrypted state.
-Do not casually edit stable cryptographic fields with SOPS.
-
-## Machine identities for a fresh host
-
-Use a protected directory outside the checkout; never reuse an existing key path
-as an initialization target. The key generator refuses to overwrite existing keys.
-For a full fresh installation create an operator recovery key only if none exists:
+Replace all placeholders with actual public age recipients. In fish, establish
+an absent/new protected temporary directory (never a shared task directory):
 
 ```fish
 umask 077
-mkdir -p "$HOME/.config/digital-garden"
-chmod 0700 "$HOME/.config/digital-garden"
-# Only on first creation; otherwise restore/reuse the existing key.
-age-keygen -o "$SOPS_AGE_KEY_FILE"
+set -l secret_work (mktemp -d)
+age-keygen -o "$secret_work/identity.agekey"
+age-keygen -o "$secret_work/open-webui.agekey"
+openssl rand -hex 32 > "$secret_work/admin"
+openssl rand -hex 32 > "$secret_work/idm-admin"
+openssl rand -hex 32 > "$secret_work/client"
+openssl rand -hex 32 > "$secret_work/webui"
 ```
 
-Generate machine keys locally only when creating or replacing the consumer identity. WebUI need not
-exist yet; its key is securely retained locally until the consuming guest exists:
+Store these outside the checkout; do not print or paste their contents. The same
+raw client value is encrypted separately to identity and WebUI, with independent
+recipients. Kanidm takes a raw basic secret, not an Authelia password digest.
+From the repository root assemble and encrypt without printing plaintext:
 
 ```fish
-set -gx GARDEN_SECRET_WORK (mktemp -d)
-age-keygen -o "$GARDEN_SECRET_WORK/edge.agekey"
-age-keygen -o "$GARDEN_SECRET_WORK/webui.agekey"
-age-keygen -y "$SOPS_AGE_KEY_FILE"
-age-keygen -y "$GARDEN_SECRET_WORK/edge.agekey"
-age-keygen -y "$GARDEN_SECRET_WORK/webui.agekey"
+jq -n --rawfile a "$secret_work/admin" --rawfile i "$secret_work/idm-admin" --rawfile c "$secret_work/client" '{admin: ($a|rtrimstr("\n")), "idm-admin": ($i|rtrimstr("\n")), "webui-client": ($c|rtrimstr("\n"))}' > "$secret_work/identity.json"
+jq -n --rawfile w "$secret_work/webui" --rawfile c "$secret_work/client" '{environment: ("WEBUI_SECRET_KEY=" + ($w|rtrimstr("\n")) + "\nOAUTH_CLIENT_SECRET=" + ($c|rtrimstr("\n")) + "\n")}' > "$secret_work/webui.json"
+sops --encrypt --input-type json --output-type yaml --filename-override systems/identity/secrets.yaml "$secret_work/identity.json" > systems/identity/secrets.yaml
+sops --encrypt --input-type json --output-type yaml --filename-override systems/open-webui/secrets.yaml "$secret_work/webui.json" > systems/open-webui/secrets.yaml
 ```
 
-Only public recipients print. Update `.sops.yaml`: `edge.yaml` and `edge-oidc.yaml`
-use operator + edge; `open-webui.yaml` uses operator + WebUI. For existing
-ciphertext run the `updatekeys` commands above before deployment. Back up the
-machine keys securely outside this temp directory before it is removed.
+Require output paths to be absent before encryption. Check every command's exit
+status; remove only a failed new output before retrying. Verify operator
+decryption to /dev/null. Stage only ciphertext, public recipient policy and
+ordinary configuration. Never use temporary plaintext as a flake input.
 
-Install edge's key only after confirming the persistent mount and that the
-runtime key path is absent. For an existing key, restore/reuse it instead:
+## Install each machine key
+
+After seed provisioning and readiness, read the target from the selected root.
+Verify Incus metadata and `/var/lib/garden-secrets` is a mount point. For identity:
 
 ```fish
-incus exec "$GARDEN_REMOTE:edge" --project default -- mountpoint /var/lib/garden-secrets
-incus exec "$GARDEN_REMOTE:edge" --project default -- test ! -e /var/lib/garden-secrets/age.key
+incus config get YOUR_REMOTE:identity user.garden.system --project identity
+incus exec YOUR_REMOTE:identity --project identity -- mountpoint /var/lib/garden-secrets
+incus exec YOUR_REMOTE:identity --project identity -- test ! -e /var/lib/garden-secrets/age.key
 ```
 
-Require mount-check and absence-test exit 0 before this separate transfer. If
-there is already a key, verify/reuse the intended identity and skip this command:
+Require identity metadata and both successful checks before a separate transfer:
 
 ```fish
-incus file push "$GARDEN_SECRET_WORK/edge.agekey" "$GARDEN_REMOTE:edge/var/lib/garden-secrets/age.key" --project default --uid 0 --gid 0 --mode 0600
+incus file push "$secret_work/identity.agekey" YOUR_REMOTE:identity/var/lib/garden-secrets/age.key --project identity --uid 0 --gid 0 --mode 0600
 ```
 
-Stop on a failed check; these are separate guarded operator steps. Native file
-transfer does not carry keys through OpenTofu or the Nix store. The analogous
-WebUI key delivery is documented in [its service reference](open-webui.md). Keep operator and machine-key backups apart
-from the host, with protected/encrypted backup access.
+For WebUI repeat against YOUR_REMOTE:open-webui in project ai, using only
+open-webui.agekey. Stop if a key already exists; restore/reuse its intended
+identity instead of overwriting it. Verify consumer decryption during activation.
+Back up keys/ciphertext, then remove the protected temporary directory after
+successful deployment. Do not rely on secure erase on SSDs.
 
-## Intentionally create all-new identities
+## Runtime interfaces and rotation
 
-This path is for an empty application installation only. First save existing
-ciphertext, `.sops.yaml`, keys and matching application data to secure backups.
-Move the three existing consumer ciphertext files out of the checkout, preserving
-them in the backup. Do not overwrite recoverable secrets or use new encryption
-keys with an old Authelia database. Keep `.sops.yaml` with the new public recipients.
-If recovery is intended, use the reuse path instead.
-
-In `GARDEN_SECRET_WORK`, copy the two **placeholder** examples, then edit them
-with your local editor (no cloud/editor backup/swap files). All placeholders
-must be replaced. The user file contains an Argon2id password digest and an
-`admins` group; SMTP uses your real submission endpoint and app password.
-
-```fish
-cp secrets/examples/users.json "$GARDEN_SECRET_WORK/users.json"
-cp secrets/examples/smtp.json "$GARDEN_SECRET_WORK/smtp.json"
-authelia crypto hash generate argon2 > "$GARDEN_SECRET_WORK/password-hash.txt"
-```
-
-The interactive prompt accepts the human password without command-line history.
-Copy just the resulting digest into the protected users file using the editor.
-Generate stable keys and a client secret into protected files, not terminal output:
-
-```fish
-openssl rand -hex 32 > "$GARDEN_SECRET_WORK/jwt"
-openssl rand -hex 32 > "$GARDEN_SECRET_WORK/session"
-openssl rand -hex 32 > "$GARDEN_SECRET_WORK/storage"
-openssl rand -hex 32 > "$GARDEN_SECRET_WORK/hmac"
-openssl rand -hex 32 > "$GARDEN_SECRET_WORK/client"
-openssl rand -hex 32 > "$GARDEN_SECRET_WORK/webui"
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:3072 -out "$GARDEN_SECRET_WORK/signing.pem"
-authelia crypto hash generate argon2 > "$GARDEN_SECRET_WORK/client-hash.txt"
-```
-
-For the second interactive hash prompt, use the exact hex client value from the
-protected `client` file. Store only the `Digest: ` value, without that prefix,
-in a new protected `client.digest` file via the editor. The plaintext client goes
-to WebUI; Authelia uses this corresponding hash. Do not paste either into chat.
-
-Use native `jq` to assemble consumer documents. Users and SMTP are string values
-holding their complete JSON files (JSON is valid YAML for Authelia):
-
-```fish
-jq -n --rawfile jwt "$GARDEN_SECRET_WORK/jwt" --rawfile session "$GARDEN_SECRET_WORK/session" --rawfile storage "$GARDEN_SECRET_WORK/storage" --rawfile users "$GARDEN_SECRET_WORK/users.json" --rawfile smtp "$GARDEN_SECRET_WORK/smtp.json" '{jwt: ($jwt | rtrimstr("\n")), session: ($session | rtrimstr("\n")), storage: ($storage | rtrimstr("\n")), users: $users, smtp: $smtp}' > "$GARDEN_SECRET_WORK/edge.json"
-jq -n --rawfile hmac "$GARDEN_SECRET_WORK/hmac" --rawfile signing "$GARDEN_SECRET_WORK/signing.pem" --rawfile client "$GARDEN_SECRET_WORK/client.digest" '{hmac: ($hmac | rtrimstr("\n")), signing: $signing, client: ($client | rtrimstr("\n"))}' > "$GARDEN_SECRET_WORK/edge-oidc.json"
-jq -n --rawfile webui "$GARDEN_SECRET_WORK/webui" --rawfile client "$GARDEN_SECRET_WORK/client" '{environment: ("WEBUI_SECRET_KEY=" + ($webui | rtrimstr("\n")) + "\nOAUTH_CLIENT_SECRET=" + ($client | rtrimstr("\n")) + "\n")}' > "$GARDEN_SECRET_WORK/open-webui.json"
-sops --encrypt --input-type json --output-type yaml --filename-override secrets/edge.yaml "$GARDEN_SECRET_WORK/edge.json" > secrets/edge.yaml
-sops --encrypt --input-type json --output-type yaml --filename-override secrets/edge-oidc.yaml "$GARDEN_SECRET_WORK/edge-oidc.json" > secrets/edge-oidc.yaml
-sops --encrypt --input-type json --output-type yaml --filename-override secrets/open-webui.yaml "$GARDEN_SECRET_WORK/open-webui.json" > secrets/open-webui.yaml
-```
-
-Only run the last three commands when the output paths are absent. Check each
-exit status before continuing; on encryption failure remove only the incomplete
-new output and retry. Verify operator decryption to `/dev/null`. Stage only the
-three ciphertext files and public `.sops.yaml`, then build the consumers. Restore
-backups of machine keys before deleting this temporary directory. Remove it after
-successful deployment and separately verified backups; do not rely on secure erase
-on SSDs. Plaintext temp files are never committed or used as flake inputs.
-
-## Check the result consumer interfaces and rotation
-
-| Consumer | Encrypted source | Runtime interface |
+| Consumer | Ciphertext keys | Runtime interface |
 |---|---|---|
-| Authelia | `edge.yaml`: jwt, session, storage, users, smtp | Narrow 0400 files owned by authelia-main |
-| Authelia OIDC | `edge-oidc.yaml`: hmac, signing, client hash | Module secret-file options and templated client file |
-| WebUI | `open-webui.yaml`: environment | Root-only environment file read by systemd |
+| Kanidm | admin, idm-admin, webui-client | 0400 files owned by kanidm; native provision options |
+| WebUI | environment | Root-only EnvironmentFile consumed by systemd |
 
-OIDC URLs/scopes/client ID live in ordinary Nix; no credential belongs in HCL.
-The signing key uses the module's native JWKS template. For intentional rotations,
-edit ciphertext with SOPS, coordinate both sides of the client integration,
-activate both guests, verify login/denial, then revoke obsolete credentials.
-Storage/signing-key rotation needs application-specific consequences reviewed.
-
-## Resume and rollback
-
-On a failed recipient update or transfer, retain the original ciphertext and
-keys, repair the failed step and repeat private decryption before activation.
-For intentional rotation, restore the matching previous credentials and
-application data when required; follow [recovery](recovery.md). Never regenerate
-storage encryption or signing material as a service retry.
-
-Sources: [Authelia secure values](https://www.authelia.com/reference/guides/generating-secure-values/),
-[pinned NixOS Authelia module](https://github.com/NixOS/nixpkgs/blob/0d9e9b832d03ac387417e16ce1febf73b2e631e1/nixos/modules/services/security/authelia.nix).
+ACME keys live only in their owning guest's persistent state. User passkeys,
+passwords and Kanidm signing/database identity are application state.
+For recipient replacement preserve secret values and run sops updatekeys on only
+the affected ciphertext; verify both operator and consumer decryption. For
+intentional client rotation change the raw value on both consumers, activate
+identity and WebUI, verify allowed/denied login, then retire old material.
+Rollback requires matching secrets and application data where coupled.

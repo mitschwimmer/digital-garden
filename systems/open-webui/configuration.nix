@@ -1,13 +1,11 @@
 { lib, pkgs, ... }:
 {
-  imports = [ ./edge-bootstrap.nix ];
-  networking.hostName = lib.mkForce "open-webui";
   assertions = [ {
-    assertion = builtins.pathExists ../../secrets/open-webui.yaml;
+    assertion = builtins.pathExists ./secrets.yaml;
     message = "Prepare encrypted WebUI inputs before building this consumer.";
   } ];
-  sops = lib.mkIf (builtins.pathExists ../../secrets/open-webui.yaml) {
-    defaultSopsFile = ../../secrets/open-webui.yaml;
+  sops = lib.mkIf (builtins.pathExists ./secrets.yaml) {
+    defaultSopsFile = ./secrets.yaml;
     age.keyFile = "/var/lib/garden-secrets/age.key";
     age.sshKeyPaths = [ ];
     gnupg.sshKeyPaths = [ ];
@@ -18,7 +16,7 @@
   };
   services.open-webui = {
     enable = true;
-    package = pkgs.callPackage ../packages/open-webui.nix { };
+    package = pkgs.callPackage ../../nix/packages/open-webui.nix { };
     host = "0.0.0.0";
     port = 8080;
     openFirewall = false;
@@ -34,8 +32,8 @@
       ENABLE_OAUTH_SIGNUP = "true";
       ENABLE_OAUTH = "true";
       OAUTH_CLIENT_ID = "open-webui";
-      OAUTH_PROVIDER_NAME = "Authelia";
-      OPENID_PROVIDER_URL = "https://auth.archaic.work/.well-known/openid-configuration";
+      OAUTH_PROVIDER_NAME = "Kanidm";
+      OPENID_PROVIDER_URL = "https://auth.archaic.work/oauth2/openid/open-webui/.well-known/openid-configuration";
       OPENID_REDIRECT_URI = "https://ai.archaic.work/oauth/oidc/callback";
       OAUTH_SCOPES = "openid profile email groups";
       OAUTH_CODE_CHALLENGE_METHOD = "S256";

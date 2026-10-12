@@ -1,0 +1,12 @@
+{
+  "system": "open-webui",
+  "project": "ai",
+  "instance": "open-webui",
+  "mounts": [
+    "/var/lib/open-webui",
+    "/var/lib/garden-secrets"
+  ],
+  "units": [
+    "open-webui"
+  ]
+}
