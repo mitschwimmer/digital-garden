@@ -8,8 +8,9 @@ changes that compete with Nix. User password/passkey enrollment and databases
 remain persistent runtime state, not Nix configuration.
 
 The pinned nixpkgs module supports users, groups, OAuth2 scope/claim maps and
-runtime secret files. `pkgs.kanidm.withSecretProvisioning` is the nixpkgs-managed
-patched variant needed for stable admin and client secrets. Retain the pinned
+runtime secret files. `pkgs.kanidm_1_11.withSecretProvisioning` is the nixpkgs-managed
+patched variant (Kanidm 1.11.2 at this pin) needed for stable admin and client secrets.
+Use the matching versioned workstation client; the unversioned kanidm alias is removed. Retain the pinned
 revision; remove this variant only when upstream supports those interfaces and
 fresh bootstrap plus restart/rotation checks pass without it. There is no local
 Kanidm fork or custom provisioning service.

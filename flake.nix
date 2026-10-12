@@ -50,7 +50,7 @@
         touch "$out"
       '';
       devShells.${system}.default = pkgs.mkShell {
-        packages = with pkgs; [ opentofu incus fish age sops openssl jq nixfmt python3 kanidm ];
+        packages = with pkgs; [ opentofu incus fish age sops openssl jq nixfmt python3 kanidm_1_11 ];
       };
     };
 }
