@@ -35,11 +35,11 @@
       OAUTH_PROVIDER_NAME = "Kanidm";
       OPENID_PROVIDER_URL = "https://auth.archaic.work/oauth2/openid/open-webui/.well-known/openid-configuration";
       OPENID_REDIRECT_URI = "https://ai.archaic.work/oauth/oidc/callback";
-      OAUTH_SCOPES = "openid profile email groups";
+      OAUTH_SCOPES = "openid profile email";
       OAUTH_CODE_CHALLENGE_METHOD = "S256";
       OAUTH_TOKEN_ENDPOINT_AUTH_METHOD = "client_secret_basic";
       ENABLE_OAUTH_ROLE_MANAGEMENT = "true";
-      OAUTH_ROLES_CLAIM = "groups";
+      OAUTH_ROLES_CLAIM = "webui_roles";
       OAUTH_ALLOWED_ROLES = "ai-users,admins";
       OAUTH_ADMIN_ROLES = "admins";
       DEFAULT_USER_ROLE = "pending";

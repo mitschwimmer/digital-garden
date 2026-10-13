@@ -48,9 +48,17 @@ then Kanidm; do not bypass TLS checks. Initial issuance needs outbound HTTPS.
 WebUI uses client open-webui, callback https://ai.archaic.work/oauth/oidc/callback,
 PKCE S256, client_secret_basic and discovery at
 https://auth.archaic.work/oauth2/openid/open-webui/.well-known/openid-configuration.
-The scope map grants access only to ai-users/admins. The groups claim explicitly
-returns those names as an array; applications never infer permissions merely
-from a successful login. Keep TLS verification and PKCE enabled.
+The scope map grants openid/profile/email only to ai-users/admins. The custom
+webui_roles claim returns those names as an array; WebUI reads that claim for
+role management. Do not request the built-in groups scope: Kanidm fills groups
+with UUIDs and SPNs, overwriting a custom claim of the same name. Applications
+never infer permissions merely from a successful login. Keep TLS verification
+and PKCE enabled.
+
+For this claim migration, deploy identity first, then WebUI using
+[deployment](deployment.md), and test fresh login after both deployments.
+Kanidm's consent screen lists selected personal-information fields, not every
+scope or custom claim; an email-only prompt does not prove roles are missing.
 
 Require `systemctl is-active kanidm`, trusted external HTTPS, discovery and JWKS.
 Test an enrolled ai-users person (user), an admins person (admin), and a person
