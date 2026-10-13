@@ -19,9 +19,9 @@ Require identity metadata to equal identity, all mounts present and systemd
 running. If degraded, inspect `systemctl --failed` and the affected journal;
 never wait indefinitely or continue because the container merely says RUNNING.
 Use each other root's exact target/mounts for its checks. A seed has no service
-units yet; full configuration needs separate activation.
+units yet; full configuration needs separate deployment.
 
 Check DNS and backend reachability from the actual caller. After service
-activation use that reference's bounded health checks. On missing mounts repair
+deployment use that reference's bounded health checks. On missing mounts repair
 Incus devices before services can write to the disposable root. Stop on errors;
 do not enable privilege, remove conditions or disable firewalls to force progress.

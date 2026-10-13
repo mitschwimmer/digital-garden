@@ -31,10 +31,10 @@ actual offload when hardware acceleration is required.
 
 For NixOS, compose packages and services in native modules; supply runtime secret
 files through sops-nix and maintain a separate immutable seed identity. Document
-closure activation and application-aware rollback.
+closure deployment and application-aware rollback.
 
 Declare project scope, callers, state, keys, readiness and restore requirements
-using the [shared composition workflow](../SKILL.md#compose-or-extend-a-service),
+using the [shared composition workflow](composition.md),
 [project rules](projects.md) and [secret delivery](secrets.md#secret-delivery-for-a-new-service).
 
 Require native OIDC for every published user application. Applications needing

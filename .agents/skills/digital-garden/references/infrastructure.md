@@ -32,6 +32,6 @@ explicit data-retirement change. Preserve state on partial failure and re-plan.
 
 For NixOS this starts a system-specific minimal seed, not the final services.
 Continue with [readiness](readiness.md), [secrets](secrets.md) where required and
-[activation](activation.md). OCI starts through its declared infrastructure and
+[deployment](deployment.md). OCI starts through its declared infrastructure and
 uses [inference checks](inference.md). A successful apply proves neither health
 nor authorization. Stop dependent operations at a failed prerequisite.

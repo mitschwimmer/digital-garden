@@ -10,7 +10,7 @@
 | Field | Requirement |
 |---|---|
 | Goal | Change public presets, image or launch settings with declared ownership and safe restart. |
-| Prerequisites | A working [inference service](inference.md); retain inference selection, GPU input, state and configuration backups. |
+| Prerequisites | A working inference service; retain inference selection, GPU input, state and configuration backups. |
 | Sources | `systems/inference/models.ini`, image/model locks and `systems/inference/main.tf`. |
 | Execution and inputs | Fish workstation from repository root; changed declared files and reviewed whole plan. |
 | Expected infrastructure effects | Preset-only change updates config file and running state; review image/launch changes separately. |
@@ -27,22 +27,21 @@ pipeline. Public config may appear in OpenTofu state. Secret plaintext may not;
 secret-heavy workloads use NixOS/sops-nix instead.
 
 On updates, stop before applying mounted config-file changes, then let the reviewed
-whole plan restore declared running/autostart state after config delivery. Reboot
-and partial-failure behavior, acceptance and rollback are covered in
-[inference service](inference.md). Stop live application at a failed check.
+whole plan restore running/autostart after delivery. Use
+[inference acceptance](inference.md#check-the-result) after restart; stop on failure.
 
 ## Apply the change
 
 Run in fish from the repository root against an existing inference service. Keep root-local
 inputs with the inspected GPU PCI address. This OCI workload needs no
-NixOS build or activation.
+NixOS build or deployment.
 
 ### 1. Edit the source
 
 Edit [systems/inference/models.ini](../../../../systems/inference/models.ini), not the file inside the guest.
-`[*]` contains shared defaults; `[mimo]` and `[qwen36]` identify model aliases
-and override those defaults. For example, to reduce only Qwen's context, add
-`ctx-size = 4096` to its existing `[qwen36]` section. Keep `version = 1`
+`[*]` contains shared defaults; `[qwen38]` and `[qwen38-chat]` identify model aliases
+and override those defaults. For example, to reduce the coding profile context, set
+`ctx-size = 4096` to its existing `[qwen38]` section. Keep `version = 1`
 and avoid duplicate sections or keys.
 
 | Change | Files to edit |
@@ -52,7 +51,9 @@ and avoid duplicate sections or keys.
 | Router concurrency (`--models-max`), entrypoint, memory or cache-volume limits | `systems/inference/main.tf` |
 | Server image/version | `systems/inference/image.lock.json`; review as a separate upgrade |
 
-For a new model, use an immutable download revision, a distinct cache path under
+Before deployment, require each model/artifact URL, cache path and lock entry to
+agree; a lock for former aliases does not verify current presets. For a new
+model, use an immutable download revision, a distinct cache path under
 `/var/cache/llama`, and record its expected SHA256 and size in the lock. The lock
 is an acceptance record, not an automatic checksum verifier. After download,
 check the bytes as described in [inference service](inference.md). Retain aliases used
@@ -111,7 +112,7 @@ before retrying the whole plan.
 
 To roll back, restore the previous declared presets (and matching lock/launch
 settings if changed), stop llama, review/apply a new whole plan, and repeat the
-checks. Keep both config/cache volumes; changing a preset does not require
-deleting cached models or application identities.
+checks. Reconcile source with accepted running state. Retain config/cache volumes
+and application identities.
 
 Preset syntax: [pinned llama.cpp router documentation](https://github.com/ggml-org/llama.cpp/blob/b11552/tools/server/README.md).

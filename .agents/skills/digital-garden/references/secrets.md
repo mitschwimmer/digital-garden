@@ -78,7 +78,7 @@ incus file push "$secret_work/identity.agekey" YOUR_REMOTE:identity/var/lib/gard
 
 For WebUI repeat against YOUR_REMOTE:open-webui in project ai, using only
 open-webui.agekey. Stop if a key already exists; restore/reuse its intended
-identity instead of overwriting it. Verify consumer decryption during activation.
+identity instead of overwriting it. Verify consumer decryption during deployment.
 Back up keys/ciphertext, then remove the protected temporary directory after
 successful deployment. Do not rely on secure erase on SSDs.
 
@@ -93,6 +93,6 @@ ACME keys live only in their owning guest's persistent state. User passkeys,
 passwords and Kanidm signing/database identity are application state.
 For recipient replacement preserve secret values and run sops updatekeys on only
 the affected ciphertext; verify both operator and consumer decryption. For
-intentional client rotation change the raw value on both consumers, activate
+intentional client rotation change the raw value on both consumers, deploy
 identity and WebUI, verify allowed/denied login, then retire old material.
 Rollback requires matching secrets and application data where coupled.

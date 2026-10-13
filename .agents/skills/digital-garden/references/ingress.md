@@ -15,7 +15,7 @@ endpoints, not exceptions for unauthenticated user applications.
 
 ## Apply the change
 
-Provision edge's LAN device using [infrastructure](infrastructure.md). Its Nix
+For LAN-device changes use [infrastructure](infrastructure.md). Edge's Nix
 configuration uses eth0 backend DHCP and eth1 LAN DHCP/IPv6 RA. Only LAN TCP
 80/443 is open; HTTP/3 is disabled. Backend admin/health ports are not public.
 Build the native Caddy validator from the checkout:
@@ -24,7 +24,7 @@ Build the native Caddy validator from the checkout:
 nix build .#checks.x86_64-linux.caddy-config --no-link
 ```
 
-Activate from systems/edge. Its routes do not require identity to be running,
+Deploy from systems/edge using [deployment](deployment.md). Its routes do not require identity to be running,
 so edge can start first and solve the identity guest's ACME bootstrap dependency.
 
 Configure manual DNS for test/auth/ai/identity.archaic.work (or wildcard DNS)
@@ -51,9 +51,9 @@ curl --fail --max-time 30 -4 https://auth.archaic.work
 ```
 
 Test -6 too if AAAA is published. Require trusted TLS without -k; auth becomes
-available after identity activation. An arbitrary path on
+available after identity deployment. An arbitrary path on
 http://identity.archaic.work must return 404. Check port 2019 is not listening.
 Restart edge, repeat readiness and HTTPS checks, and confirm certificate state
 remains mounted. For failures inspect Caddy journal, LAN addresses, DNS/router
-rules and upstream TLS. Roll back via [activation](activation.md) and restore
+rules and upstream TLS. Roll back via [deployment](deployment.md) and restore
 recorded DNS/router changes separately.
