@@ -44,8 +44,6 @@ in {
         bindaddress = "0.0.0.0:8443";
         tls_chain = "/var/lib/acme/${cert}/fullchain.pem";
         tls_key = "/var/lib/acme/${cert}/key.pem";
-        # Do not trust caller-supplied forwarded addresses on the shared bridge.
-        trust_x_forward_for = false;
       };
     };
     provision = {
