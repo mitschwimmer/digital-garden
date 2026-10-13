@@ -29,11 +29,11 @@ The private machine-to-machine inference API is not a published user application
 SOPS owns managed credential ciphertext; sops-nix delivers narrow runtime files.
 Applications own mutable state on dedicated protected volumes. Each guest has
 its own disposable root; no Nix store or writable volume is shared across guests.
-The seed is only for creation; closure activation updates an existing guest.
+The seed is only for creation; closure deployment updates an existing guest.
 
 The deployment entry point is a deliberately small exception to the preference
 for native commands: it binds root, applied target, Incus metadata and closure
 identity before changing the profile. Separate shell variables cannot enforce
 that relationship. It calls native Nix/Incus commands and generates no service
 configuration. It locks operations within a checkout; coordinate across operators.
-See [activation](activation.md) for its limits and rollback.
+See [deployment](deployment.md) for its limits and rollback.

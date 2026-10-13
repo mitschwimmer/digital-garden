@@ -20,13 +20,13 @@ recreation plan using the retained seed archive rather than inventing an import.
 Do not regenerate application secrets to repair missing recipient keys.
 
 Restore platform before dependent roots. Restore each guest's own volumes and
-machine key, then activate its declared configuration using the identity guard.
+machine key, then deploy its declared configuration using the identity guard.
 Bring up edge before identity's certificate issuance; bring up identity before
 WebUI login acceptance. Verify actual restored data, allowed/denied login,
 trusted TLS and restart persistence on an isolated recovery target. An archive
 listing alone is not restoration evidence.
 
-For NixOS rollback use [activation](activation.md); database migrations may need
+For NixOS rollback use [deployment](deployment.md); database migrations may need
 matching data restoration. For OCI rollback restore the pinned declaration and
 review a new plan. Reconcile source against accepted running state afterward.
 
@@ -52,7 +52,7 @@ Snapshots remain on-host; exports must be independently recoverable off-host.
 For other systems use their actual volume names and project, never WebUI's.
 
 If an incompatible upgrade requires data rollback, first stop WebUI and mask it in
-runtime state so older code cannot open the newer database during activation:
+runtime state so older code cannot open the newer database during deployment:
 
 ```fish
 incus exec YOUR_REMOTE:open-webui --project ai -- systemctl stop open-webui

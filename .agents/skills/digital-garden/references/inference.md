@@ -29,7 +29,7 @@ Open WebUI callers run in `ai`; both use the shared bridge in `default`.
 unprivileged GPU/KFD mappings, UID/GID 1000, one private NIC, 32 GiB root and a
 64 GiB protected cache. OpenTofu delivers `systems/inference/models.ini` into the read-only
 configuration volume **before** starting the instance, and owns running/autostart
-state. There is no delayed upload/activation window or derived image. Launch
+state. There is no delayed upload/deployment window or derived image. Launch
 arguments and LLAMA_CACHE are ordinary public OpenTofu attributes.
 
 Only trusted host/backend clients may route to port 8080; the API has no API-key
@@ -63,7 +63,7 @@ schema validation is mandatory. Its file content is public and may enter state;
 never use this path for secrets. Initial apply must finish public file delivery
 before instance creation through the disk dependency. If delivery fails, do not
 start the service manually; repair it and reapply the whole plan. This workload
-starts directly through OpenTofu; it does **not** use NixOS activation or the
+starts directly through OpenTofu; it does **not** use NixOS deployment or the
 systemd readiness loop.
 
 ## Check the result
@@ -82,20 +82,22 @@ A running OCI process or device enumeration alone does not pass the check.
 
 ### 4. Verify model output, GPU use and persistence
 
-Both aliases `mimo` and `qwen36` must appear even before downloads. Send native
+Require the aliases declared in `models.ini` even before downloads. The current
+profiles are `qwen38` and `qwen38-chat`; both share one GGUF, and the chat profile
+also uses a projector. Send native
 API requests from the trusted WebUI guest, one model at a time:
 
 ```fish
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"mimo","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen36","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"mimo","messages":[{"role":"user","content":"Say hello again."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen38","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen38-chat","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
+incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen38","messages":[{"role":"user","content":"Say hello again."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --connect-timeout 5 --max-time 30 --fail http://garden-llama.garden.internal:8080/models
 incus console "$GARDEN_REMOTE:garden-llama" --project inference --show-log
 ```
 
 Require responses contain actual generated text; logs show ROCm and layers
 **offloaded**, not merely enumerated devices. Catalog status shows only the
-selected model loaded (models-max 1). When WebUI is enabled, select MiMo -> Qwen -> MiMo and
+selected model loaded (models-max 1). When WebUI is enabled, select coding -> chat -> coding and
 chat; switching needs no infrastructure apply/restart. First download/load may
 be slow. Cold model requests may take up to the documented 7200-second timeout;
 do not treat this as the short API readiness check. Cached models must survive restarting inference. If WebUI is enabled, its chat
@@ -103,8 +105,10 @@ state and client integration must also survive restarting both guests. Wait for 
 in `ai`, and repeat the bounded inference health check above before requests. Repeat
 an API request and, when enabled, browser chat after restart and ensure no full re-download.
 
-The immutable source URLs and expected SHA256/size are recorded in
-`systems/inference/models.lock.json`; checksum-named cache paths alone do not verify bytes.
+Before deployment, reconcile `models.ini` with `models.lock.json`: every model
+and projector needs an immutable revision and expected SHA256/size. Stop if URLs
+use mutable revisions or the lock describes former models; cache names alone
+do not verify bytes.
 After download, verify each file with `sha256sum` inside llama and compare against
 the lock. Also check file sizes with `stat -c %s`. This can be expensive once;
 record verified results and repeat after changing bytes, not every restart.
@@ -117,28 +121,12 @@ URL. If Qwen cannot fit, review an explicit context/offload change. Do not enabl
 privileged mode or bypass checks with an architecture override. A failed initial
 apply resumes with the same state/volumes and whole plan.
 
-Before an update, save the current Git revision, image/launch settings, state,
-and public presets outside the checkout. Stop the OCI guest before modifying a
-mounted config volume. With the new declared configuration present, the whole
-plan will include the public file update and the detected `running=false` drift;
-OpenTofu returns running to true after the config dependency is updated:
-
-```fish
-incus stop "$GARDEN_REMOTE:garden-llama" --project inference
-```
-
-From systems/inference, run the whole plan/apply and repeat health/catalog/generated-text acceptance. If
-an apply fails after a partial config update, keep it stopped until the declared
-configuration is complete; do not manually re-enable it with half-written files.
-For a longer repair, disable boot.autostart manually while stopped and record the
-drift. The next reviewed apply must restore declared running/autostart settings.
-An image upgrade can replace only this guest, with volumes retained; review it
-separately from persistent-data changes.
-
-Rollback: restore the previously recorded public preset/image/launch declarations,
-stop the guest, review/apply a new whole plan, and repeat inference checks. Retain
-cache and identities. Never disable inference or unset PCI to troubleshoot.
-After rollback reconcile repository versus running state before continuation.
+For updates and rollback use [OCI configuration](oci-configuration.md#apply-the-change),
+which owns stopping, config delivery and whole-plan restart. Retain state, cache
+and identities; never disable inference or unset PCI to troubleshoot. For a
+longer repair, disable boot.autostart manually while stopped and record the drift;
+the next reviewed apply must restore declared running/autostart. Review image
+upgrades separately: only the guest may be replaced, with volumes retained.
 
 Sources: [pinned llama server](https://github.com/ggml-org/llama.cpp/blob/b11552/tools/server/README.md),
 [pinned provider files](https://github.com/lxc/terraform-provider-incus/blob/v1.2.0/docs/resources/storage_volume.md),

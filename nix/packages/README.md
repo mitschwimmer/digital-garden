@@ -15,5 +15,5 @@ Upstream also owns missing-role handling and callback access logging.
 Remove this backport when the shared locked package reaches 0.12.0 or newer;
 review any newer package before removing it. The version assertion forces that
 review on platform updates. Build the complete WebUI closure and verify OIDC,
-existing data, inference integration and restart persistence before activation.
+existing data, inference integration and restart persistence before deployment.
 Database rollback requires the matching pre-upgrade data backup.

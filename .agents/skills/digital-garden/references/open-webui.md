@@ -6,10 +6,11 @@ It depends on Kanidm for native OIDC, edge for public HTTPS and the private
 inference endpoint for chat. Configuration comes from Nix on every startup;
 ENABLE_PERSISTENT_CONFIG is false. No local password login or proxy-header auth.
 
-Provision this root independently, prepare its [secrets](secrets.md), and run
-[activation](activation.md) from systems/open-webui. Identity must have the matching
+For initial creation, provision this root and prepare its [secrets](secrets.md).
+For configuration rollout, run
+[deployment](deployment.md) from systems/open-webui. Identity must have the matching
 client secret and directory declarations. Check `/var/lib/open-webui` and
-`/var/lib/garden-secrets` are real mounts before activating. UID/GID 990 belongs
+`/var/lib/garden-secrets` are real mounts before deploying. UID/GID 990 belongs
 to the application; root reads the 0400 environment file through systemd.
 
 The OIDC groups claim maps ai-users to user and admins to admin; unmatched users
