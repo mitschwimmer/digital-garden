@@ -13,7 +13,7 @@ client secret and directory declarations. Check `/var/lib/open-webui` and
 `/var/lib/garden-secrets` are real mounts before deploying. UID/GID 990 belongs
 to the application; root reads the 0400 environment file through systemd.
 
-The OIDC groups claim maps ai-users to user and admins to admin; unmatched users
+The OIDC webui_roles claim maps ai-users to user and admins to admin; unmatched users
 remain pending/denied. The issuer scope map denies unrelated users. Upstream
 first/sole-user admin promotion still exists: the operator must log in first
 with the intended admins account, then verify ordinary-user and denied-user

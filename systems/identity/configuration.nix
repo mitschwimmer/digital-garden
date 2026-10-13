@@ -61,10 +61,11 @@ in {
         basicSecretFile = "/run/secrets/webui-client";
         preferShortUsername = true;
         scopeMaps = {
-          ai-users = [ "openid" "profile" "email" "groups" ];
-          admins = [ "openid" "profile" "email" "groups" ];
+          ai-users = [ "openid" "profile" "email" ];
+          admins = [ "openid" "profile" "email" ];
         };
-        claimMaps.groups = {
+        # Keep role values separate from Kanidm's built-in groups claim.
+        claimMaps.webui_roles = {
           joinType = "array";
           valuesByGroup = {
             ai-users = [ "ai-users" ];
