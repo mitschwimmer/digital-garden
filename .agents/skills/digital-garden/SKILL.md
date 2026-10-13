@@ -102,6 +102,23 @@ Apply infrastructure changes only when required. Verify health, authorization,
 caller reachability and persistence for the changed service and dependencies.
 NixOS rollback does not reverse database migrations.
 
+### Update NixOS system containers
+
+Follow [system software updates](references/activation.md#update-system-software)
+for revision selection, lock updates, closure validation and staged activation.
+A shared nixpkgs pin affects edge, identity and WebUI; inventory all affected
+systems, then deploy and verify one operation root at a time. Preserve deployed
+seed inputs, data and keys. Review application migrations and rollback limits
+before activation; guest updates do not update the IncusOS host.
+
+### Add, change or remove users
+
+Follow [user lifecycle](references/identity.md#user-lifecycle) to declare persons
+and group membership, activate identity, enroll credentials and verify access.
+Keep a working administrator. Use explicit deletion declarations with
+`autoRemove = false`; removal also requires checking application sessions, tokens
+and retained data. Distinguish Kanidm people from guest service accounts.
+
 ### Publish a service or change access
 
 Use [ingress](references/ingress.md) for hostname/backend routing, certificates,

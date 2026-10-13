@@ -65,3 +65,59 @@ stops application services and will fail service acceptance: do this only as an
 explicit recovery step. NixOS rollback does not reverse database migrations;
 restore matching data if needed. After acceptance remove obsolete candidate and
 previous-generation GC roots deliberately, preserving the selected recovery point.
+
+## Update system software
+
+NixOS guests run closures built from this repository's pinned inputs. Rebuilding
+without changing the pins/configuration does not fetch newer packages. There is
+no guest-local channel upgrade or package installation step. The IncusOS host
+owns the kernel and has a separate update lifecycle; direct OCI inference updates
+use [OCI configuration](oci-configuration.md).
+
+1. Record the current source revision, lock file and each affected guest's running
+   closure. Preserve its activation record/GC roots and take matching application
+   data backups as in [recovery](recovery.md). Review upstream release notes for
+   compatibility and database migrations, especially Kanidm and WebUI.
+2. Select a reviewed nixpkgs commit and edit `inputs.nixpkgs.url` in `flake.nix`.
+   It contains an exact revision: `nix flake update nixpkgs` alone will keep that
+   revision. Change the sops-nix URL only when intentionally updating it; its
+   nixpkgs input follows the shared pin. From the repository root, regenerate
+   the selected locks and inspect both source and lock diffs:
+
+   ```fish
+   nix flake update nixpkgs
+   # Only after intentionally changing inputs.sops-nix.url:
+   nix flake update sops-nix
+   git diff -- flake.nix flake.lock
+   ```
+
+3. Inventory every consumer of the shared inputs: edge, identity and open-webui,
+   plus seed builds and workstation tools. Review module-option/package changes,
+   Kanidm's versioned client and secret-provisioning variant, and the separately
+   pinned WebUI package in `nix/packages/open-webui.nix`. Updating nixpkgs does
+   not automatically advance that application pin. Retain `system.stateVersion`
+   unless a separately reviewed state-compatibility change requires it; it is
+   not the installed NixOS version.
+4. Run [validation](validation.md), including all affected system closure builds
+   and integration-specific checks. Stage real encrypted inputs for consumers.
+   Re-enter `nix develop -c fish` after changing pins so workstation tools match.
+   Commit the reviewed source and lock changes before live rollout.
+5. Choose a dependency-aware rollout order and maintenance window. Enter one
+   affected system root and run the activation procedure above, verify its
+   service-specific checks, then repeat for the next root. Stop the rollout on
+   any failure. A shared lock update does not activate all guests automatically.
+   Existing guests keep their immutable deployed seed archives and OpenTofu
+   `image_directory` inputs; do not replace a guest to deliver software updates.
+6. Verify external reachability, OIDC allowed/denied roles, persistent mounts and
+   data, and restart behavior for affected services. Record each deployed source
+   revision, running closure and acceptance result. Retain recovery closures
+   and backups until the rollout is accepted.
+
+For failure, use the affected attempt's rollback record as described above and
+reconcile source/pins to the intended running version. Inspect migration support
+before starting an older service against upgraded data; restore a matching backup
+when required. Do not roll back unaffected roots or assume a Git revert changes
+running guests. Rebuilding seeds for future provisioning is separate from
+updating existing guests.
+
+Source: [Nix flake update](https://nix.dev/manual/nix/2.28/command-ref/new-cli/nix3-flake-update).
