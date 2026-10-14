@@ -1,7 +1,7 @@
 # Create a system-specific NixOS seed
 
 From the selected NixOS root (`systems/edge`, `systems/identity`, or
-`systems/open-webui`, or `systems/immich`), build only its seed. Example for identity:
+`systems/open-webui`, `systems/immich`, or `systems/webdav`), build only its seed. Example for identity:
 
 ```fish
 nix build ../..#identity-image --out-link result-seed

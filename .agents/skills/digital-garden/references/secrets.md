@@ -3,7 +3,7 @@
 ## Secret delivery for a new service
 
 Each consumer has its own `systems/<name>/secrets.yaml` encrypted to the operator
-recovery recipient plus that guest's age recipient. Identity and WebUI must never
+recovery recipient plus that guest's age recipient. Consumers must never
 share a machine key. Edge has no SOPS credentials; Caddy owns its ACME state.
 No plaintext belongs in Git, the Nix store, OpenTofu inputs/state or logs.
 
@@ -15,6 +15,10 @@ application databases. Back up anything to retain before an operator host wipe.
 For Immich's additional client ciphertext, independent age key and creation
 rule, follow [Immich credentials](immich.md#credentials-and-first-deployment).
 Existing identity/WebUI secrets remain unchanged.
+
+See [WebDAV](webdav.md#provision-and-deliver-the-credential) for its distinct
+recipient policy and machine-key installation; the examples below target only
+identity and WebUI.
 
 ## Create and encrypt
 
@@ -93,6 +97,7 @@ successful deployment. Do not rely on secure erase on SSDs.
 | Kanidm | admin, idm-admin, webui-client; separate immich-client ciphertext | 0400 files owned by kanidm; native provision options |
 | Immich | immich-client | Root-only file loaded through systemd credentials into runtime JSON |
 | WebUI | environment | Root-only EnvironmentFile consumed by systemd |
+| WebDAV | environment | 0400 webdav-owned EnvironmentFile; WEBDAV_HENNER_PASSWORD, WEBDAV_CLAUDI_PASSWORD, WEBDAV_ELMO_PASSWORD |
 
 ACME keys live only in their owning guest's persistent state. User passkeys,
 passwords and Kanidm signing/database identity are application state.

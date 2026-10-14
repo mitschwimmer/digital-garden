@@ -6,11 +6,12 @@ state or to surviving resources without an explicit recovery design.
 
 | Operation root | Project / instance | Owns |
 |---|---|---|
-| `platform/` | default bridge; ai, identity, inference projects | Shared network and namespaces |
+| `platform/` | default bridge; ai, identity, photos, inference, webdav projects | Shared network and namespaces |
 | `systems/edge/` | default / edge | Caddy, LAN attachment, certificate state |
 | `systems/identity/` | identity / identity | Kanidm, directory, ACME and machine key |
 | `systems/open-webui/` | ai / open-webui | WebUI, application state and machine key |
 | `systems/immich/` | photos / immich | Immich, media, PostgreSQL and machine key |
+| `systems/webdav/` | webdav / webdav | LAN-only Enpass WebDAV, application state and machine key |
 | `systems/inference/` | inference / garden-llama | Direct OCI GPU workload, presets and cache |
 
 Each root has its own local inputs, OpenTofu state, provider lock and saved plans.
@@ -26,6 +27,8 @@ configuration. Caddy only terminates HTTPS and routes requests. Kanidm owns
 identity and provides OIDC. Applications must implement native OIDC and enforce
 access themselves; applications needing an authentication proxy are unsupported.
 The private machine-to-machine inference API is not a published user application.
+[WebDAV](webdav.md) is an explicit LAN-only exception: shared edge filters source
+addresses and the application authenticates with a dedicated credential.
 
 SOPS owns managed credential ciphertext; sops-nix delivers narrow runtime files.
 Applications own mutable state on dedicated protected volumes. Each guest has

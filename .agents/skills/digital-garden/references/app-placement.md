@@ -38,5 +38,6 @@ using the [shared composition workflow](composition.md),
 [project rules](projects.md) and [secret delivery](secrets.md#secret-delivery-for-a-new-service).
 
 Require native OIDC for every published user application. Applications needing
-forward-auth or proxy-injected identity headers are unsupported. Private backend
+forward-auth or proxy-injected identity headers are unsupported. The explicit [LAN-only WebDAV exception](webdav.md) uses application credentials
+and shared-edge source filtering. Private backend
 APIs need explicitly trusted callers and must not be published.
