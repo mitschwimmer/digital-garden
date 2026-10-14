@@ -1,21 +1,25 @@
 {
   description = "Digital Garden isolated IncusOS systems";
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/0d9e9b832d03ac387417e16ce1febf73b2e631e1";
+  # Immich 2 at the shared stable pin is unsupported; isolate its supported pin.
+  inputs.nixpkgs-immich.url = "github:NixOS/nixpkgs/7fd4004d0511991fff3a0524856a9be09e28c5f0";
   inputs.sops-nix = {
     url = "github:Mic92/sops-nix/dcd241ba97088c22569d1573286e1b9daad340c0";
     inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { nixpkgs, sops-nix, ... }:
+  outputs = { nixpkgs, nixpkgs-immich, sops-nix, ... }:
     let
       system = "x86_64-linux";
       lib = nixpkgs.lib;
       pkgs = import nixpkgs { inherit system; };
-      names = [ "edge" "identity" "open-webui" ];
-      mkSystem = name: seed: lib.nixosSystem {
+      names = [ "edge" "identity" "open-webui" "immich" ];
+      mkSystem = name: seed:
+        let guestNixpkgs = if name == "immich" then nixpkgs-immich else nixpkgs;
+        in guestNixpkgs.lib.nixosSystem {
         inherit system;
         modules = [
-          "${nixpkgs}/nixos/modules/virtualisation/lxc-container.nix"
+          "${guestNixpkgs}/nixos/modules/virtualisation/lxc-container.nix"
           ./nix/modules/container.nix
           {
             networking.hostName = name;

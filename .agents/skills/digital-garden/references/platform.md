@@ -19,7 +19,8 @@ incus query YOUR_REMOTE:/1.0/resources
 
 Replace YOUR_REMOTE only with the inspected client alias. Set `incus_remote` and
 `storage_pool` independently in each root. All roots for this installation must
-point at the same inspected host/pool. Keep local files private and ignored.
+point at the same inspected host. Their root pool uses the inspected fast pool;
+Immich additionally selects the existing bulk pool for media. Keep local files private and ignored.
 Do not use alternate Tofu workspaces or TF_* state/CLI overrides.
 
 | Root | Additional required inputs |
@@ -28,6 +29,7 @@ Do not use alternate Tofu workspaces or TF_* state/CLI overrides.
 | edge | Its immutable `image_directory`, `edge_lan_parent`, stable `edge_lan_mac` |
 | identity | Its immutable `image_directory` |
 | open-webui | Its immutable `image_directory` |
+| immich | Its immutable `image_directory`; `storage_pool` defaults to `local`, `media_storage_pool` to `data` on measerve |
 | inference | Inspected `llama_gpu_pci` |
 
 LAN parent must be an IncusOS instances-role bridge; MAC must start with `02`.

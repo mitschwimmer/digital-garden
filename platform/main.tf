@@ -73,3 +73,18 @@ resource "incus_project" "identity" {
     "features.networks.zones"  = "false"
   }
 }
+
+resource "incus_project" "photos" {
+  name        = "photos"
+  description = "Digital Garden photo and video library"
+  remote      = var.incus_remote
+
+  config = {
+    "features.images"          = "true"
+    "features.profiles"        = "true"
+    "features.storage.volumes" = "true"
+    "features.storage.buckets" = "true"
+    "features.networks"        = "false"
+    "features.networks.zones"  = "false"
+  }
+}

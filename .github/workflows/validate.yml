@@ -39,7 +39,7 @@ jobs:
       - name: Validate infrastructure schemas
         run: |
           nix develop --command fish -c '
-            for root in platform systems/edge systems/identity systems/open-webui systems/inference
+            for root in platform systems/edge systems/identity systems/open-webui systems/immich systems/inference
               tofu -chdir=$root fmt -check -diff; or exit
               tofu -chdir=$root init -backend=false -input=false -lockfile=readonly; or exit
               tofu -chdir=$root validate; or exit
@@ -51,9 +51,14 @@ jobs:
           nix eval .#nixosConfigurations.identity.config.services.kanidm.server.settings --json > /dev/null
           nix eval .#nixosConfigurations.identity.config.systemd.services.kanidm.unitConfig --json > /dev/null
           nix eval .#nixosConfigurations.open-webui.config.services.open-webui.environment --json > /dev/null
+          nix eval .#nixosConfigurations.immich.config.services.immich.settings --json > /dev/null
+          nix eval .#nixosConfigurations.immich.config.services.postgresql.dataDir --json > /dev/null
+          nix eval .#nixosConfigurations.immich.config.systemd.services.immich-server.unitConfig --json > /dev/null
+          nix eval .#nixosConfigurations.immich.config.systemd.services.postgresql-setup.unitConfig --json > /dev/null
+          nix eval .#nixosConfigurations.immich.config.services.immich.package.version --raw
       - name: Build seeds, edge and native Caddy validation
         run: |
           nix build --no-link \
-            .#edge-image .#identity-image .#open-webui-image \
+            .#edge-image .#identity-image .#open-webui-image .#immich-image \
             .#nixosConfigurations.edge.config.system.build.toplevel \
             .#checks.x86_64-linux.caddy-config

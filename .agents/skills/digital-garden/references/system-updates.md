@@ -40,3 +40,9 @@ matching backup when required. Leave unaffected roots alone. A Git revert does
 not change running guests.
 
 Source: [Nix flake update](https://nix.dev/manual/nix/2.28/command-ref/new-cli/nix3-flake-update).
+
+Immich has its own `inputs.nixpkgs-immich.url` and lock node. Update that exact
+revision with `nix flake update nixpkgs-immich`, then validate/build only the
+Immich guest and seed (plus integration consumers if their source changes).
+The shared pin does not advance Immich. Read [Immich](immich.md) for client
+compatibility, database migrations and matching media/database rollback.
