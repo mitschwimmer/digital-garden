@@ -1,0 +1,12 @@
+{
+  "system": "webdav",
+  "project": "webdav",
+  "instance": "webdav",
+  "mounts": [
+    "/var/lib/webdav",
+    "/var/lib/garden-secrets"
+  ],
+  "units": [
+    "webdav"
+  ]
+}

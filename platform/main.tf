@@ -88,3 +88,18 @@ resource "incus_project" "photos" {
     "features.networks.zones"  = "false"
   }
 }
+
+resource "incus_project" "webdav" {
+  name        = "webdav"
+  description = "Digital Garden LAN-only WebDAV"
+  remote      = var.incus_remote
+
+  config = {
+    "features.images"          = "true"
+    "features.profiles"        = "true"
+    "features.storage.volumes" = "true"
+    "features.storage.buckets" = "true"
+    "features.networks"        = "false"
+    "features.networks.zones"  = "false"
+  }
+}

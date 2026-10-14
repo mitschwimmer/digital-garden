@@ -22,9 +22,11 @@ closure builds or a live host. CI may run its broader suite independently.
 | SOPS inputs/recipients | Operator decryption to `/dev/null`; affected consumer closure | Consumer decryption and integration acceptance |
 | Shared Nix modules or flake inputs | Format; flake checks; affected seeds/closures and module-option evaluation | Affected consumers, one root at a time |
 
-Changes spanning rows require their union. A shared pin reaches edge, identity and WebUI
+Changes spanning rows require their union. Shared modules reach all NixOS
 guests, seeds and workstation tools; a local directory edit does not. Stop on a
-failed prerequisite. Record unavailable tools, ciphertext, keys or host access.
+failed prerequisite. The shared nixpkgs pin serves edge, identity, WebUI and
+WebDAV; Immich uses its own supported pin. Record unavailable tools, ciphertext,
+keys or host access.
 
 ## Native commands
 
@@ -70,7 +72,7 @@ tofu -chdir=ROOT validate
 Edge routing uses the native validator:
 
 ```fish
-nix build .#checks.x86_64-linux.caddy-config --no-link
+nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.webdav-ingress --no-link
 ```
 
 Shared-input checks; build each affected guest as above, and each affected seed
@@ -80,9 +82,11 @@ using `nix build .#NAME-image --no-link`:
 nix flake check --no-build
 ```
 
-Full identity/WebUI builds require real staged SOPS ciphertext. Do not invent
+Full identity/WebUI/WebDAV builds require real staged SOPS ciphertext. Do not invent
 secrets to pass checks or change deployed `image_directory` inputs for validation.
-Seed/edge checks need no credentials. Source validation, builds and plans do not
+Seed/edge checks need no credentials. WebDAV also requires a reserved edge backend address in `network-policy.json`.
+Its route acceptance and the source-address preservation gate live in [WebDAV](webdav.md).
+Source validation, builds and plans do not
 substitute for live acceptance.
 
 ## Live acceptance

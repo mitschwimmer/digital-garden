@@ -1,108 +1,144 @@
-{ lib, ... }:
+{ config, lib, ... }:
+let
+  policy = builtins.fromJSON (builtins.readFile ../../network-policy.json);
+in
 {
-  networking.enableIPv6 = lib.mkForce true;
-  networking.useDHCP = lib.mkForce false;
-  systemd.network.networks = {
-    "10-backend" = {
-      matchConfig.Name = "eth0";
-      networkConfig = {
-        DHCP = "ipv4";
-        Domains = [ "~garden.internal" ];
-        IPv6AcceptRA = false;
-      };
-      dhcpV4Config = {
-        RouteMetric = 1024;
-        ClientIdentifier = "mac";
-      };
-    };
-    "10-lan" = {
-      matchConfig.Name = "eth1";
-      networkConfig = {
-        DHCP = "yes";
-        IPv6AcceptRA = true;
-      };
-      dhcpV4Config = {
-        RouteMetric = 100;
-        ClientIdentifier = "mac";
-      };
-      ipv6AcceptRAConfig.RouteMetric = 100;
-    };
+  options.garden.webdavLanCidrs = lib.mkOption {
+    type = lib.types.listOf lib.types.str;
+    default = policy.webdavLanCidrs;
+    description = "Exact LAN client CIDRs allowed through to WebDAV; empty denies everyone.";
   };
 
-  networking.firewall.interfaces.eth1.allowedTCPPorts = [ 80 443 ];
-  services.caddy = {
-    enable = true;
-    openFirewall = false;
-    resume = false;
-    enableReload = false;
-    globalConfig = ''
-      admin off
-      persist_config off
-      servers {
-        protocols h1 h2
-      }
-    '';
-    virtualHosts = {
-      # Native OIDC belongs to the application. Caddy never authenticates users.
-      "ai.archaic.work" = {
-        logFormat = null;
-        extraConfig = "reverse_proxy open-webui.garden.internal:8080";
+  config = {
+    networking.enableIPv6 = lib.mkForce true;
+    networking.useDHCP = lib.mkForce false;
+    systemd.network.networks = {
+      "10-backend" = {
+        matchConfig.Name = "eth0";
+        networkConfig = {
+          DHCP = "ipv4";
+          Domains = [ "~garden.internal" ];
+          IPv6AcceptRA = false;
+        };
+        dhcpV4Config = {
+          RouteMetric = 1024;
+          ClientIdentifier = "mac";
+        };
       };
-      "photos.archaic.work" = {
-        logFormat = null;
-        extraConfig = ''
-          # First-admin setup is performed privately through Incus exec.
-          @bootstrap path_regexp (?i)^/api/auth/admin-sign-up/?$
-          handle @bootstrap {
-            respond 403
-          }
-          handle {
-            reverse_proxy immich.garden.internal:2283
-          }
-        '';
+      "10-lan" = {
+        matchConfig.Name = "eth1";
+        networkConfig = {
+          DHCP = "yes";
+          IPv6AcceptRA = true;
+        };
+        dhcpV4Config = {
+          RouteMetric = 100;
+          ClientIdentifier = "mac";
+        };
+        ipv6AcceptRAConfig.RouteMetric = 100;
       };
-      "auth.archaic.work" = {
-        logFormat = null;
-        extraConfig = ''
-          reverse_proxy https://identity.garden.internal:8443 {
-            transport http {
-              tls_server_name identity.archaic.work
+    };
+
+    networking.firewall.interfaces.eth1.allowedTCPPorts = [
+      80
+      443
+    ];
+    services.caddy = {
+      enable = true;
+      openFirewall = false;
+      resume = false;
+      enableReload = false;
+      globalConfig = ''
+        admin off
+        persist_config off
+        servers {
+          protocols h1 h2
+        }
+      '';
+      virtualHosts = {
+        # A deliberate LAN-only exception to native OIDC; WebDAV authenticates.
+        "webdav.archaic.work" = {
+          logFormat = null;
+          extraConfig = ''
+            tls {
+              issuer acme {
+                disable_tlsalpn_challenge
+              }
             }
-          }
-        '';
-      };
-      # The identity guest owns its backend certificate and ACME renewal.
-      # This hostname has no public application or automatic HTTPS listener.
-      "http://identity.archaic.work" = {
-        logFormat = null;
-        extraConfig = ''
-          handle /.well-known/acme-challenge/* {
-            reverse_proxy identity.garden.internal:8081
-          }
-          handle {
-            respond 404
-          }
-        '';
-      };
-      "test.archaic.work" = {
-        logFormat = "output stderr";
-        extraConfig = ''
-          respond "Digital Garden edge is ready.\n" 200
-        '';
-      };
-      "http://127.0.0.1:8080" = {
-        logFormat = null;
-        extraConfig = ''
-          respond /healthz "ok\n" 200
-        '';
+          ''
+          + lib.optionalString (config.garden.webdavLanCidrs != [ ]) ''
+            @lan remote_ip ${lib.concatStringsSep " " config.garden.webdavLanCidrs}
+            handle @lan {
+              reverse_proxy webdav.garden.internal:6065
+            }
+          ''
+          + ''
+            handle {
+              respond 403
+            }
+          '';
+        };
+        # Native OIDC belongs to the application. Caddy never authenticates users.
+        "ai.archaic.work" = {
+          logFormat = null;
+          extraConfig = "reverse_proxy open-webui.garden.internal:8080";
+        };
+        "photos.archaic.work" = {
+          logFormat = null;
+          extraConfig = ''
+            # First-admin setup is performed privately through Incus exec.
+            @bootstrap path_regexp (?i)^/api/auth/admin-sign-up/?$
+            handle @bootstrap {
+              respond 403
+            }
+            handle {
+              reverse_proxy immich.garden.internal:2283
+            }
+          '';
+        };
+        "auth.archaic.work" = {
+          logFormat = null;
+          extraConfig = ''
+            reverse_proxy https://identity.garden.internal:8443 {
+              transport http {
+                tls_server_name identity.archaic.work
+              }
+            }
+          '';
+        };
+        # The identity guest owns its backend certificate and ACME renewal.
+        # This hostname has no public application or automatic HTTPS listener.
+        "http://identity.archaic.work" = {
+          logFormat = null;
+          extraConfig = ''
+            handle /.well-known/acme-challenge/* {
+              reverse_proxy identity.garden.internal:8081
+            }
+            handle {
+              respond 404
+            }
+          '';
+        };
+        "test.archaic.work" = {
+          logFormat = "output stderr";
+          extraConfig = ''
+            respond "Digital Garden edge is ready.\n" 200
+          '';
+        };
+        "http://127.0.0.1:8080" = {
+          logFormat = null;
+          extraConfig = ''
+            respond /healthz "ok\n" 200
+          '';
+        };
       };
     };
-  };
 
-  # Refuse to put certificate state on the disposable container root disk.
-  systemd.services.caddy.unitConfig = {
-    ConditionPathIsMountPoint = "/var/lib/caddy";
-    RequiresMountsFor = [ "/var/lib/caddy" ];
+    # Refuse to put certificate state on the disposable container root disk.
+    systemd.services.caddy.unitConfig = {
+      ConditionPathIsMountPoint = "/var/lib/caddy";
+      RequiresMountsFor = [ "/var/lib/caddy" ];
+    };
+    systemd.services.caddy.serviceConfig.StateDirectoryMode = "0700";
   };
-  systemd.services.caddy.serviceConfig.StateDirectoryMode = "0700";
 }

@@ -13,6 +13,12 @@ authentication proxy or trusted identity-header fallback is supported. The auth
 portal, ACME challenge endpoint and static readiness response are infrastructure
 endpoints, not exceptions for unauthenticated user applications.
 
+[LAN-only WebDAV](webdav.md) is a deliberate exception to native OIDC. Its
+application authenticates with a dedicated credential; Caddy admits only exact
+LAN source CIDRs from `network-policy.json`, denying all clients when empty.
+Its HTTPS listener and HTTP-01 challenge remain publicly reachable; WebDAV
+application access is filtered. No forwarded identity or client-IP header is trusted.
+
 ## Apply the change
 
 For LAN-device changes use [infrastructure](infrastructure.md). Edge's Nix

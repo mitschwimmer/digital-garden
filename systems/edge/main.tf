@@ -1,3 +1,7 @@
+locals {
+  network_policy = jsondecode(file("${path.module}/../../network-policy.json"))
+}
+
 data "incus_network" "private" {
   name    = "gardenbr0"
   project = "default"
@@ -101,10 +105,12 @@ resource "incus_instance" "edge" {
   device {
     name = "eth0"
     type = "nic"
-    properties = {
+    properties = merge({
       network = data.incus_network.private.name
       name    = "eth0"
-    }
+      }, local.network_policy.edgeBackendIPv4 == null ? {} : {
+      "ipv4.address" = local.network_policy.edgeBackendIPv4
+    })
   }
 
   device {

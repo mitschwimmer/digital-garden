@@ -3,6 +3,8 @@
 Self-hosted services on IncusOS: isolated operation roots, NixOS system
 containers, Nix-configured Caddy, declaratively provisioned Kanidm, SOPS + age,
 and direct OCI GPU inference. Published user applications require native OIDC.
+[LAN-only WebDAV](.agents/skills/digital-garden/references/webdav.md) is an explicit
+exception, using source filtering and application credentials for Enpass.
 Caddy performs no user authentication and has no mutable configuration API.
 
 Start with [Work on Digital Garden](.agents/skills/digital-garden/SKILL.md).
