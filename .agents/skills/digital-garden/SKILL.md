@@ -43,7 +43,8 @@ plans between roots. Review destructive replacement separately.
 | Back up, restore or retire | [Recovery](references/recovery.md) or [retirement](references/retirement.md) | Only affected service checks |
 
 Service references: [Caddy](references/ingress.md), [Kanidm](references/identity.md),
-[Open WebUI](references/open-webui.md), [llama.cpp](references/inference.md).
+[Open WebUI](references/open-webui.md), [Immich](references/immich.md),
+[llama.cpp](references/inference.md).
 Read the [identity ADR](references/adr_identity_provider.md) only for provider-design decisions.
 
 ## Keep ownership explicit

@@ -24,6 +24,10 @@ would reset its password on each restart. autoRemove is false: retain an explici
 `present = false` declaration for intentional entity deletion. Membership is
 reconciled by the module; change authorization in Nix, not interactively.
 
+Immich uses a separate staged client and the `photos-users` group; see
+[Immich credentials and acceptance](immich.md). Its additional ciphertext does
+not replace identity's existing admin or WebUI credentials.
+
 ## Fresh bootstrap
 
 1. Provision platform, then edge and identity seeds with separate inputs/state.

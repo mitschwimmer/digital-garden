@@ -22,7 +22,7 @@ closure builds or a live host. CI may run its broader suite independently.
 | SOPS inputs/recipients | Operator decryption to `/dev/null`; affected consumer closure | Consumer decryption and integration acceptance |
 | Shared Nix modules or flake inputs | Format; flake checks; affected seeds/closures and module-option evaluation | Affected consumers, one root at a time |
 
-Changes spanning rows require their union. A shared pin reaches all three NixOS
+Changes spanning rows require their union. A shared pin reaches edge, identity and WebUI
 guests, seeds and workstation tools; a local directory edit does not. Stop on a
 failed prerequisite. Record unavailable tools, ciphertext, keys or host access.
 
@@ -102,6 +102,11 @@ identity, certificate bootstrap/renewal, directory/client reconciliation, OIDC
 allowed/denied roles and Caddy's closed admin port. Route changes require NixOS
 deployment. Restart affected guests and verify persistence. Recovery changes
 require an independent restore.
+
+Immich checks additionally evaluate its supported package, settings, PostgreSQL
+path and mount guards, validate its HCL root and build its seed. Full Immich
+closure builds require its own and identity's staged client ciphertext; do not
+fabricate secrets to bypass that guard. See [Immich acceptance](immich.md).
 
 CI checks whitespace, deployment regressions, provider schemas, identity/WebUI
 module options, seeds, edge and Caddy validation. Record exact passed and pending

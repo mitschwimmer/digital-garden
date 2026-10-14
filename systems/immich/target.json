@@ -1,0 +1,16 @@
+{
+  "system": "immich",
+  "project": "photos",
+  "instance": "immich",
+  "mounts": [
+    "/var/lib/immich",
+    "/var/lib/postgresql",
+    "/var/lib/garden-secrets"
+  ],
+  "units": [
+    "postgresql",
+    "redis-immich",
+    "immich-server",
+    "immich-machine-learning"
+  ]
+}

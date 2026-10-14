@@ -48,6 +48,19 @@
         logFormat = null;
         extraConfig = "reverse_proxy open-webui.garden.internal:8080";
       };
+      "photos.archaic.work" = {
+        logFormat = null;
+        extraConfig = ''
+          # First-admin setup is performed privately through Incus exec.
+          @bootstrap path_regexp (?i)^/api/auth/admin-sign-up/?$
+          handle @bootstrap {
+            respond 403
+          }
+          handle {
+            reverse_proxy immich.garden.internal:2283
+          }
+        '';
+      };
       "auth.archaic.work" = {
         logFormat = null;
         extraConfig = ''

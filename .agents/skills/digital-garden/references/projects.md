@@ -1,6 +1,6 @@
 # Projects, mounts and identities
 
-`platform/main.tf` owns gardenbr0 in default and the identity, ai and inference
+`platform/main.tf` owns gardenbr0 in default and the identity, ai, photos and inference
 projects. Images, profiles and volumes are project-local; the private bridge is
 shared through `features.networks=false`. Existing host pools are data sources,
 not managed resources. Edge uses the built-in default project.
@@ -10,6 +10,7 @@ not managed resources. Edge uses the built-in default project.
 | edge | `/var/lib/caddy` |
 | identity | `/var/lib/kanidm`, `/var/lib/acme`, `/var/lib/garden-secrets` |
 | open-webui | `/var/lib/open-webui`, `/var/lib/garden-secrets` |
+| immich | `/var/lib/immich` on data; `/var/lib/postgresql`, `/var/lib/garden-secrets` on local |
 | garden-llama | `/var/cache/llama`, read-only `/etc/llama` |
 
 Each leaf root owns only its guest, seed (NixOS) and volumes. Guest

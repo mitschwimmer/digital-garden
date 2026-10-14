@@ -10,6 +10,7 @@ state or to surviving resources without an explicit recovery design.
 | `systems/edge/` | default / edge | Caddy, LAN attachment, certificate state |
 | `systems/identity/` | identity / identity | Kanidm, directory, ACME and machine key |
 | `systems/open-webui/` | ai / open-webui | WebUI, application state and machine key |
+| `systems/immich/` | photos / immich | Immich, media, PostgreSQL and machine key |
 | `systems/inference/` | inference / garden-llama | Direct OCI GPU workload, presets and cache |
 
 Each root has its own local inputs, OpenTofu state, provider lock and saved plans.

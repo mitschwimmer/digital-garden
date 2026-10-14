@@ -30,6 +30,10 @@ For NixOS rollback use [deployment](deployment.md); database migrations may need
 matching data restoration. For OCI rollback restore the pinned declaration and
 review a new plan. Reconcile source against accepted running state afterward.
 
+Immich requires matching media from `data`, PostgreSQL from `local`, and its
+machine key. See [Immich backup and rollback](immich.md#backup-restore-and-rollback)
+for the volume identities and acceptance; database dumps alone exclude media.
+
 ## WebUI checkpoint and data rollback example
 
 In systems/open-webui read the applied remote and pool from its local inputs;

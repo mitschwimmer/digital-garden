@@ -12,6 +12,10 @@ active tree; history is not a backup of private keys. This is a fresh-install
 procedure, not a data/credential migration. Do not combine new keys with old
 application databases. Back up anything to retain before an operator host wipe.
 
+For Immich's additional client ciphertext, independent age key and creation
+rule, follow [Immich credentials](immich.md#credentials-and-first-deployment).
+Existing identity/WebUI secrets remain unchanged.
+
 ## Create and encrypt
 
 Use a secured workstation directory outside the checkout and an existing or newly
@@ -86,7 +90,8 @@ successful deployment. Do not rely on secure erase on SSDs.
 
 | Consumer | Ciphertext keys | Runtime interface |
 |---|---|---|
-| Kanidm | admin, idm-admin, webui-client | 0400 files owned by kanidm; native provision options |
+| Kanidm | admin, idm-admin, webui-client; separate immich-client ciphertext | 0400 files owned by kanidm; native provision options |
+| Immich | immich-client | Root-only file loaded through systemd credentials into runtime JSON |
 | WebUI | environment | Root-only EnvironmentFile consumed by systemd |
 
 ACME keys live only in their owning guest's persistent state. User passkeys,

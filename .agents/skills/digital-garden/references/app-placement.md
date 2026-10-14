@@ -15,7 +15,7 @@ service before selecting a runtime:
 | Choose | When | Current example |
 |---|---|---|
 | Direct Incus OCI | A good upstream image packages one application; arguments/public configuration and supported secret files suffice; shared-host-kernel isolation is acceptable | llama.cpp with explicit AMD GPU/KFD mapping |
-| NixOS system container | Native modules, several cooperating services, sops-nix, environment-file secrets or reproducible guest rollback simplify ownership | Caddy edge; Kanidm identity; Open WebUI |
+| NixOS system container | Native modules, several cooperating services, sops-nix, environment-file secrets or reproducible guest rollback simplify ownership | Caddy edge; Kanidm identity; Open WebUI; Immich with its database/ML services |
 | VM | A separate kernel, guest-owned drivers, incompatible container constraints or a stronger isolation boundary is required | Select only for a concrete service requirement |
 
 If options remain comparable, prefer direct OCI, then a NixOS system container,
