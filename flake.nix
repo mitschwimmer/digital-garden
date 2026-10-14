@@ -70,20 +70,22 @@
           printf '%s\n' '${name}' > "$out/garden-system"
         ''
       );
-      checks.${system}.caddy-config = pkgs.runCommand "check-caddy-config" { } ''
-        export HOME="$TMPDIR"
-        export XDG_DATA_HOME="$TMPDIR/data"
-        export XDG_CONFIG_HOME="$TMPDIR/config"
-        ${pkgs.caddy}/bin/caddy validate --config ${guests.edge.config.services.caddy.configFile} --adapter caddyfile
-        touch "$out"
-      '';
-      checks.${system}.webdav-ingress = pkgs.runCommand "check-webdav-ingress" { } ''
-        ${pkgs.python3}/bin/python ${./tests/check_webdav_ingress.py} \
-          ${pkgs.caddy}/bin/caddy \
-          ${pkgs.writeText "webdav-deny-route" (webdavRoute [ ])} \
-          ${pkgs.writeText "webdav-lan-route" (webdavRoute [ "127.0.0.2/32" ])}
-        touch "$out"
-      '';
+      checks.${system} = {
+        caddy-config = pkgs.runCommand "check-caddy-config" { } ''
+          export HOME="$TMPDIR"
+          export XDG_DATA_HOME="$TMPDIR/data"
+          export XDG_CONFIG_HOME="$TMPDIR/config"
+          ${pkgs.caddy}/bin/caddy validate --config ${guests.edge.config.services.caddy.configFile} --adapter caddyfile
+          touch "$out"
+        '';
+        webdav-ingress = pkgs.runCommand "check-webdav-ingress" { } ''
+          ${pkgs.python3}/bin/python ${./tests/check_webdav_ingress.py} \
+            ${pkgs.caddy}/bin/caddy \
+            ${pkgs.writeText "webdav-deny-route" (webdavRoute [ ])} \
+            ${pkgs.writeText "webdav-lan-route" (webdavRoute [ "127.0.0.2/32" ])}
+          touch "$out"
+        '';
+      };
       devShells.${system}.default = pkgs.mkShell {
         packages = with pkgs; [
           opentofu
