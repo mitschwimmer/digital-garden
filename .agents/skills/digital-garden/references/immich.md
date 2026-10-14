@@ -133,6 +133,10 @@ database/extension readiness, OIDC discovery/claim maps and Caddy routing.
 
 ## Backup, restore and rollback
 
+For the proposed nightly encrypted offsite backup, see the
+[backup concept](immich-backup.md). It accepts one or two days of lost changes;
+the consistent checkpoint below remains required before upgrades.
+
 Immich's daily database dumps under `/var/lib/immich/backups` contain metadata,
 not photos. Neither those dumps nor protected Incus volumes are off-host backups.
 Use [recovery](recovery.md) for state, source, ciphertext and matching keys.
