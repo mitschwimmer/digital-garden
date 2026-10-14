@@ -85,6 +85,14 @@
             ${pkgs.writeText "webdav-lan-route" (webdavRoute [ "127.0.0.2/32" ])}
           touch "$out"
         '';
+        webdav-accounts = pkgs.runCommand "check-webdav-accounts" { } ''
+          ${pkgs.python3}/bin/python ${./tests/check_webdav_accounts.py} \
+            ${pkgs.webdav}/bin/webdav \
+            ${pkgs.writeText "webdav-settings.json" (
+              builtins.toJSON guests.webdav.config.services.webdav.settings
+            )}
+          touch "$out"
+        '';
       };
       devShells.${system}.default = pkgs.mkShell {
         packages = with pkgs; [

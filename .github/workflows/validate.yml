@@ -57,10 +57,12 @@ jobs:
           nix eval .#nixosConfigurations.immich.config.systemd.services.postgresql-setup.unitConfig --json > /dev/null
           nix eval .#nixosConfigurations.immich.config.services.immich.package.version --raw
           nix eval .#nixosConfigurations.webdav.config.services.webdav.settings --json > /dev/null
+          nix eval .#nixosConfigurations.webdav.config.systemd.services.webdav.serviceConfig --json > /dev/null
       - name: Build seeds, edge and native Caddy validation
         run: |
           nix build --no-link \
             .#edge-image .#identity-image .#open-webui-image .#immich-image .#webdav-image \
             .#nixosConfigurations.edge.config.system.build.toplevel \
             .#checks.x86_64-linux.caddy-config \
-            .#checks.x86_64-linux.webdav-ingress
+            .#checks.x86_64-linux.webdav-ingress \
+            .#checks.x86_64-linux.webdav-accounts

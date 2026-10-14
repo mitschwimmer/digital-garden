@@ -1,6 +1,11 @@
-{ lib, ... }:
+{ lib, pkgs, ... }:
 let
   policy = builtins.fromJSON (builtins.readFile ../../network-policy.json);
+  accounts = [
+    "henner"
+    "claudi"
+    "elmo"
+  ];
 in
 {
   assertions = [
@@ -32,15 +37,14 @@ in
     settings = {
       address = "0.0.0.0";
       port = 6065;
-      directory = "/var/lib/webdav/enpass";
+      directory = "/var/lib/webdav";
       permissions = "none";
-      users = [
-        {
-          username = "enpass";
-          password = "{env}ENPASS_WEBDAV_PASSWORD";
-          permissions = "CRUD";
-        }
-      ];
+      users = map (name: {
+        username = name;
+        password = "{env}WEBDAV_${lib.toUpper name}_PASSWORD";
+        directory = "/var/lib/webdav/${name}";
+        permissions = "CRUD";
+      }) accounts;
     };
   };
 
@@ -49,7 +53,7 @@ in
   networking.firewall.extraInputRules = lib.optionalString (policy.edgeBackendIPv4 != null) ''
     iifname "eth0" ip saddr ${policy.edgeBackendIPv4} tcp dport 6065 accept
   '';
-  systemd.tmpfiles.rules = [ "d /var/lib/webdav/enpass 0700 webdav webdav -" ];
+  systemd.tmpfiles.rules = map (name: "d /var/lib/webdav/${name} 0700 webdav webdav -") accounts;
   systemd.services.webdav = {
     unitConfig = {
       RequiresMountsFor = [
@@ -62,6 +66,8 @@ in
       ];
     };
     serviceConfig = {
+      # The native module has no distinct/nonempty credential validation.
+      ExecStartPre = "${pkgs.python3}/bin/python ${../../operations/check_webdav_credentials.py}";
       StateDirectory = "webdav";
       StateDirectoryMode = "0700";
       UMask = "0077";

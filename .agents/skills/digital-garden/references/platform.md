@@ -30,7 +30,7 @@ Do not use alternate Tofu workspaces or TF_* state/CLI overrides.
 | identity | Its immutable `image_directory` |
 | open-webui | Its immutable `image_directory` |
 | immich | Its immutable `image_directory`; `storage_pool` defaults to `local`, `media_storage_pool` to `data` on measerve |
-| webdav | Its immutable `image_directory`; see [WebDAV network policy](webdav.md#set-the-network-policy) |
+| webdav | Its immutable `image_directory`, existing payload pool `data`; see [WebDAV network policy](webdav.md#set-the-network-policy) |
 | inference | Inspected `llama_gpu_pci` |
 
 LAN parent must be an IncusOS instances-role bridge; MAC must start with `02`.

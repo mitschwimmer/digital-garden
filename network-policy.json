@@ -1,4 +1,4 @@
 {
-  "webdavLanCidrs": [],
+  "webdavLanCidrs": ["192.168.1.0/24"],
   "edgeBackendIPv4": null
 }

@@ -28,7 +28,7 @@ resource "incus_image" "seed" {
 }
 resource "incus_storage_volume" "webdav" {
   name    = "garden-webdav-state"
-  pool    = data.incus_storage_pool.root.name
+  pool    = data.incus_storage_pool.webdav_data.name
   project = local.target.project
   remote  = var.incus_remote
   config  = { "initial.mode" = "0700" }

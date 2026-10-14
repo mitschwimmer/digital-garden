@@ -2,8 +2,9 @@
 
 `systems/webdav/` owns a NixOS container in project webdav, with a native
 `services.webdav` service pinned through nixpkgs (hacdias/webdav). It serves the
-Enpass account at `https://webdav.archaic.work/`; the filesystem root is
-`/var/lib/webdav/enpass`. The account has CRUD access, with no default permissions.
+accounts henner, claudi and elmo at `https://webdav.archaic.work/`. Each account has
+CRUD access only to its own filesystem root, `/var/lib/webdav/<username>`, with
+no default permissions. All three use independent credentials.
 This is an explicit LAN-only exception to the native-OIDC publication policy:
 WebDAV authenticates clients itself; Caddy performs only source-address filtering.
 
@@ -32,8 +33,8 @@ Local host processes and a compromised edge remain within the trust boundary.
 Inspect measerve's applied gardenbr0 subnet, edge address, LAN subnet and router
 behavior before editing the tracked `network-policy.json`. Set:
 
-- `webdavLanCidrs`: exact client CIDRs, preferably only the intended IPv4 LAN
-  subnet initially. Empty means deny everyone. Do not use `private_ranges`,
+- `webdavLanCidrs`: currently `["192.168.1.0/24"]`, the accepted IPv4 LAN.
+  Empty means deny everyone. Do not use `private_ranges`,
   the entire backend bridge, loopback, or `0.0.0.0/0` / `::/0`.
 - `edgeBackendIPv4`: an unused/reserved address inside gardenbr0, preferably
   edge's current address after confirming it can be retained. Edge's OpenTofu
@@ -61,8 +62,13 @@ broaden the allowlist to compensate for changing IPv6 prefixes.
 Reconcile platform to create the webdav project, then follow
 [seed creation](nixos-guests.md) and [infrastructure reconciliation](infrastructure.md)
 from systems/webdav. Its local inputs contain the inspected measerve remote,
-storage pool and its own immutable webdav-image directory. It owns protected
-`garden-webdav-state` and `garden-webdav-secrets` volumes. No application service
+root/secrets storage pool and its own immutable webdav-image directory. The
+existing larger pool `data` must also be present. It owns protected
+`garden-webdav-state` on `data` and `garden-webdav-secrets` on the configured
+`storage_pool`; the root disk uses `storage_pool` as well. The mounted data path
+is `/var/lib/webdav`, with separate henner, claudi and elmo directories.
+Changing pools for an already provisioned volume requires a reviewed data
+migration; `prevent_destroy` blocks accidental replacement. No application service
 or credentials are present in the seed.
 
 Following [secret delivery](secrets.md), generate a distinct WebDAV machine age
@@ -70,8 +76,21 @@ key on the secured workstation. Add a creation rule for
 `^systems/webdav/secrets\.yaml$` to `.sops.yaml` using the existing operator
 recovery recipient and this new guest's actual public recipient. Do not reuse
 another guest's private key. Encrypt a YAML input with one key, `environment`,
-whose string value is an EnvironmentFile containing
-`ENPASS_WEBDAV_PASSWORD=<strong dedicated password>` and a trailing newline.
+whose string value is an EnvironmentFile containing these three variables and
+a trailing newline:
+
+| Account | Password variable | Filesystem root |
+|---|---|---|
+| henner | `WEBDAV_HENNER_PASSWORD` | `/var/lib/webdav/henner` |
+| claudi | `WEBDAV_CLAUDI_PASSWORD` | `/var/lib/webdav/claudi` |
+| elmo | `WEBDAV_ELMO_PASSWORD` | `/var/lib/webdav/elmo` |
+
+Generate each password independently (for example, three separate
+`openssl rand -hex 32` invocations into protected files). Never reuse a value.
+`operations/check_webdav_credentials.py` runs before WebDAV starts and rejects
+missing, blank or duplicate values without printing them. This small helper is
+needed because the native module does not enforce distinct account passwords.
+Tests use synthetic credentials only; real ciphertext remains an operator input.
 Assemble and encrypt in a protected directory; never put plaintext in the
 checkout, shell arguments, Tofu inputs/state or Nix store. Stage only ciphertext
 and real public recipients; no placeholder ciphertext is supplied by this change.
@@ -85,8 +104,10 @@ The runtime environment is owned by webdav with mode 0400; credential updates
 restart the service. Both persistent mounts are required for service startup.
 
 Deploy edge's reviewed route only after the backend is ready. Enter
-`https://webdav.archaic.work/`, username enpass, and the dedicated password into
-Enpass. The directory must remain separate from other applications' data.
+`https://webdav.archaic.work/`, the person's username (henner, claudi or elmo),
+and that account's dedicated password into Enpass or another WebDAV client.
+The URL is the same for all three; each authenticated root exposes only that
+account's directory. Other applications' data must not be mounted beneath it.
 
 ## Check the result
 
@@ -94,7 +115,7 @@ Source/build gates from the repository root:
 
 ```fish
 nix build .#webdav-image --no-link
-nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.webdav-ingress --no-link
+nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.webdav-ingress .#checks.x86_64-linux.webdav-accounts --no-link
 nix build .#nixosConfigurations.edge.config.system.build.toplevel --no-link
 nix build .#nixosConfigurations.webdav.config.system.build.toplevel --no-link
 ```
@@ -105,7 +126,10 @@ seed and routing checks. The routing regression uses Nix-generated route text,
 with only TLS transport and the backend dial address replaced for an offline
 test. It checks deny-all defaults, admitted IPv4 clients, denied clients,
 forwarded-header forgery, WebDAV methods and paths, and denied IPv6 when available.
-It does not prove certificate renewal or the live router's source-address behavior.
+The account regression runs the pinned WebDAV server with Nix-generated public
+settings, temporary directories and synthetic passwords, testing separate file
+roots, traversal rejection, CRUD and cross-account password rejection. Neither
+regression proves certificate renewal or the live router's source-address behavior.
 
 Require these live checks before accepting the service:
 
@@ -114,9 +138,11 @@ Require these live checks before accepting the service:
    guest or the LAN directly.
 2. From the LAN, HTTPS must validate without `-k`. An unauthenticated request
    must reach WebDAV and return 401; wrong credentials must also be rejected.
-   With the configured account, exercise PROPFIND, create/upload, read, rename,
+   For each of the three accounts, exercise PROPFIND, create/upload, read, rename,
    lock/unlock where supported, and deletion in a disposable test directory.
-   Finish with a real Enpass synchronization from the intended clients.
+   Verify files created by one account are absent from the other accounts' roots,
+   including traversal attempts. Confirm each password fails for the other
+   usernames. Finish with real synchronization from the intended clients.
 3. From an actual internet connection, require 403 for GET, PROPFIND and PUT,
    even with valid WebDAV credentials and forged `X-Forwarded-For`, `X-Real-IP`
    and `Forwarded` headers. The backend must receive no such requests. Do not
@@ -131,7 +157,9 @@ Require these live checks before accepting the service:
 ## Recovery and rollback
 
 Use [recovery](recovery.md) to checkpoint/export the webdav project's two volumes
-while the WebDAV instance is stopped, and preserve its own root state, local
+while the WebDAV instance is stopped. Export `garden-webdav-state` from pool
+`data`, and `garden-webdav-secrets` from its configured root/secrets pool; both
+are in project webdav. Preserve its own root state, local
 inputs, seed, ciphertext, recipient policy and machine key. Caddy's certificate
 state stays with edge's backup. Retained volumes are not off-host backups.
 Restore independently on an isolated target and verify actual Enpass data,

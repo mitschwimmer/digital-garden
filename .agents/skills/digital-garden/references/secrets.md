@@ -97,7 +97,7 @@ successful deployment. Do not rely on secure erase on SSDs.
 | Kanidm | admin, idm-admin, webui-client; separate immich-client ciphertext | 0400 files owned by kanidm; native provision options |
 | Immich | immich-client | Root-only file loaded through systemd credentials into runtime JSON |
 | WebUI | environment | Root-only EnvironmentFile consumed by systemd |
-| WebDAV | environment | 0400 webdav-owned EnvironmentFile; ENPASS_WEBDAV_PASSWORD |
+| WebDAV | environment | 0400 webdav-owned EnvironmentFile; WEBDAV_HENNER_PASSWORD, WEBDAV_CLAUDI_PASSWORD, WEBDAV_ELMO_PASSWORD |
 
 ACME keys live only in their owning guest's persistent state. User passkeys,
 passwords and Kanidm signing/database identity are application state.

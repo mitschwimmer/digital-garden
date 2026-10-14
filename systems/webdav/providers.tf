@@ -20,7 +20,7 @@ variable "incus_remote" {
 }
 
 variable "storage_pool" {
-  description = "Existing storage pool for the system root and persistent volumes."
+  description = "Existing storage pool for the WebDAV root disk and machine-key volume."
   type        = string
 }
 
@@ -42,5 +42,11 @@ provider "incus" {
 # Existing IncusOS pools are host prerequisites, not managed lifecycle here.
 data "incus_storage_pool" "root" {
   name   = var.storage_pool
+  remote = var.incus_remote
+}
+
+# Payload files use the existing larger pool independently of root/secrets.
+data "incus_storage_pool" "webdav_data" {
+  name   = "data"
   remote = var.incus_remote
 }

@@ -13,7 +13,7 @@ closure builds or a live host. CI may run its broader suite independently.
 
 | Change | Required source/build checks | Live checks when deploying |
 |---|---|---|
-| `operations/activate.py` or its tests | Python regression suite | Deployment guard cases below |
+| `operations/activate.py`, WebDAV credential validator or their tests | Python regression suite | Deployment guard cases below |
 | HCL, targets, provider pins | Tofu format/schema validation in affected roots | Reviewed whole saved plan; devices/mounts/connectivity |
 | One guest's Nix configuration | Format changed Nix; evaluate/build that guest | Its service acceptance |
 | `directory.nix` | Format; evaluate Kanidm provisioning; build identity | Reconciliation and user/access checks in [users](users.md) |
