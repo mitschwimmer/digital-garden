@@ -2,8 +2,8 @@
 {
   services.kanidm.provision = {
     groups = {
-      photos-users = { members = [ "henner" "claudi" ]; };
-      ai-users = { members = [ "henner" "claudi" ]; };
+      photos-users = { members = [ "henner" "claudi" "elmo" ]; };
+      ai-users = { members = [ "henner" "claudi" "elmo" ]; };
       admins = { members = [ "henner" ]; };
     };
     persons.henner = {
@@ -13,6 +13,10 @@
     persons.claudi = {
       displayName = "Claudi";
       mailAddresses = [ "mail@claudiapatzak.de" ];
+    };
+    persons.elmo = {
+      displayName = "Elmo";
+      mailAddresses = [ "elmo@mitschwimmer.de" ];
     };
   };
 }
