@@ -10,12 +10,16 @@ vulnerabilities. The separate `nixpkgs-immich` input pins
 `7fd4004d0511991fff3a0524856a9be09e28c5f0`, providing Immich 3.3.1 and its matching
 NixOS module/dependencies only for this guest and seed. Do not permit insecure
 packages or downgrade to Immich 2. Keep mobile clients compatible with the server.
-Update this input deliberately through [system updates](system-updates.md).
+Update this input deliberately with `nix flake update nixpkgs-immich` after
+reviewing its exact URL revision; the shared pin does not advance it. Validate
+the guest and seed plus consumers of any changed integrations. Follow
+[system updates](system-updates.md).
 PostgreSQL remains explicitly on major version 16; upgrading it requires its
 native migration procedure, not merely changing the package declaration.
 
 - [Placement and storage](#placement-and-storage)
 - [Credentials and first deployment](#credentials-and-first-deployment)
+- [Source validation](#source-validation)
 - [Identity and acceptance](#identity-and-acceptance)
 - [Backup, restore and rollback](#backup-restore-and-rollback)
 
@@ -94,6 +98,15 @@ ingress. Use [ingress](ingress.md) for IPv4/IPv6 and certificate policy. Only ed
 publishes HTTPS; backend port 2283 is open only on the trusted private bridge.
 PostgreSQL and Redis use Unix sockets, ML listens on guest localhost.
 
+## Source validation
+
+Use [validation](validation.md) for common commands. For this service, validate
+its HCL root and seed; evaluate the supported package version, Immich settings,
+PostgreSQL data path, and mount guards on `immich-server` and `postgresql-setup`.
+Build the full guest with both its own and identity's real staged client
+ciphertexts; never fabricate secrets to bypass that guard. Inspect the CI module
+checks for exact attribute paths. Build/evaluate affected integration owners too.
+
 ## Identity and acceptance
 
 Client `immich` discovers Kanidm at
@@ -151,8 +164,10 @@ Before an upgrade, take a consistent checkpoint and review migrations. A closure
 rollback alone cannot reverse database changes. For incompatible migrations,
 mask `immich-server` and `immich-machine-learning`, select and verify the recorded
 old generation using the guarded rollback workflow, then stop the guest and
-restore its matching media/database checkpoint before restarting. Follow the
-[WebUI rollback example](recovery.md#webui-checkpoint-and-data-rollback-example)
+restore its matching media/database checkpoint before restarting. Preserve the
+matching machine key and both consumer ciphertexts; restore secret state only if
+that checkpoint requires it, never rotate credentials as a rollback shortcut. Follow the
+[worked rollback example](open-webui.md#checkpoint-and-data-rollback-example)
 with Immich's actual units, pools and volumes; do not reuse another root's records.
 Validate restoration before reopening traffic.
 

@@ -19,23 +19,16 @@ incus query YOUR_REMOTE:/1.0/resources
 
 Replace YOUR_REMOTE only with the inspected client alias. Set `incus_remote` and
 `storage_pool` independently in each root. All roots for this installation must
-point at the same inspected host. Their root pool uses the inspected fast pool;
-Immich additionally selects the existing bulk pool for media. Keep local files private and ignored.
-Do not use alternate Tofu workspaces or TF_* state/CLI overrides.
-
-| Root | Additional required inputs |
-|---|---|
-| platform | None |
-| edge | Its immutable `image_directory`, `edge_lan_parent`, stable `edge_lan_mac` |
-| identity | Its immutable `image_directory` |
-| open-webui | Its immutable `image_directory` |
-| immich | Its immutable `image_directory`; `storage_pool` defaults to `local`, `media_storage_pool` to `data` on measerve |
-| webdav | Its immutable `image_directory`, existing payload pool `data`; see [WebDAV network policy](webdav.md#set-the-network-policy) |
-| inference | Inspected `llama_gpu_pci` |
+point at the same inspected host. Read each selected root's variable declarations
+and service reference for required inputs/defaults: root and payload pools can differ. Inspect every existing pool;
+do not adopt host pools into managed lifecycle. Keep local files private and ignored.
+Do not use alternate Tofu workspaces or TF_* state/CLI overrides. NixOS creation
+requires that root's immutable `image_directory`; hardware and LAN inputs require
+actual host inventory, not copied values from another service.
 
 LAN parent must be an IncusOS instances-role bridge; MAC must start with `02`.
 Reserve its DHCP address. Inspect AMD driver/firmware, `/dev/kfd`, compatible ROCm
-and capacity before applying inference. Retain image paths after creation.
+and capacity before applying a GPU workload. Retain image paths after creation.
 There are no global service selectors: only operating a root can change its
 resources. Do not use `-target` to simulate isolation inside a larger state.
 

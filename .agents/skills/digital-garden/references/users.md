@@ -43,8 +43,8 @@ changing guest accounts through their owning NixOS configuration.
 4. For a new person, use [credential enrollment](#credential-enrollment) below
    and deliver the reset link privately. Existing persons retain credentials
    when changing display name, mail address or membership.
-5. Test fresh login and the intended WebUI role, denied access for an unassigned
-   person, and continued administrator access. For a downgrade, also check
+5. Test fresh login and the intended roles in each affected application, denied
+   access for an unassigned person, and continued administrator access. For a downgrade, also check
    existing sessions and API tokens; new OIDC claims alone are not proof that
    previously issued application access has ended.
 
@@ -70,7 +70,7 @@ changing guest accounts through their owning NixOS configuration.
 4. Inspect each affected application's supported session/token revocation and
    account-retention controls. Revoke remaining access there and test a previously
    authenticated session/token as well as fresh OIDC login. Kanidm deletion does
-   not establish that WebUI sessions, API keys or application data were removed.
+   not establish that application sessions, API keys or data were removed.
    Record pending revocation explicitly; do not claim offboarding is complete
    while existing access remains.
 

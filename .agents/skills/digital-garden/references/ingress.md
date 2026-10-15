@@ -33,17 +33,17 @@ nix build .#checks.x86_64-linux.caddy-config --no-link
 Deploy from systems/edge using [deployment](deployment.md). Its routes do not require identity to be running,
 so edge can start first and solve the identity guest's ACME bootstrap dependency.
 
-Configure manual DNS for test/auth/ai/photos/identity.archaic.work (or wildcard DNS)
-and route public TCP 80/443 to edge. `identity.archaic.work` exposes only HTTP
-ACME challenges; edge proxies them to identity:8081. Its HTTPS certificate is
+Read the declared virtual hosts for required DNS names; configure manual DNS
+(or wildcard DNS) and route public TCP 80/443 to edge. `identity.archaic.work`
+exposes only HTTP ACME challenges; edge proxies them to identity:8081. Its HTTPS certificate is
 owned by the identity guest, for Caddy-to-Kanidm TLS on private port 8443.
 Caddy verifies the public CA chain and uses identity.archaic.work as TLS SNI.
 There is no insecure TLS mode or private key shared across guests.
 
 Publish AAAA only when it reaches edge's real public IPv6, with explicit router
 firewall rules. Private ULA/link-local addresses are not public AAAA targets.
-IPv4 NAT does not protect IPv6. Never forward Kanidm 8443/8081, WebUI 8080, Immich 2283,
-inference, or the Incus API. Backend bridge workloads are trusted.
+IPv4 NAT does not protect IPv6. Never forward backend application, database,
+private API or Incus management ports. Backend bridge workloads are trusted.
 
 ## Check the result
 

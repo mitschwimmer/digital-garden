@@ -12,11 +12,11 @@ service before selecting a runtime:
 
 ## Select the runtime
 
-| Choose | When | Current example |
-|---|---|---|
-| Direct Incus OCI | A good upstream image packages one application; arguments/public configuration and supported secret files suffice; shared-host-kernel isolation is acceptable | llama.cpp with explicit AMD GPU/KFD mapping |
-| NixOS system container | Native modules, several cooperating services, sops-nix, environment-file secrets or reproducible guest rollback simplify ownership | Caddy edge; Kanidm identity; Open WebUI; Immich with its database/ML services |
-| VM | A separate kernel, guest-owned drivers, incompatible container constraints or a stronger isolation boundary is required | Select only for a concrete service requirement |
+| Choose | When |
+|---|---|
+| Direct Incus OCI | A good upstream image packages one application; arguments/public configuration and supported secret files suffice; shared-host-kernel isolation is acceptable |
+| NixOS system container | Native modules, several cooperating services, sops-nix, environment-file secrets or reproducible guest rollback simplify ownership |
+| VM | A separate kernel, guest-owned drivers, incompatible container constraints or a stronger isolation boundary is required |
 
 If options remain comparable, prefer direct OCI, then a NixOS system container,
 then a VM. Let secret/configuration maintainability and isolation requirements
@@ -38,6 +38,7 @@ using the [shared composition workflow](composition.md),
 [project rules](projects.md) and [secret delivery](secrets.md#secret-delivery-for-a-new-service).
 
 Require native OIDC for every published user application. Applications needing
-forward-auth or proxy-injected identity headers are unsupported. The explicit [LAN-only WebDAV exception](webdav.md) uses application credentials
-and shared-edge source filtering. Private backend
-APIs need explicitly trusted callers and must not be published.
+forward-auth or proxy-injected identity headers are unsupported. Any exception
+requires an explicit service-specific policy and reviewed
+compensating controls; do not copy an existing exception by default. Private
+backend APIs need explicitly trusted callers and must not be published.
