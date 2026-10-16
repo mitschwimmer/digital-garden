@@ -2,6 +2,7 @@
 
 - [Integrations and exposure](#integrations-and-exposure)
 - [Prepare, deliver the secret, then start](#prepare-deliver-the-secret-then-start)
+- [Fast development updates](#fast-development-updates)
 - [Acceptance, updates and recovery](#acceptance-updates-and-recovery)
 
 `systems/walter` owns one linux/amd64 OCI process and protected data/secret
@@ -98,6 +99,47 @@ After secret/discovery/model verification, set `start = true`, review a new whol
 plan and apply it. The plan enables running/autostart/restart. OpenTofu owns this
 state; do not start manually to bypass the preparation gates.
 
+## Fast development updates
+
+For disposable development chats, per-update backups are intentionally skipped.
+Persistent volumes remain protected. In the repository's fish development shell,
+authenticate GitHub CLI once with `gh auth login`. Then run:
+
+```fish
+python operations/watch_walter_image.py
+```
+
+The watcher polls Walter's latest main-push `oci.yml` run every five seconds.
+It waits for a successful publication with a digest different from the current
+`systems/walter/image.lock.json`, then prints only `sha256:...` to stdout and
+exits. Progress goes to stderr, so stdout can be captured. Failed/cancelled
+runs are reported once and the watcher waits for another push or successful
+rerun. Interrupt with Ctrl-C. It uses temporary artifact downloads only; it
+never edits the checkout, calls OpenTofu/Incus, stops the app or applies changes.
+
+The `walter-image` artifact must match its run, revision, repository and platform.
+Merge the artifact-producing Walter workflow first; old runs without an artifact
+need a new push. Published artifacts are retained for 30 days. The shell includes
+GitHub CLI. The helper is limited to polling and checking the publication record;
+image/config editing and deployment remain native operator commands.
+
+Use `--json` to print the complete published lock when updating the pin, keeping
+revision and publication metadata accurate:
+
+```fish
+python operations/watch_walter_image.py --json > systems/walter/image.lock.json.tmp
+and mv systems/walter/image.lock.json.tmp systems/walter/image.lock.json
+```
+
+Review the lock diff, then run `tofu apply` yourself from `systems/walter` and
+review its displayed plan before confirming. An image replacement must retain
+both protected volumes; do not accept volume deletion/replacement. OpenTofu
+owns container replacement/startup; no preliminary stop/start configuration
+cycle, identity deployment or edge deployment is needed for an image-only update.
+Afterward verify readiness, re-login, streaming and an existing conversation,
+then commit the image lock. The full backup/restore workflow below remains
+appropriate for valuable data.
+
 ## Acceptance, updates and recovery
 
 From edge, require bounded private readiness before browser tests:
@@ -115,7 +157,7 @@ Restart and verify chat persistence, failed interrupted placeholders and renewed
 login. Require actual offline restoration and intended network exposure before
 accepting the service. Keep observations private with revision/date/environment.
 
-For updates/rotation, first set `start = false` and apply a reviewed whole plan;
+For normal updates/rotation with valuable data, first set `start = false` and apply a reviewed whole plan;
 require clean shutdown before touching volumes. Walter handles SIGTERM with a
 20-second shutdown budget; the host timeout is 30 seconds. Retain previous image,
 source/inputs and a consistent data checkpoint. Rotate both client consumers in

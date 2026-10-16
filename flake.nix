@@ -105,6 +105,7 @@
           jq
           nixfmt
           python3
+          gh
           kanidm_1_11
         ];
       };
