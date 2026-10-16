@@ -24,7 +24,9 @@ mounted read-only at `/etc/llama`. llama.cpp owns writable downloads/cache.
 There is no Nix configuration bundle, launch script, external upload controller,
 `ignore_changes` on config files/running state, derived image or publication
 pipeline. Public config may appear in OpenTofu state. Secret plaintext may not;
-secret-heavy workloads use NixOS/sops-nix instead.
+secret-heavy workloads use NixOS/sops-nix instead. Single runtime secret files
+use the separate [secret-delivery contract](secrets.md#secret-delivery-for-a-new-service)
+and their owning service reference; this public preset procedure cannot deliver them.
 
 On updates, stop before applying mounted config-file changes, then let the reviewed
 whole plan restore running/autostart after delivery. Use

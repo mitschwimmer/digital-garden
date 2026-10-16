@@ -39,7 +39,7 @@ jobs:
       - name: Validate infrastructure schemas
         run: |
           nix develop --command fish -c '
-            for root in platform systems/edge systems/identity systems/open-webui systems/immich systems/webdav systems/inference
+            for root in platform systems/edge systems/identity systems/open-webui systems/immich systems/webdav systems/inference systems/walter
               tofu -chdir=$root fmt -check -diff; or exit
               tofu -chdir=$root init -backend=false -input=false -lockfile=readonly; or exit
               tofu -chdir=$root validate; or exit
