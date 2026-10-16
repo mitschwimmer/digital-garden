@@ -102,41 +102,43 @@ state; do not start manually to bypass the preparation gates.
 ## Fast development updates
 
 For disposable development chats, per-update backups are intentionally skipped.
-Persistent volumes remain protected. Run from the repository root in
-`nix develop --command fish`, after `gh auth login` has granted Actions read access:
+Persistent volumes remain protected. In the repository's fish development shell,
+authenticate GitHub CLI once with `gh auth login`. Then run:
 
 ```fish
-python operations/update_walter.py
+python operations/watch_walter_image.py
 ```
 
-This helper is justified by the repeated cross-repository publication lookup,
-digest transfer and image-only plan review; it delegates lifecycle to native
-OpenTofu/Incus and does not build images or manage secrets. It requires an
-already-installed Walter, this root's `site.auto.tfvars.json` with `start=true`,
-the default workspace and initialized provider. The shell includes GitHub CLI.
+The watcher polls Walter's latest main-push `oci.yml` run every five seconds.
+It waits for a successful publication with a digest different from the current
+`systems/walter/image.lock.json`, then prints only `sha256:...` to stdout and
+exits. Progress goes to stderr, so stdout can be captured. Failed/cancelled
+runs are reported once and the watcher waits for another push or successful
+rerun. Interrupt with Ctrl-C. It uses temporary artifact downloads only; it
+never edits the checkout, calls OpenTofu/Incus, stops the app or applies changes.
 
-The command captures upstream main's revision, waits for that push's successful
-`oci.yml` run and downloads its `walter-image` artifact. It never silently falls
-back to an older successful commit. Publication completes before any downtime.
-The artifact must match the repository, revision, run, linux/amd64 and digest.
-Merge the publishing workflow change in Walter before using this command; old
-runs without the artifact need a new push. Artifacts are retained for 30 days.
+The `walter-image` artifact must match its run, revision, repository and platform.
+Merge the artifact-producing Walter workflow first; old runs without an artifact
+need a new push. Published artifacts are retained for 30 days. The shell includes
+GitHub CLI. The helper is limited to polling and checking the publication record;
+image/config editing and deployment remain native operator commands.
 
-The helper checks applied/observed identity and volume mounts, updates the local
-image lock and prepares a saved whole plan while the app remains available. It
-accepts exactly one image replacement with unchanged configuration/devices;
-volume or other-resource changes require the normal workflow. Review the plan
-and answer `y`. It then rechecks the guest, stops it cleanly, applies that exact
-plan and performs bounded private HTTP readiness from edge. Running/autostart
-stay declared true; there is no preliminary false/true configuration cycle.
+Use `--json` to print the complete published lock when updating the pin, keeping
+revision and publication metadata accurate:
 
-On cancellation or pre-apply failure the previous lock is restored. Once apply
-begins, retain the new lock and `.operations/<id>` plan/previous-image record for
-repair; do not assume a failed apply left the previous instance intact. No
-automatic rollback or data backup is performed. Local locking does not coordinate
-other checkouts/operators. After readiness, test login, streaming and an existing
-conversation, then commit the updated `systems/walter/image.lock.json`.
-The full backup/restore workflow below remains appropriate for valuable data.
+```fish
+python operations/watch_walter_image.py --json > systems/walter/image.lock.json.tmp
+and mv systems/walter/image.lock.json.tmp systems/walter/image.lock.json
+```
+
+Review the lock diff, then run `tofu apply` yourself from `systems/walter` and
+review its displayed plan before confirming. An image replacement must retain
+both protected volumes; do not accept volume deletion/replacement. OpenTofu
+owns container replacement/startup; no preliminary stop/start configuration
+cycle, identity deployment or edge deployment is needed for an image-only update.
+Afterward verify readiness, re-login, streaming and an existing conversation,
+then commit the image lock. The full backup/restore workflow below remains
+appropriate for valuable data.
 
 ## Acceptance, updates and recovery
 
