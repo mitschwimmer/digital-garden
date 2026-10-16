@@ -104,7 +104,7 @@ resource "incus_instance" "walter" {
     "environment.WALTER_OIDC_ISSUER"             = "https://auth.archaic.work/oauth2/openid/walter"
     "environment.WALTER_OIDC_CLIENT_ID"          = "walter"
     "environment.WALTER_OIDC_CLIENT_SECRET_FILE" = "/run/secrets/oidc-client"
-    "environment.WALTER_ALLOWED_GROUPS"          = "ai-users"
+    "environment.WALTER_ALLOWED_GROUPS"          = "ai-users@auth.archaic.work"
     "environment.WALTER_LLAMA_ENDPOINT"          = "http://garden-llama.garden.internal:8080/v1/chat/completions"
     "environment.WALTER_MODEL"                   = "qwen38-chat"
     "environment.WALTER_QUICK_JSON"              = var.quick_profile

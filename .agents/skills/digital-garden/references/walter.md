@@ -16,13 +16,15 @@ for HTTP checks, and Incus console logs for startup/storage/discovery errors.
 Edge publishes `https://walter.archaic.work`, progressively flushing SSE with a
 7205-second header timeout around Walter's two-hour generation budget. Configure
 public DNS for edge. There is no identity proxy. Walter enforces native OIDC,
-exact Origin/CSRF checks and the `ai-users` group on every login. This reuses the
+exact Origin/CSRF checks and the `ai-users@auth.archaic.work` group SPN on every login. This reuses the
 existing AI audience; membership remains owned by `directory.nix`.
 
 `systems/identity/walter.nix` declares the confidential client only when its real
 SOPS ciphertext is staged. Callback is exactly
 `https://walter.archaic.work/auth/callback`. PKCE remains required; scopes are
-openid/profile/groups and the groups claim is an array containing `ai-users`.
+openid/profile/groups. Kanidm's native `groups` claim contains group UUIDs and
+SPNs, including `ai-users@auth.archaic.work`; match that exact SPN in Walter.
+Do not map a custom `groups` claim: the native scope overwrites it.
 Verify discovery at
 `https://auth.archaic.work/oauth2/openid/walter/.well-known/openid-configuration`
 returns the exact issuer configured in Walter. Deploy identity before starting

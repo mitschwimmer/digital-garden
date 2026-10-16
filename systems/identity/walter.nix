@@ -19,9 +19,6 @@ in
     allowInsecureClientDisablePkce = false;
     enableLegacyCrypto = false;
     scopeMaps.ai-users = [ "openid" "profile" "groups" ];
-    claimMaps.groups = {
-      joinType = "array";
-      valuesByGroup.ai-users = [ "ai-users" ];
-    };
+    # Native groups scope emits UUIDs and SPNs; Walter matches the exact group SPN.
   };
 }
