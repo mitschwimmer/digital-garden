@@ -1,18 +1,31 @@
-# Compose or extend a service
+# Define a service contract
 
-1. Define purpose, callers, dependencies, state, secrets, hardware and rollback.
-   Choose [placement](app-placement.md) and [project ownership](projects.md).
-2. Declare infrastructure, private connectivity, limits and persistent mounts.
-   Keep unrelated services independent; require mounts before writing state.
-3. For NixOS, compose native modules and a flake configuration. For OCI, pin an
-   upstream image and define supported configuration delivery before startup.
-4. Add [ingress](ingress.md), [OIDC](identity.md) and [secret delivery](secrets.md#secret-delivery-for-a-new-service)
-   only where required. Configure both integration endpoints; preserve existing
-   clients, including WebUI. Verify allowed and denied access.
-5. Document interfaces, operation and recovery. Reconcile infrastructure and
-   deploy using the corresponding procedure only when live work is authorized.
-   Verify the service and affected dependencies.
+Use [lifecycle setup](lifecycle.md#setup) to implement a new service. Record its
+specific contract in one `references/<system>.md` (platform roles may use their
+existing reference names). Link to shared procedures instead of copying them.
+Use these questions as a completeness check, not a new metadata format or a
+requirement to repeat values already declared in source.
 
-Use [Open WebUI](open-webui.md) as a composition example, replacing its names,
-paths and policy deliberately. Keep protected volumes separate from off-host
-backups; define and test restoration before relying on either.
+| Concern | Record service-specific knowledge |
+|---|---|
+| Purpose and ownership | Capability, owning root, runtime rationale and component boundaries |
+| Callers and dependencies | Trusted callers, startup/rollout order, integration owners, IPv4/IPv6 exposure, OIDC roles or reviewed access exception |
+| Setup | Non-obvious host inputs, bootstrap/admin steps and prerequisites beyond the common workflow |
+| Config | Owning config interfaces, runtime secret schema/ownership and coordinated changes |
+| Software | Pin exceptions, independently upgraded components, supported clients, schema migrations and rollback limits |
+| Backup | Durable versus disposable state, consistency group, quiescence/native backup method and key/data coupling |
+| Restore | Compatible versions, restore order, irreversible constraints and actual-data acceptance |
+| Decommission | Retention/revocation requirements and exceptions to shared retirement |
+| Acceptance and diagnostics | Bounded health checks, useful work, allowed/denied access, restart persistence and owning logs |
+
+Choose [placement](app-placement.md) and [project/mount ownership](projects.md).
+Compose native modules for NixOS; for OCI pin an image and deliver supported
+configuration before startup. Require mounts before writing state. Configure both
+ends of integrations and preserve unrelated clients/data. Protected volumes and
+local automatic dumps do not replace an independently tested off-host backup.
+
+For a normal new service, edit its source and one service reference, plus actual
+integration/registration points. Do not append its name to shared architecture,
+placement, platform, secrets, update, validation or recovery guides. Change those
+only for a new reusable rule or a correction to an existing procedure. A changed
+shared contract must still be documented even if it makes the PR larger.

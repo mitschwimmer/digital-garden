@@ -19,8 +19,8 @@ python ../../operations/activate.py deploy
 ```
 
 Before deploying, complete any required [infrastructure reconciliation](infrastructure.md)
-and [readiness](readiness.md). Identity/WebUI require staged ciphertext and their
-own installed machine key. Track new flake files in Git. Back up application data
+and [readiness](readiness.md). Secret-consuming guests require their declared
+staged ciphertext and their own installed machine key. Track new flake files in Git. Back up application data
 before upgrades or storage changes; review schema migrations and rollback limits.
 
 The command binds the root's applied `deployment` output to `target.json`, the
@@ -52,8 +52,8 @@ To check a locally built closure without changing the guest profile:
 python ../../operations/activate.py check /nix/store/EXACT-SYSTEM-CLOSURE
 ```
 
-This still requires the applied target and live metadata/mount checks. A WebUI
-closure checked from edge must fail.
+This still requires the applied target and live metadata/mount checks. A foreign
+system's closure checked from this root must fail.
 
 ## Resume and rollback
 

@@ -1,5 +1,6 @@
 # Declare Kanidm through its NixOS module
 
+- [Secret contract](#secret-contract)
 - [Fresh bootstrap](#fresh-bootstrap)
 - [OIDC and acceptance](#oidc-and-acceptance)
 - [User lifecycle and credential enrollment](users.md)
@@ -24,9 +25,14 @@ would reset its password on each restart. autoRemove is false: retain an explici
 `present = false` declaration for intentional entity deletion. Membership is
 reconciled by the module; change authorization in Nix, not interactively.
 
-Immich uses a separate staged client and the `photos-users` group; see
-[Immich credentials and acceptance](immich.md). Its additional ciphertext does
-not replace identity's existing admin or WebUI credentials.
+## Secret contract
+
+`systems/identity/secrets.yaml` contains `admin`, `idm-admin` and `webui-client`.
+Deliver them as 0400 kanidm-owned files through native provisioning options.
+The WebUI client raw value must match its consumer ciphertext. Application-specific
+client declarations may live in imported modules with separate ciphertext; inspect
+those imports and their owning service references. Do not replace existing admin
+or unrelated client inputs when adding a client. Follow [secret delivery](secrets.md).
 
 ## Fresh bootstrap
 
@@ -49,26 +55,18 @@ then Kanidm; do not bypass TLS checks. Initial issuance needs outbound HTTPS.
 
 ## OIDC and acceptance
 
-WebUI uses client open-webui, callback https://ai.archaic.work/oauth/oidc/callback,
-PKCE S256, client_secret_basic and discovery at
-https://auth.archaic.work/oauth2/openid/open-webui/.well-known/openid-configuration.
-The scope map grants openid/profile/email only to ai-users/admins. The custom
-webui_roles claim returns those names as an array; WebUI reads that claim for
-role management. Do not request the built-in groups scope: Kanidm fills groups
-with UUIDs and SPNs, overwriting a custom claim of the same name. Applications
-never infer permissions merely from a successful login. Keep TLS verification
-and PKCE enabled.
-
-For this claim migration, deploy identity first, then WebUI using
-[deployment](deployment.md), and test fresh login after both deployments.
-Kanidm's consent screen lists selected personal-information fields, not every
-scope or custom claim; an email-only prompt does not prove roles are missing.
+For each affected client, inspect its declaration/import and the consumer's
+service reference for exact redirect URIs, scopes, claims and roles. Keep verified
+TLS and PKCE enabled. Applications must enforce access; a successful login alone
+does not grant permission. Coordinate matching secrets and deploy identity before
+a dependent consumer when client contracts change. Preserve unrelated clients.
 
 Require `systemctl is-active kanidm`, trusted external HTTPS, discovery and JWKS.
-Test an enrolled ai-users person (user), an admins person (admin), and a person
-without either group (denied). Verify missing/unrelated claims cannot grant roles.
+Test each affected client's allowed roles and a person without its allowed
+membership (denied). Verify missing/unrelated claims cannot grant roles.
 Test logout, reauthentication, credential enrollment and intended second-factor
-behavior. Restart identity and WebUI and repeat login/denial. Check provisioning
+behavior. Restart affected consumers and identity and repeat login/denial. Check
+provisioning
 returns the declared memberships/client settings without duplicating entities.
 Back up Kanidm's database and keys together; see [recovery](recovery.md).
 

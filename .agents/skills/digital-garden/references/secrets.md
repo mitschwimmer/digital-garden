@@ -1,108 +1,83 @@
-# Prepare fresh identities and runtime secrets
+# Deliver and preserve runtime secrets
+
+- [Secret contract](#secret-delivery-for-a-new-service)
+- [Create and encrypt](#create-and-encrypt)
+- [Install each machine key](#install-each-machine-key)
+- [Rotation and recovery](#rotation-and-recovery)
 
 ## Secret delivery for a new service
 
-Each consumer has its own `systems/<name>/secrets.yaml` encrypted to the operator
-recovery recipient plus that guest's age recipient. Consumers must never
-share a machine key. Edge has no SOPS credentials; Caddy owns its ACME state.
-No plaintext belongs in Git, the Nix store, OpenTofu inputs/state or logs.
+Inspect the consuming NixOS module and owning service reference for ciphertext
+paths/keys, required recipient sets and runtime interface (credential file,
+EnvironmentFile or supported application input). Each secret-consuming guest has
+its own machine age key. Encrypt to the operator recovery recipient plus only
+the intended consuming guest; never share a machine private key. Shared raw
+integration values are encrypted separately for each consumer's recipients.
+Additional client ciphertext must not replace existing admin/client credentials.
 
-The old installation's ciphertext/recipients are deliberately removed from the
-active tree; history is not a backup of private keys. This is a fresh-install
-procedure, not a data/credential migration. Do not combine new keys with old
-application databases. Back up anything to retain before an operator host wipe.
-
-For Immich's additional client ciphertext, independent age key and creation
-rule, follow [Immich credentials](immich.md#credentials-and-first-deployment).
-Existing identity/WebUI secrets remain unchanged.
-
-See [WebDAV](webdav.md#provision-and-deliver-the-credential) for its distinct
-recipient policy and machine-key installation; the examples below target only
-identity and WebUI.
+Declare narrow runtime ownership/modes and required persistent mounts. Never put
+plaintext in Git, the Nix store, OpenTofu inputs/state, process arguments or logs.
+Public OCI file delivery may enter state and cannot deliver secrets. ACME keys
+remain application state of the certificate-owning guest.
 
 ## Create and encrypt
 
-Use a secured workstation directory outside the checkout and an existing or newly
-created operator recovery key. Set SOPS_AGE_KEY_FILE to that private key. Generate
-identity and WebUI age keys separately, refusing to overwrite existing files.
-Back them up securely off-host before cleanup. Only public recipients belong in
-`.sops.yaml`. Fill its creation_rules before encryption:
+Use a private operator terminal and secured workstation directory outside the
+checkout. Set `SOPS_AGE_KEY_FILE` to the intended operator recovery key. For a new
+guest only, generate a distinct age key into an absent protected path, back it up
+off-host, and put only its public recipient in the appropriate `.sops.yaml` rule.
+Inspect the rule's exact path regex and recipient set before encrypting.
 
-```yaml
-creation_rules:
-  - path_regex: ^systems/identity/secrets\.yaml$
-    age: OPERATOR_PUBLIC_RECIPIENT,IDENTITY_PUBLIC_RECIPIENT
-  - path_regex: ^systems/open-webui/secrets\.yaml$
-    age: OPERATOR_PUBLIC_RECIPIENT,WEBUI_PUBLIC_RECIPIENT
-```
-
-Replace all placeholders with actual public age recipients. In fish, establish
-an absent/new protected temporary directory (never a shared task directory):
+In fish, begin a new private workspace:
 
 ```fish
 umask 077
 set -l secret_work (mktemp -d)
-age-keygen -o "$secret_work/identity.agekey"
-age-keygen -o "$secret_work/open-webui.agekey"
-openssl rand -hex 32 > "$secret_work/admin"
-openssl rand -hex 32 > "$secret_work/idm-admin"
-openssl rand -hex 32 > "$secret_work/client"
-openssl rand -hex 32 > "$secret_work/webui"
+age-keygen -o "$secret_work/consumer.agekey"
 ```
 
-Store these outside the checkout; do not print or paste their contents. The same
-raw client value is encrypted separately to identity and WebUI, with independent
-recipients. Kanidm takes a raw basic secret, not an Authelia password digest.
-From the repository root assemble and encrypt without printing plaintext:
+Generate independent random values using native tools into protected files.
+Assemble the service's exact JSON/YAML schema there using file input, not secret
+values in arguments. Match runtime quoting/newline requirements. For an OIDC
+basic client, both consumers need the same raw secret, not a password digest.
+
+From the repository root, encrypt the protected input using its real destination
+path for creation-rule selection (replace INPUT_JSON and CIPHERTEXT_PATH):
 
 ```fish
-jq -n --rawfile a "$secret_work/admin" --rawfile i "$secret_work/idm-admin" --rawfile c "$secret_work/client" '{admin: ($a|rtrimstr("\n")), "idm-admin": ($i|rtrimstr("\n")), "webui-client": ($c|rtrimstr("\n"))}' > "$secret_work/identity.json"
-jq -n --rawfile w "$secret_work/webui" --rawfile c "$secret_work/client" '{environment: ("WEBUI_SECRET_KEY=" + ($w|rtrimstr("\n")) + "\nOAUTH_CLIENT_SECRET=" + ($c|rtrimstr("\n")) + "\n")}' > "$secret_work/webui.json"
-sops --encrypt --input-type json --output-type yaml --filename-override systems/identity/secrets.yaml "$secret_work/identity.json" > systems/identity/secrets.yaml
-sops --encrypt --input-type json --output-type yaml --filename-override systems/open-webui/secrets.yaml "$secret_work/webui.json" > systems/open-webui/secrets.yaml
+sops --encrypt --input-type json --output-type yaml --filename-override CIPHERTEXT_PATH INPUT_JSON > CIPHERTEXT_PATH
 ```
 
-Require output paths to be absent before encryption. Check every command's exit
-status; remove only a failed new output before retrying. Verify operator
-decryption to /dev/null. Stage only ciphertext, public recipient policy and
-ordinary configuration. Never use temporary plaintext as a flake input.
+Require the destination to be absent before this creation command. Check every
+exit status; remove only a failed new output before retrying. Verify operator
+decryption to `/dev/null`. Stage only ciphertext, real public recipients and
+ordinary config; no fabricated ciphertext or temporary plaintext flake inputs.
+For existing guests reuse their intended machine keys; creation is not rotation
+or recovery. Do not combine newly generated application secrets with old databases.
 
 ## Install each machine key
 
-After seed provisioning and readiness, read the target from the selected root.
-Verify Incus metadata and `/var/lib/garden-secrets` is a mount point. For identity:
+After provisioning the seed and checking readiness, inspect this root's
+`target.json` and applied deployment output for remote/project/instance. Verify
+`user.garden.system` matches the target, `/var/lib/garden-secrets` is a real
+persistent mount, and `/var/lib/garden-secrets/age.key` does not already exist.
+Check each result before transferring the intended guest's key separately using
+`incus file push` with uid/gid 0 and mode 0600. Never infer the destination from a
+previous task or another root's shell variables.
 
-```fish
-incus config get YOUR_REMOTE:identity user.garden.system --project identity
-incus exec YOUR_REMOTE:identity --project identity -- mountpoint /var/lib/garden-secrets
-incus exec YOUR_REMOTE:identity --project identity -- test ! -e /var/lib/garden-secrets/age.key
-```
+If a key exists, stop and reuse/restore its intended identity rather than
+overwriting it. Verify consumer decryption during deployment. Preserve matching
+keys/ciphertext securely off-host, then remove only this operation's protected
+temporary workspace after acceptance. Do not rely on secure erase on SSDs.
 
-Require identity metadata and both successful checks before a separate transfer:
+## Rotation and recovery
 
-```fish
-incus file push "$secret_work/identity.agekey" YOUR_REMOTE:identity/var/lib/garden-secrets/age.key --project identity --uid 0 --gid 0 --mode 0600
-```
+For recipient replacement preserve secret values and run `sops updatekeys` on
+only affected ciphertext. Verify operator and consumer decryption. For intentional
+integration-secret rotation coordinate both consumers in dependency order and
+verify allowed/denied access before retiring old material. Recipient rotation
+and changing the underlying credential are distinct changes.
 
-For WebUI repeat against YOUR_REMOTE:open-webui in project ai, using only
-open-webui.agekey. Stop if a key already exists; restore/reuse its intended
-identity instead of overwriting it. Verify consumer decryption during deployment.
-Back up keys/ciphertext, then remove the protected temporary directory after
-successful deployment. Do not rely on secure erase on SSDs.
-
-## Runtime interfaces and rotation
-
-| Consumer | Ciphertext keys | Runtime interface |
-|---|---|---|
-| Kanidm | admin, idm-admin, webui-client; separate immich-client ciphertext | 0400 files owned by kanidm; native provision options |
-| Immich | immich-client | Root-only file loaded through systemd credentials into runtime JSON |
-| WebUI | environment | Root-only EnvironmentFile consumed by systemd |
-| WebDAV | environment | 0400 webdav-owned EnvironmentFile; WEBDAV_HENNER_PASSWORD, WEBDAV_CLAUDI_PASSWORD, WEBDAV_ELMO_PASSWORD |
-
-ACME keys live only in their owning guest's persistent state. User passkeys,
-passwords and Kanidm signing/database identity are application state.
-For recipient replacement preserve secret values and run sops updatekeys on only
-the affected ciphertext; verify both operator and consumer decryption. For
-intentional client rotation change the raw value on both consumers, deploy
-identity and WebUI, verify allowed/denied login, then retire old material.
-Rollback requires matching secrets and application data where coupled.
+Keep application signing/encryption keys, databases, user credentials and machine
+keys with matching ciphertext as required by the service. Never regenerate values
+to work around a missing key. Use [recovery](recovery.md) for matching restoration.

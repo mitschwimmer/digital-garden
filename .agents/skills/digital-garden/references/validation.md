@@ -13,20 +13,23 @@ closure builds or a live host. CI may run its broader suite independently.
 
 | Change | Required source/build checks | Live checks when deploying |
 |---|---|---|
-| `operations/activate.py`, WebDAV credential validator or their tests | Python regression suite | Deployment guard cases below |
+| Operation helpers or their tests | Python regression suite | Deployment guard cases below |
 | HCL, targets, provider pins | Tofu format/schema validation in affected roots | Reviewed whole saved plan; devices/mounts/connectivity |
 | One guest's Nix configuration | Format changed Nix; evaluate/build that guest | Its service acceptance |
 | `directory.nix` | Format; evaluate Kanidm provisioning; build identity | Reconciliation and user/access checks in [users](users.md) |
-| Edge/Caddy routes | Format; native Caddy validator; edge closure | [Ingress checks](ingress.md#check-the-result) |
-| OCI presets/models/image/launch | Affected-root provider validation; inspect preset/lock consistency and pinned upstream interface | [Inference checks](inference.md#check-the-result) for affected models/callers |
+| Edge/Caddy routes | Format; native Caddy validator and affected route checks; edge closure | [Ingress checks](ingress.md#check-the-result) |
+| OCI public config/artifacts/image/launch | Affected-root provider validation; inspect preset/lock consistency and pinned upstream interface | Owning service acceptance for affected behavior/callers |
 | SOPS inputs/recipients | Operator decryption to `/dev/null`; affected consumer closure | Consumer decryption and integration acceptance |
 | Shared Nix modules or flake inputs | Format; flake checks; affected seeds/closures and module-option evaluation | Affected consumers, one root at a time |
 
-Changes spanning rows require their union. Shared modules reach all NixOS
-guests, seeds and workstation tools; a local directory edit does not. Stop on a
-failed prerequisite. The shared nixpkgs pin serves edge, identity, WebUI and
-WebDAV; Immich uses its own supported pin. Record unavailable tools, ciphertext,
-keys or host access.
+Changes spanning rows require their union. Follow actual imports to identify
+consumers of shared modules/inputs; these can include guests, seeds and workstation
+tools. A local directory edit does not affect unrelated guests. Stop on a
+failed prerequisite. Discover pin consumers in `flake.nix`, including per-system
+input selection and
+package overrides; do not assume a shared pin reaches every guest. Read each
+affected service reference for its additional interface/acceptance checks. Record
+unavailable tools, ciphertext, keys or host access.
 
 ## Native commands
 
@@ -52,14 +55,10 @@ nixfmt --check CHANGED_NIX_FILES
 nix build .#nixosConfigurations.NAME.config.system.build.toplevel --no-link
 ```
 
-Module-option evaluation for changed identity/WebUI interfaces:
-
-```fish
-nix eval .#nixosConfigurations.identity.config.services.kanidm.provision --json > /dev/null
-nix eval .#nixosConfigurations.identity.config.services.kanidm.server.settings --json > /dev/null
-nix eval .#nixosConfigurations.identity.config.systemd.services.kanidm.unitConfig --json > /dev/null
-nix eval .#nixosConfigurations.open-webui.config.services.open-webui.environment --json > /dev/null
-```
+Module-option evaluation: inspect the affected service's public settings, runtime
+secret interface and unit mount guards using `nix eval` on its exact attribute
+paths. Use the service reference and CI workflow for concrete evaluations; inspect
+the pinned module when adding a new interface. Avoid evaluating secret contents.
 
 Provider schema validation in each affected root (replace ROOT):
 
@@ -72,7 +71,7 @@ tofu -chdir=ROOT validate
 Edge routing uses the native validator:
 
 ```fish
-nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.webdav-ingress --no-link
+nix build .#checks.x86_64-linux.caddy-config --no-link
 ```
 
 Shared-input checks; build each affected guest as above, and each affected seed
@@ -82,12 +81,12 @@ using `nix build .#NAME-image --no-link`:
 nix flake check --no-build
 ```
 
-Full identity/WebUI/WebDAV builds require real staged SOPS ciphertext. Do not invent
-secrets to pass checks or change deployed `image_directory` inputs for validation.
-Seed/edge checks need no credentials. WebDAV also requires a reserved edge backend address in `network-policy.json`.
-Its route acceptance and the source-address preservation gate live in [WebDAV](webdav.md).
-Source validation, builds and plans do not
-substitute for live acceptance.
+Full secret-consuming guest builds require their declared real staged SOPS
+ciphertext and other service prerequisites. Do not invent secrets to pass checks
+or change deployed `image_directory` inputs for validation. Minimal seeds need no
+application credentials. Select additional route/application checks from
+`flake.nix` and the owning service reference. Source validation, builds and plans
+do not substitute for live acceptance.
 
 ## Live acceptance
 
@@ -107,12 +106,7 @@ allowed/denied roles and Caddy's closed admin port. Route changes require NixOS
 deployment. Restart affected guests and verify persistence. Recovery changes
 require an independent restore.
 
-Immich checks additionally evaluate its supported package, settings, PostgreSQL
-path and mount guards, validate its HCL root and build its seed. Full Immich
-closure builds require its own and identity's staged client ciphertext; do not
-fabricate secrets to bypass that guard. See [Immich acceptance](immich.md).
-
-CI checks whitespace, deployment regressions, provider schemas, identity/WebUI
-module options, seeds, edge and Caddy validation. Record exact passed and pending
-source/build/live checks in the PR; keep live acceptance records private with
-revision, date, environment and observed results.
+Inspect `.github/workflows/validate.yml` for the current CI checks. CI does not
+build every secret-consuming closure or prove live acceptance. Record exact passed
+and pending source/build/live checks in the PR; keep live acceptance records
+private with revision, date, environment and observed results.
