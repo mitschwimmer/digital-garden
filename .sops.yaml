@@ -1,5 +1,5 @@
 creation_rules:
-  - path_regex: ^systems/identity/(secrets|immich-secrets)\.yaml$
+  - path_regex: ^systems/identity/(secrets|immich-secrets|walter-secrets)\.yaml$
     age: age1yv47tnq9ganc880ss86262uxrr4xymgpavk92dm2kvyfrwaj7vrqns4let,age19uqc75c727245clpevv325t8xmelahdkndgr98s4q8hngyt7npxqdax8l5
 
   - path_regex: ^systems/open-webui/secrets\.yaml$

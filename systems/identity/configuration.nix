@@ -4,7 +4,7 @@ let
   ready = builtins.pathExists encrypted;
   cert = "identity.archaic.work";
 in {
-  imports = [ ./directory.nix ./immich.nix ];
+  imports = [ ./directory.nix ./immich.nix ./walter.nix ];
   assertions = [ {
     assertion = ready;
     message = "Prepare systems/identity/secrets.yaml before building identity.";

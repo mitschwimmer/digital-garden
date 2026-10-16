@@ -83,6 +83,18 @@ in
           logFormat = null;
           extraConfig = "reverse_proxy open-webui.garden.internal:8080";
         };
+        "walter.archaic.work" = {
+          logFormat = null;
+          extraConfig = ''
+            reverse_proxy walter.garden.internal:8080 {
+              flush_interval -1
+              transport http {
+                dial_timeout 5s
+                response_header_timeout 7205s
+              }
+            }
+          '';
+        };
         "photos.archaic.work" = {
           logFormat = null;
           extraConfig = ''

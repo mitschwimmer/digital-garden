@@ -17,7 +17,11 @@ Additional client ciphertext must not replace existing admin/client credentials.
 
 Declare narrow runtime ownership/modes and required persistent mounts. Never put
 plaintext in Git, the Nix store, OpenTofu inputs/state, process arguments or logs.
-Public OCI file delivery may enter state and cannot deliver secrets. ACME keys
+Public OCI file delivery may enter state and cannot deliver secrets. For a single
+supported secret file, the owning service may declare a protected volume and
+native Incus transfer from operator-decrypted SOPS input, with startup disabled
+until delivery. Keep bytes outside provider attributes and verify guest-mapped
+ownership. Use NixOS/sops-nix for automatic or complex secret delivery. ACME keys
 remain application state of the certificate-owning guest.
 
 ## Create and encrypt
