@@ -2,6 +2,7 @@
 
 - [Integrations and exposure](#integrations-and-exposure)
 - [Prepare, deliver the secret, then start](#prepare-deliver-the-secret-then-start)
+- [Fast development updates](#fast-development-updates)
 - [Acceptance, updates and recovery](#acceptance-updates-and-recovery)
 
 `systems/walter` owns one linux/amd64 OCI process and protected data/secret
@@ -98,6 +99,45 @@ After secret/discovery/model verification, set `start = true`, review a new whol
 plan and apply it. The plan enables running/autostart/restart. OpenTofu owns this
 state; do not start manually to bypass the preparation gates.
 
+## Fast development updates
+
+For disposable development chats, per-update backups are intentionally skipped.
+Persistent volumes remain protected. Run from the repository root in
+`nix develop --command fish`, after `gh auth login` has granted Actions read access:
+
+```fish
+python operations/update_walter.py
+```
+
+This helper is justified by the repeated cross-repository publication lookup,
+digest transfer and image-only plan review; it delegates lifecycle to native
+OpenTofu/Incus and does not build images or manage secrets. It requires an
+already-installed Walter, this root's `site.auto.tfvars.json` with `start=true`,
+the default workspace and initialized provider. The shell includes GitHub CLI.
+
+The command captures upstream main's revision, waits for that push's successful
+`oci.yml` run and downloads its `walter-image` artifact. It never silently falls
+back to an older successful commit. Publication completes before any downtime.
+The artifact must match the repository, revision, run, linux/amd64 and digest.
+Merge the publishing workflow change in Walter before using this command; old
+runs without the artifact need a new push. Artifacts are retained for 30 days.
+
+The helper checks applied/observed identity and volume mounts, updates the local
+image lock and prepares a saved whole plan while the app remains available. It
+accepts exactly one image replacement with unchanged configuration/devices;
+volume or other-resource changes require the normal workflow. Review the plan
+and answer `y`. It then rechecks the guest, stops it cleanly, applies that exact
+plan and performs bounded private HTTP readiness from edge. Running/autostart
+stay declared true; there is no preliminary false/true configuration cycle.
+
+On cancellation or pre-apply failure the previous lock is restored. Once apply
+begins, retain the new lock and `.operations/<id>` plan/previous-image record for
+repair; do not assume a failed apply left the previous instance intact. No
+automatic rollback or data backup is performed. Local locking does not coordinate
+other checkouts/operators. After readiness, test login, streaming and an existing
+conversation, then commit the updated `systems/walter/image.lock.json`.
+The full backup/restore workflow below remains appropriate for valuable data.
+
 ## Acceptance, updates and recovery
 
 From edge, require bounded private readiness before browser tests:
@@ -115,7 +155,7 @@ Restart and verify chat persistence, failed interrupted placeholders and renewed
 login. Require actual offline restoration and intended network exposure before
 accepting the service. Keep observations private with revision/date/environment.
 
-For updates/rotation, first set `start = false` and apply a reviewed whole plan;
+For normal updates/rotation with valuable data, first set `start = false` and apply a reviewed whole plan;
 require clean shutdown before touching volumes. Walter handles SIGTERM with a
 20-second shutdown budget; the host timeout is 30 seconds. Retain previous image,
 source/inputs and a consistent data checkpoint. Rotate both client consumers in
