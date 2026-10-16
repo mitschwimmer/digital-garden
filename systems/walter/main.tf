@@ -73,15 +73,14 @@ resource "incus_storage_volume" "secrets" {
 }
 
 resource "incus_instance" "walter" {
-  name         = "walter"
-  description  = "Digital Garden native OIDC chat with private inference"
-  image        = "garden-ghcr:${local.image.repository}@${local.image.digest}"
-  architecture = "x86_64"
-  type         = "container"
-  project      = "ai"
-  remote       = var.incus_remote
-  profiles     = []
-  running      = var.start
+  name        = "walter"
+  description = "Digital Garden native OIDC chat with private inference"
+  image       = "garden-ghcr:${local.image.repository}@${local.image.digest}"
+  type        = "container"
+  project     = "ai"
+  remote      = var.incus_remote
+  profiles    = []
+  running     = var.start
 
   lifecycle {
     precondition {
