@@ -1,18 +1,18 @@
 {
   "qwen38": {
-    "repository": "ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF",
-    "file": "Qwen3.8-27B-GSQ-RCO-IQ3_S-mtp.gguf",
-    "revision": "d562806dbafae37109975e970aae91b43e73b440",
-    "sha256": "58fd826723939933dc86f45b7fe04545cbc2de1c70f6fe2cdd3858c87a98c12f",
-    "size": 12120016960,
-    "cachePath": "/var/cache/llama/qwen38"
+    "repository": "unsloth/Qwen3.6-35B-A3B-GGUF",
+    "file": "Qwen3.6-35B-A3B-UD-Q4_K_M.gguf",
+    "revision": "a483e9e",
+    "sha256": "ac0e2c1189e055faa36eff361580e79c5bd6f8e76bffb4ce547f167d53e31a61",
+    "size": 22134528992,
+    "cachePath": "/var/cache/llama/qwen36-35b-a3b-q4"
   },
   "qwen38-projector": {
-    "repository": "ISTA-DASLab/Qwen3.8-27B-GSQ-RCO-GGUF",
-    "file": "mmproj-Qwen3.8-27B-BF16.gguf",
-    "revision": "d562806dbafae37109975e970aae91b43e73b440",
-    "sha256": "13cb7bebccbd04afc8f4090cb949ecf8937cdf7377c5799b1a0c594e7c0d3e16",
-    "size": 931146528,
-    "cachePath": "/var/cache/llama/mmproj-Qwen3.8-27B-BF16.gguf"
+    "repository": "unsloth/Qwen3.6-35B-A3B-GGUF",
+    "file": "mmproj-BF16.gguf",
+    "revision": "a483e9e",
+    "sha256": "356dfaa3111376a4f7165e32e8749713378d1700b37cf52e0c50d9f23322334d",
+    "size": 902822624,
+    "cachePath": "/var/cache/llama/mmproj-Qwen3.6-35B-A3B-BF16.gguf"
   }
 }
