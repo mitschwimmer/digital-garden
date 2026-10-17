@@ -8,7 +8,7 @@
 ## Service and acceptance
 
 `systems/open-webui/` owns the NixOS application, ai/open-webui instance, seed,
-state and machine key. It uses the [pinned package backport](../../../../nix/packages/README.md).
+state and machine key. It uses the upstream Open WebUI 0.12.0 package from the shared nixpkgs pin.
 It depends on Kanidm for native OIDC, edge for public HTTPS and the private
 inference endpoint for chat. Configuration comes from Nix on every startup;
 ENABLE_PERSISTENT_CONFIG is false. No local password login or proxy-header auth.

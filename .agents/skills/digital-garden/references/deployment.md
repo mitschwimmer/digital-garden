@@ -73,4 +73,4 @@ NixOS rollback does not reverse database migrations; use matching
 After acceptance, prune obsolete candidate/previous-generation GC roots while
 preserving the selected recovery point.
 
-Source: [NixOS system switch](https://github.com/NixOS/nixpkgs/blob/0d9e9b832d03ac387417e16ce1febf73b2e631e1/nixos/doc/manual/development/what-happens-during-a-system-switch.chapter.md).
+Source: [NixOS system switch](https://github.com/NixOS/nixpkgs/blob/26f4107e47e3ad0ffd0db220469ba83b6f6d96e8/nixos/doc/manual/development/what-happens-during-a-system-switch.chapter.md).

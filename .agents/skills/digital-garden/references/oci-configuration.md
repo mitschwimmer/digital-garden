@@ -117,4 +117,4 @@ settings if changed), stop llama, review/apply a new whole plan, and repeat the
 checks. Reconcile source with accepted running state. Retain config/cache volumes
 and application identities.
 
-Preset syntax: [pinned llama.cpp router documentation](https://github.com/ggml-org/llama.cpp/blob/b11552/tools/server/README.md).
+Preset syntax: [pinned llama.cpp router documentation](https://github.com/ggml-org/llama.cpp/blob/b11706/tools/server/README.md).

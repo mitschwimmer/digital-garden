@@ -7,7 +7,7 @@ Docker runtime. Start with [composition](composition.md) for ownership changes.
 
 The shared stable nixpkgs pin contains unsupported Immich 2.7.5 with known
 vulnerabilities. The separate `nixpkgs-immich` input pins
-`7fd4004d0511991fff3a0524856a9be09e28c5f0`, providing Immich 3.3.1 and its matching
+`55bfb4d7437bd4e09ab7cba58a43bd68eb310044`, providing Immich 3.3.1 and its matching
 NixOS module/dependencies only for this guest and seed. Do not permit insecure
 packages or downgrade to Immich 2. Keep mobile clients compatible with the server.
 Update this input deliberately with `nix flake update nixpkgs-immich` after
@@ -171,7 +171,7 @@ that checkpoint requires it, never rotate credentials as a rollback shortcut. Fo
 with Immich's actual units, pools and volumes; do not reuse another root's records.
 Validate restoration before reopening traffic.
 
-Sources: [pinned NixOS module](https://github.com/NixOS/nixpkgs/blob/7fd4004d0511991fff3a0524856a9be09e28c5f0/nixos/modules/services/web-apps/immich.nix),
+Sources: [pinned NixOS module](https://github.com/NixOS/nixpkgs/blob/55bfb4d7437bd4e09ab7cba58a43bd68eb310044/nixos/modules/services/web-apps/immich.nix),
 [Immich requirements](https://docs.immich.app/install/requirements/),
 [OIDC](https://github.com/immich-app/immich/blob/v3.3.1/docs/docs/administration/oauth.md),
 [backup and restore](https://docs.immich.app/administration/backup-and-restore/).
