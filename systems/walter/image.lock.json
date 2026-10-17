@@ -1,7 +1,7 @@
 {
   "repository": "mitschwimmer/walter",
-  "digest": "sha256:43e9b3f0c4bd546142ea66b86b81289114cd4ce789a458750f3d3072f04309d5",
-  "revision": "6a4bbf90897808c20db34ba1e73fbc56e28e6484",
+  "digest": "sha256:4d2402053fbe4eaf68d324e37e31b4e0caf400d3c26fc7fb31c4e5878d0a7404",
+  "revision": "a2fd731b8faa3f09a8078fd3ccb3d807554cac67",
   "platform": "linux/amd64",
-  "publication": "https://github.com/mitschwimmer/walter/actions/runs/39037703634"
+  "publication": "https://github.com/mitschwimmer/walter/actions/runs/39039297249"
 }
