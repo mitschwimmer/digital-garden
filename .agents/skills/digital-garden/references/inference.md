@@ -15,7 +15,7 @@
 | Execution and inputs | Workstation, trusted backend and browser; inspected GPU PCI address in systems/inference. |
 | Expected infrastructure effects | This root owns its OCI guest and two volumes; no other root changes. |
 
-The pinned image is `server-rocm-b11552` (linux/amd64), built with ROCm 7.2.1.
+The pinned image is `server-rocm-b11706` (linux/amd64), built with ROCm 7.2.1.
 Inspect IncusOS driver/firmware, `/dev/kfd` and available GPU/RAM capacity
 before creating or upgrading the guest. Newer source releases may precede
 publication of their ROCm images; use a verified published image digest.
@@ -128,6 +128,6 @@ longer repair, disable boot.autostart manually while stopped and record the drif
 the next reviewed apply must restore declared running/autostart. Review image
 upgrades separately: only the guest may be replaced, with volumes retained.
 
-Sources: [pinned llama server](https://github.com/ggml-org/llama.cpp/blob/b11552/tools/server/README.md),
-[pinned provider files](https://github.com/lxc/terraform-provider-incus/blob/v1.2.0/docs/resources/storage_volume.md),
+Sources: [pinned llama server](https://github.com/ggml-org/llama.cpp/blob/b11706/tools/server/README.md),
+[pinned provider files](https://github.com/lxc/terraform-provider-incus/blob/v1.2.1/docs/resources/storage_volume.md),
 [Incus instance options](https://linuxcontainers.org/incus/docs/main/reference/instance_options/).

@@ -1,10 +1,10 @@
 {
   description = "Digital Garden isolated IncusOS systems";
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/0d9e9b832d03ac387417e16ce1febf73b2e631e1";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/26f4107e47e3ad0ffd0db220469ba83b6f6d96e8";
   # Immich 2 at the shared stable pin is unsupported; isolate its supported pin.
-  inputs.nixpkgs-immich.url = "github:NixOS/nixpkgs/7fd4004d0511991fff3a0524856a9be09e28c5f0";
+  inputs.nixpkgs-immich.url = "github:NixOS/nixpkgs/55bfb4d7437bd4e09ab7cba58a43bd68eb310044";
   inputs.sops-nix = {
-    url = "github:Mic92/sops-nix/dcd241ba97088c22569d1573286e1b9daad340c0";
+    url = "github:Mic92/sops-nix/44931708c62937c2b1bf7953902989fa5bb9ee1b";
     inputs.nixpkgs.follows = "nixpkgs";
   };
 

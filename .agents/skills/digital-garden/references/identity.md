@@ -70,5 +70,5 @@ provisioning
 returns the declared memberships/client settings without duplicating entities.
 Back up Kanidm's database and keys together; see [recovery](recovery.md).
 
-Sources: [pinned module](https://github.com/NixOS/nixpkgs/blob/0d9e9b832d03ac387417e16ce1febf73b2e631e1/nixos/modules/services/security/kanidm.nix),
+Sources: [pinned module](https://github.com/NixOS/nixpkgs/blob/26f4107e47e3ad0ffd0db220469ba83b6f6d96e8/nixos/modules/services/security/kanidm.nix),
 [Kanidm OAuth2](https://kanidm.github.io/kanidm/stable/integrations/oauth2.html).

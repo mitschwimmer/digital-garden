@@ -1,9 +1,11 @@
-{ lib, pkgs, ... }:
+{ lib, ... }:
 {
-  assertions = [ {
-    assertion = builtins.pathExists ./secrets.yaml;
-    message = "Prepare encrypted WebUI inputs before building this consumer.";
-  } ];
+  assertions = [
+    {
+      assertion = builtins.pathExists ./secrets.yaml;
+      message = "Prepare encrypted WebUI inputs before building this consumer.";
+    }
+  ];
   sops = lib.mkIf (builtins.pathExists ./secrets.yaml) {
     defaultSopsFile = ./secrets.yaml;
     age.keyFile = "/var/lib/garden-secrets/age.key";
@@ -16,7 +18,6 @@
   };
   services.open-webui = {
     enable = true;
-    package = pkgs.callPackage ../../nix/packages/open-webui.nix { };
     host = "0.0.0.0";
     port = 8080;
     openFirewall = false;
@@ -50,7 +51,11 @@
       OPENAI_API_BASE_URL = "http://garden-llama.garden.internal:8080/v1";
       # Private trusted backend: this is a compatibility placeholder, not a credential.
       OPENAI_API_KEY = "unused";
-      OPENAI_API_CONFIGS = builtins.toJSON { "0" = { provider = "llama.cpp"; }; };
+      OPENAI_API_CONFIGS = builtins.toJSON {
+        "0" = {
+          provider = "llama.cpp";
+        };
+      };
       # Allow the first chat to wait for a cold model download/load.
       AIOHTTP_CLIENT_TIMEOUT = "7200";
       AIOHTTP_CLIENT_STREAM_IDLE_TIMEOUT = "7200";
@@ -66,9 +71,16 @@
   networking.firewall.interfaces.eth0.allowedTCPPorts = [ 8080 ];
   # A stable system user keeps mounted data ownership predictable across rebuilds.
   users.groups.open-webui.gid = 990;
-  users.users.open-webui = { isSystemUser = true; uid = 990; group = "open-webui"; };
+  users.users.open-webui = {
+    isSystemUser = true;
+    uid = 990;
+    group = "open-webui";
+  };
   systemd.services.open-webui = {
-    unitConfig.RequiresMountsFor = [ "/var/lib/open-webui" "/var/lib/garden-secrets" ];
+    unitConfig.RequiresMountsFor = [
+      "/var/lib/open-webui"
+      "/var/lib/garden-secrets"
+    ];
     unitConfig.ConditionPathIsMountPoint = "/var/lib/open-webui";
     serviceConfig = {
       DynamicUser = lib.mkForce false;

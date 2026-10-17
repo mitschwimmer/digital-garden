@@ -170,7 +170,7 @@ if a version changes its on-disk expectations. Roll back edge independently for
 route changes. To close access immediately, deploy edge with an empty
 `webdavLanCidrs` list; keep the backend data and identity intact.
 
-Sources: [pinned NixOS module](https://github.com/NixOS/nixpkgs/blob/0d9e9b832d03ac387417e16ce1febf73b2e631e1/nixos/modules/services/network-filesystems/webdav.nix),
+Sources: [pinned NixOS module](https://github.com/NixOS/nixpkgs/blob/26f4107e47e3ad0ffd0db220469ba83b6f6d96e8/nixos/modules/services/network-filesystems/webdav.nix),
 [WebDAV configuration](https://github.com/hacdias/webdav/blob/v5.11.9/README.md),
 [Caddy IP matchers](https://caddyserver.com/docs/caddyfile/matchers#remote-ip),
 [ACME challenges](https://letsencrypt.org/docs/challenge-types/).
