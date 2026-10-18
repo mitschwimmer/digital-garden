@@ -14,5 +14,13 @@
     "sha256": "356dfaa3111376a4f7165e32e8749713378d1700b37cf52e0c50d9f23322334d",
     "size": 902822624,
     "cachePath": "/var/cache/llama/mmproj-Qwen3.6-35B-A3B-BF16.gguf"
+  },
+  "qwen36-q5": {
+    "repository": "unsloth/Qwen3.6-35B-A3B-GGUF",
+    "file": "Qwen3.6-35B-A3B-UD-Q5_K_M.gguf",
+    "revision": "9280dd353ab587157920d5bd391ada414d84e552",
+    "sha256": "c13ce26253ea334df472bd8fbd2d6da66d8a41195c17f6fcbf44c4d20ece0932",
+    "size": 26456194016,
+    "cachePath": "/var/cache/llama/qwen36-35b-a3b-q5"
   }
 }
