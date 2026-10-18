@@ -22,5 +22,13 @@
     "sha256": "c13ce26253ea334df472bd8fbd2d6da66d8a41195c17f6fcbf44c4d20ece0932",
     "size": 26456194016,
     "cachePath": "/var/cache/llama/qwen36-35b-a3b-q5"
+  },
+  "qwen38-bartowski-iq3xs": {
+    "repository": "bartowski/Qwen3.8-27B-GGUF",
+    "file": "Qwen3.8-27B-IQ3_XS.gguf",
+    "revision": "47ccbfdc07174a997da4505e45c9a45c1eb4d3e6",
+    "sha256": "74f04109572b7a931ae559fbaf3e6ba82a4b318f76346e3ca75e13f687512915",
+    "size": 13330404960,
+    "cachePath": "/var/cache/llama/qwen38-27b-bartowski-iq3xs"
   }
 }
