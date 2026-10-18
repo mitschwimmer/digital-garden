@@ -28,7 +28,7 @@ resource "incus_storage_volume" "llama_cache" {
     "initial.uid"  = "1000"
     "initial.gid"  = "1000"
     "initial.mode" = "0750"
-    "size"         = "64GiB"
+    "size"         = "128GiB"
   }
 
   lifecycle {
