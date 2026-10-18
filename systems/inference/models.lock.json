@@ -30,5 +30,13 @@
     "sha256": "74f04109572b7a931ae559fbaf3e6ba82a4b318f76346e3ca75e13f687512915",
     "size": 13330404960,
     "cachePath": "/var/cache/llama/qwen38-27b-bartowski-iq3xs"
+  },
+  "qwen38-bartowski-projector": {
+    "repository": "bartowski/Qwen3.8-27B-GGUF",
+    "file": "mmproj-Qwen3.8-27B-bf16.gguf",
+    "revision": "0c92138c51f112d2f0dc84d5f6d1ebe4b9912b9a",
+    "sha256": "e43a597863a21bfa48b0fbd4553a771ae4117e25bb172e66f1dbc3fc6d037131",
+    "size": 931146432,
+    "cachePath": "/var/cache/llama/mmproj-Qwen3.8-27B-bf16.gguf"
   }
 }
