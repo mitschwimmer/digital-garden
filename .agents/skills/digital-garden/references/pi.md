@@ -54,7 +54,7 @@ shell, replace `REMOTE` with the inspected alias:
 ```fish
 umask 077
 set -l session_work (mktemp -d)
-incus exec REMOTE:agent-vault --project agent-vault -T -- agent-vault vault token --vault pi --ttl 14400 > "$session_work/token"
+incus exec REMOTE:agent-vault --project agent-vault -T -- agent-vault vault token --vault pi-agent --ttl 14400 > "$session_work/token"
 ```
 
 Check success and nonempty output before transferring; never print its content.

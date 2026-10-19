@@ -51,9 +51,9 @@ Follow [setup](lifecycle.md#setup), [platform inputs](platform.md),
    (replace `REMOTE` with the inspected alias):
 
    ```fish
-   incus exec REMOTE:agent-vault --project agent-vault -- agent-vault register
+   incus exec REMOTE:agent-vault --project agent-vault -- agent-vault auth register
    incus exec REMOTE:agent-vault --project agent-vault -- agent-vault owner config set --invite-only
-   incus exec REMOTE:agent-vault --project agent-vault -- agent-vault vault create pi
+   incus exec REMOTE:agent-vault --project agent-vault -- agent-vault vault create pi-agent
    ```
 
 5. Set only the required upstream credentials privately through the vault CLI.
@@ -62,7 +62,7 @@ Follow [setup](lifecycle.md#setup), [platform inputs](platform.md),
    must restrict repository access and permissions upstream; API path filtering
    cannot express GraphQL repository permissions. Store the GitHub login as
    `GITHUB_USERNAME` and PAT as `GITHUB_PAT`. Apply the reviewed public
-   `systems/agent-vault/services.yaml` through `vault service set --file` after
+   `systems/agent-vault/services.yaml` through `vault service set --vault pi-agent --file` after
    transferring that file to the guest. Narrow its Git owner/path if needed.
 6. Leave `unmatched_host_policy` at its upstream default, passthrough, so public
    Go/npm dependencies and source archives work without receiving credentials.
@@ -90,7 +90,7 @@ live in `services.yaml`; edit and apply those deliberately rather than introduci
 another synchronization controller. Add actual model rules and Pi's actual
 `models.json` together; no endpoint URLs or model IDs are assumed here.
 
-The `pi` vault permits general public web access. It protects brokered credentials
+The `pi-agent` vault permits general public web access. It protects brokered credentials
 but does not prevent workspace exfiltration or abuse of permitted upstream APIs.
 Use repository permissions/branch protection and provider spend limits.
 Disable telemetry through `AGENT_VAULT_TELEMETRY=false`.
