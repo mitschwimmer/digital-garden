@@ -1,4 +1,9 @@
-{ lib, pkgs, ... }:
+{
+  config,
+  lib,
+  pkgs,
+  ...
+}:
 let
   network = builtins.fromJSON (builtins.readFile ../../agent-network.json);
   pi = pkgs.callPackage ../../nix/packages/pi.nix { };
@@ -39,11 +44,27 @@ in
       proxyPort = network.proxyPort;
       vault = "pi-agent";
       tokenFile = "/run/garden-agent/token";
-      caBundle = "/etc/ssl/certs/ca-certificates.crt";
+      caBundle = config.security.pki.caBundle;
     };
     "garden-agent/models.json".source = ./models.json;
     "garden-agent/settings.json".source = ./settings.json;
   };
+  # The daemon starts through the same runtime credential reader as Pi.
+  # Stage a proxy-only token, then restart the daemon when rotating sessions.
+  nix.settings = {
+    sandbox = true;
+    sandbox-fallback = false;
+    ssl-cert-file = config.security.pki.caBundle;
+    extra-sandbox-paths = [ config.security.pki.caBundle ];
+  };
+  systemd.services.nix-daemon = {
+    after = [ "systemd-tmpfiles-setup.service" ];
+    serviceConfig.ExecStart = [
+      ""
+      "${launcher}/bin/garden-agent --allow-missing-session -- ${config.nix.package.out}/bin/nix-daemon --daemon"
+    ];
+  };
+
   environment.systemPackages = with pkgs; [
     pi
     launcher

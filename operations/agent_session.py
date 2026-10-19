@@ -13,7 +13,11 @@ import sys
 from urllib.parse import quote
 
 
-def session_environment(config, environ):
+def session_environment(config, environ, *, allow_missing_token=False):
+    # Keep local store/activation operations available before session enrollment.
+    # The daemon has no authenticated proxy in this state; host ACLs deny egress.
+    if allow_missing_token and not Path(config["tokenFile"]).exists():
+        return dict(environ)
     if not config["caReady"]:
         raise ValueError("Install the reviewed vault ca.pem and redeploy Pi before starting a session")
     token_path = Path(config["tokenFile"])
@@ -34,7 +38,8 @@ def session_environment(config, environ):
         env[name] = env[name.lower()] = proxy
     env["NO_PROXY"] = env["no_proxy"] = "localhost,127.0.0.1"
     for name in ("SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS", "REQUESTS_CA_BUNDLE",
-                 "CURL_CA_BUNDLE", "GIT_SSL_CAINFO", "DENO_CERT", "NPM_CONFIG_CAFILE"):
+                 "CURL_CA_BUNDLE", "GIT_SSL_CAINFO", "DENO_CERT", "NPM_CONFIG_CAFILE",
+                 "NIX_SSL_CERT_FILE"):
         env[name] = config["caBundle"]
     env["NODE_USE_ENV_PROXY"] = "1"
     env["NPM_CONFIG_PROXY"] = env["NPM_CONFIG_HTTPS_PROXY"] = proxy
@@ -47,7 +52,10 @@ def session_environment(config, environ):
 def main():
     config_file, pi_binary, *arguments = sys.argv[1:]
     config = json.loads(Path(config_file).read_text())
-    env = session_environment(config, os.environ)
+    allow_missing = arguments[:1] == ["--allow-missing-session"]
+    if allow_missing:
+        arguments = arguments[1:]
+    env = session_environment(config, os.environ, allow_missing_token=allow_missing)
     command = arguments[1:] if arguments[:1] == ["--"] else [pi_binary, *arguments]
     command = command or [pi_binary]
     os.execvpe(command[0], command, env)

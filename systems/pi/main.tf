@@ -73,7 +73,8 @@ resource "incus_instance" "pi" {
     "limits.cpu"            = "4"
     "limits.memory"         = "4GiB"
     "security.privileged"   = "false"
-    "security.nesting"      = "false"
+    # Nix creates nested namespaces for sandboxed development builds.
+    "security.nesting"      = "true"
     "user.access_interface" = "eth0"
     "user.garden.system"    = local.target.system
   }
