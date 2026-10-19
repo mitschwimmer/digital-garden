@@ -110,7 +110,9 @@ retain the previous session until they exit; its expiry/revocation remains effec
 at the vault. Removing the token file alone does not revoke that session.
 
 The shared launcher sets `NIX_SSL_CERT_FILE` to the reviewed NixOS CA bundle's
-store path. That public bundle is explicitly available inside build sandboxes.
+store path. Its containing store output is explicitly available inside build sandboxes. Mount
+that whole output, not the certificate subfile: a derivation may already include
+the output as a read-only input, and Nix cannot create a nested file mount there.
 Nixpkgs fixed-output fetchers inherit proxy variables and `NIX_SSL_CERT_FILE`
 from the daemon; ordinary builds retain Nix's network sandbox. Custom fetchers
 must honor those interfaces too. No proxy URL/token is serialized into Nix source,
