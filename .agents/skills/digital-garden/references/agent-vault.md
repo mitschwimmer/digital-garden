@@ -112,10 +112,14 @@ reasoning capabilities use Pi's custom-model defaults until verified.
 
 For first enrollment, create a native proposal containing only the TensorX rule
 and its empty credential slot. This leaves any existing services intact and
-does not require the GitHub credentials yet:
+does not require the GitHub credentials yet. Proposal creation requires a
+vault-scoped session; `--vault` alone does not scope an owner login token.
+The outer `vault run` mints a five-minute proxy-role session for creation without
+printing the token. Run approval separately using the owner login session:
 
 ```fish
 incus exec REMOTE:agent-vault --project agent-vault -- \
+  agent-vault vault run --vault pi-agent --ttl 300 -- \
   agent-vault vault proposal create --vault pi-agent \
   --name tensorx --host 'api.tensorx.ai:443/v1/*' \
   --auth-type bearer --token-key TENSORX_API_KEY \
