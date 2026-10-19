@@ -5,13 +5,15 @@ let
 in
 {
   # Ciphertext is staged during bootstrap; no placeholder keys or secrets.
-  # Without it the unit cannot start because LoadCredential fails closed.
+  # Without it the unit cannot start because its stdin file is unavailable.
   sops = lib.mkIf (builtins.pathExists ./secrets.yaml) {
     defaultSopsFile = ./secrets.yaml;
     age.keyFile = "/var/lib/garden-secrets/age.key";
     age.sshKeyPaths = [ ];
     gnupg.sshKeyPaths = [ ];
     secrets.master-password = {
+      owner = "agent-vault";
+      group = "agent-vault";
       mode = "0400";
       restartUnits = [ "agent-vault.service" ];
     };
@@ -59,9 +61,10 @@ in
       StateDirectory = "agent-vault";
       StateDirectoryMode = "0700";
       WorkingDirectory = "/var/lib/agent-vault";
-      LoadCredential = "master-password:/run/secrets/master-password";
-      StandardInput = "file:%d/master-password";
-      ExecStartPre = "${pkgs.coreutils}/bin/test -s %d/master-password";
+      # StandardInput cannot open a per-unit credential path (%d). Use the
+      # service-owned sops-nix file, which exists before the unit starts.
+      StandardInput = "file:/run/secrets/master-password";
+      ExecStartPre = "${pkgs.coreutils}/bin/test -s /run/secrets/master-password";
       ExecStart = "${agentVault}/bin/agent-vault server --host 0.0.0.0 --port 14321 --mitm-port ${toString network.proxyPort} --password-stdin";
       Restart = "on-failure";
       RestartSec = "5s";
