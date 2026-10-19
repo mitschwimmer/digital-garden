@@ -10,9 +10,10 @@ the protected home volume, which contains workspaces, Pi sessions and caches.
 
 The native release archive is pinned in `nix/packages/pi.nix`, including its
 bundled Bun runtime, themes and native helpers. Go, Node/npm, Git, `gh`, compiler
-tools and fish come from the shared Nix pin. Go/npm fetch dependencies at runtime
-through the vault; development tools are added through NixOS. Runtime Nix-daemon
-downloads are not configured to inherit a Pi session token.
+tools and fish come from the shared Nix pin. Project devShells and Nix builds
+can download dependencies through the vault using the staged proxy-only session.
+NixOS owns the base tools and daemon configuration; project flakes own their
+pinned tool versions.
 
 ## Boundary
 
@@ -28,6 +29,11 @@ The dual-homed vault drops forwarding and has a separate private-upstream guard.
 All public HTTP/HTTPS destinations may be accessed through it without credentials;
 only selected GitHub/model destinations receive real credentials. DNS resolution
 happens at the vault. Other protocols have no direct fallback.
+
+Incus nesting is enabled for Nix's sandbox namespaces while the guest remains
+unprivileged. This relaxes container confinement to permit nested namespace/mount
+operations; host NIC ACLs still constrain all guest and nested-build egress. Keep
+Nix sandboxing enabled and verify it with an actual uncached build after restart.
 
 The two guests share a host kernel. Pi's packages and extensions execute with
 the same sandbox authority as Pi itself. Credential brokering does not constrain
@@ -65,6 +71,8 @@ then transfer the token to its tmpfs runtime directory:
 
 ```fish
 incus file push "$session_work/token" REMOTE:pi/run/garden-agent/token --project agent-sandbox --uid 0 --gid 1000 --mode 0640
+# Run after a successful transfer, with no active Nix builds.
+incus exec REMOTE:pi --project agent-sandbox -- systemctl restart nix-daemon.service
 ```
 
 The directory is root-owned and group-readable. Start an interactive session:
@@ -89,6 +97,42 @@ one. No automatic token-issuing daemon or scheduler is introduced.
 HTTPS Git is required. The vault injects Basic authentication for the selected
 Git owner/path and Bearer authentication for the GitHub API; `gh` receives only a
 dummy token. Add Git LFS/submodule hosts and authentication rules only when needed.
+
+## Project Nix builds
+
+The Nix daemon uses `garden-agent --allow-missing-session -- nix-daemon --daemon`
+to read the runtime token into its own environment. Shell proxy variables alone
+do not configure the daemon. Without a staged token it starts offline so local
+store/activation operations remain available; host ACLs still deny direct egress.
+Stage a token and restart it through operator Incus exec. Restart after every token replacement,
+waiting for active builds to finish first. Existing daemon connections/builds may
+retain the previous session until they exit; its expiry/revocation remains effective
+at the vault. Removing the token file alone does not revoke that session.
+
+The shared launcher sets `NIX_SSL_CERT_FILE` to the reviewed NixOS CA bundle's
+store path. That public bundle is explicitly available inside build sandboxes.
+Nixpkgs fixed-output fetchers inherit proxy variables and `NIX_SSL_CERT_FILE`
+from the daemon; ordinary builds retain Nix's network sandbox. Custom fetchers
+must honor those interfaces too. No proxy URL/token is serialized into Nix source,
+derivations, OpenTofu state or command arguments. Keep build logs free of proxy
+environment dumps. Do not grant Pi Nix trusted-user privileges.
+
+After applying this root's nesting change, restart the container before testing;
+this clears its staged runtime token. Deploy the updated closure, stage a fresh
+session, start the daemon as above, then run inside the actual project checkout:
+
+```fish
+nix develop --command true
+nix develop --command ./scripts/check.sh
+nix flake check --no-write-lock-file
+```
+
+Use the project's actual check entry points; inspect its CI to choose equivalent
+package/check builds. Require a real uncached sandboxed build as well as cache
+downloads: a fully substituted devShell does not prove namespace support. Test
+a fixed-output dependency download using the custom CA. A cached tool suite
+passing does not establish complete CI parity. Track root-disk use for the Nix
+store and reclaim unneeded project roots/caches through normal Nix GC.
 
 ## Recovery and updates
 
@@ -116,6 +160,9 @@ not Incus firewall enforcement. The following checks require the actual host:
   packets and a deliberately altered guest route/firewall as root on a disposable
   sandbox. Inspect host traffic/ACL logs; a missing route alone is not proof that
   the host ACL enforces the boundary. Keep these tests separate from real work.
+- Verify `nix develop`, binary-cache downloads and an uncached sandboxed Nix build,
+  including a fixed-output Go dependency fetch through the vault. Restart after
+  token rotation and verify the old session's revocation/expiry denies downloads.
 - Verify public dependency downloads through `garden-agent -- fish`: use a throwaway
   Go module/cache and npm project/cache, then run real repository tests/builds.
 - Verify trusted HTTPS clone/fetch/push on a disposable branch, `gh` API/PR work,

@@ -66,6 +66,8 @@ jobs:
           nix eval .#nixosConfigurations.webdav.config.systemd.services.webdav.serviceConfig --json > /dev/null
           nix eval .#nixosConfigurations.agent-vault.config.systemd.services.agent-vault.serviceConfig --json > /dev/null
           nix eval '.#nixosConfigurations.pi.config.environment.etc."garden-agent/session.json".text' --raw > /dev/null
+          nix eval .#nixosConfigurations.pi.config.nix.settings --json > /dev/null
+          nix eval .#nixosConfigurations.pi.config.systemd.services.nix-daemon.serviceConfig --json > /dev/null
       - name: Run focused native application checks
         run: |
           nix build --no-link \

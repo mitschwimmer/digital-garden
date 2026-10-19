@@ -46,7 +46,8 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(env["NO_PROXY"], "localhost,127.0.0.1")
         self.assertEqual(env["no_proxy"], env["NO_PROXY"])
         for key in ("SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS", "GIT_SSL_CAINFO",
-                    "NPM_CONFIG_CAFILE", "CURL_CA_BUNDLE", "REQUESTS_CA_BUNDLE"):
+                    "NPM_CONFIG_CAFILE", "CURL_CA_BUNDLE", "REQUESTS_CA_BUNDLE",
+                    "NIX_SSL_CERT_FILE"):
             self.assertEqual(env[key], str(self.ca))
         self.assertEqual(env["GH_TOKEN"], "__github_pat__")
         self.assertEqual(env["PATH"], "/bin")
@@ -58,6 +59,26 @@ class SessionTests(unittest.TestCase):
         self.token.unlink()
         with self.assertRaises(FileNotFoundError):
             session.session_environment(self.config, {})
+
+    def test_daemon_can_start_offline_but_rejects_bad_staged_tokens(self):
+        self.token.unlink()
+        original = {"PATH": "/bin"}
+        self.assertEqual(session.session_environment(
+            self.config, original, allow_missing_token=True), original)
+        self.token.write_text("invalid-private-value")
+        self.token.chmod(0o640)
+        with self.assertRaises(ValueError):
+            session.session_environment(self.config, original, allow_missing_token=True)
+
+    def test_optional_session_mode_executes_local_child_without_a_token(self):
+        self.token.unlink()
+        config_file = Path(self.tmp.name) / "config.json"
+        config_file.write_text(json.dumps(self.config))
+        result = subprocess.run([
+            sys.executable, str(SOURCE), str(config_file), "/unused/pi",
+            "--allow-missing-session", "--", sys.executable, "-c", "print('local store ready')",
+        ], check=True, text=True, capture_output=True)
+        self.assertEqual(result.stdout.strip(), "local store ready")
 
     def test_rejects_invalid_tokens_without_echoing_them(self):
         for token in ("", "av_agt_private", "av_sess_secret\ninjected", "malformed-secret"):

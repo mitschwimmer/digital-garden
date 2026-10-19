@@ -69,11 +69,12 @@ resource "incus_instance" "pi" {
   running     = true
 
   config = {
-    "boot.autostart"        = "true"
-    "limits.cpu"            = "4"
-    "limits.memory"         = "4GiB"
-    "security.privileged"   = "false"
-    "security.nesting"      = "false"
+    "boot.autostart"      = "true"
+    "limits.cpu"          = "4"
+    "limits.memory"       = "4GiB"
+    "security.privileged" = "false"
+    # Nix creates nested namespaces for sandboxed development builds.
+    "security.nesting"      = "true"
     "user.access_interface" = "eth0"
     "user.garden.system"    = local.target.system
   }
