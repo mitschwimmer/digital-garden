@@ -86,9 +86,11 @@ does not revoke a token already read by a running process; expiry/revocation doe
 Reboot clears `/run/garden-agent/token`; issue a new session rather than restoring
 one. No automatic token-issuing daemon or scheduler is introduced.
 
-HTTPS Git is required. The vault injects Basic authentication for the selected
-Git owner/path and Bearer authentication for the GitHub API; `gh` receives only a
-dummy token. Add Git LFS/submodule hosts and authentication rules only when needed.
+HTTPS Git is required. The vault injects Basic authentication for `github.com:443`
+regardless of owner/path, and Bearer authentication for the GitHub API; `gh`
+receives only a dummy token. The PAT controls actual owner/repository access;
+see [GitHub access](agent-vault.md#github-access) for enrollment and multiple-owner
+limits. Add Git LFS/submodule hosts and authentication rules only when needed.
 
 ## Recovery and updates
 
