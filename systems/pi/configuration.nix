@@ -8,6 +8,10 @@ let
   network = builtins.fromJSON (builtins.readFile ../../agent-network.json);
   pi = pkgs.callPackage ../../nix/packages/pi.nix { };
   caReady = builtins.pathExists ../agent-vault/ca.pem;
+  # Mount the store output, not a file beneath an already read-only input mount.
+  caStorePath = builtins.head (
+    builtins.match "(${builtins.storeDir}/[^/]+)(/.*)?" config.security.pki.caBundle
+  );
   launcher =
     pkgs.runCommand "garden-agent"
       {
@@ -55,7 +59,7 @@ in
     sandbox = true;
     sandbox-fallback = false;
     ssl-cert-file = config.security.pki.caBundle;
-    extra-sandbox-paths = [ config.security.pki.caBundle ];
+    extra-sandbox-paths = [ caStorePath ];
   };
   systemd.services.nix-daemon = {
     after = [ "systemd-tmpfiles-setup.service" ];

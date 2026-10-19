@@ -68,6 +68,16 @@ jobs:
           nix eval '.#nixosConfigurations.pi.config.environment.etc."garden-agent/session.json".text' --raw > /dev/null
           nix eval .#nixosConfigurations.pi.config.nix.settings --json > /dev/null
           nix eval .#nixosConfigurations.pi.config.systemd.services.nix-daemon.serviceConfig --json > /dev/null
+      - name: Check Pi CA mount in a Nix sandbox
+        run: |
+          ca_path="$(nix eval --raw .#nixosConfigurations.pi.config.nix.settings.extra-sandbox-paths --apply builtins.head)"
+          nix build --no-link --option extra-sandbox-paths "$ca_path" --impure --expr '
+            let
+              garden = builtins.getFlake (toString ./.);
+              pkgs = garden.inputs.nixpkgs.legacyPackages.x86_64-linux;
+              ca = garden.nixosConfigurations.pi.config.security.pki.caBundle;
+            in pkgs.runCommand "garden-pi-ca-mount-check" { } "test -r ${ca}; touch $out"
+          '
       - name: Run focused native application checks
         run: |
           nix build --no-link \
