@@ -1,0 +1,24 @@
+name: Full image and system builds
+on:
+  workflow_dispatch:
+concurrency:
+  group: homelab-full-build-${{ github.ref }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: cachix/install-nix-action@448cde739abec1eaf0646249e3d25bb8d9bc7702
+      - name: Build seed images and systems without bootstrap inputs
+        run: |
+          nix build --no-link \
+            .#edge-image .#identity-image .#open-webui-image .#immich-image .#webdav-image .#agent-vault-image .#pi-image \
+            .#nixosConfigurations.agent-vault.config.system.build.toplevel \
+            .#nixosConfigurations.pi.config.system.build.toplevel \
+            .#nixosConfigurations.edge.config.system.build.toplevel

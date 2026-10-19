@@ -66,13 +66,9 @@ jobs:
           nix eval .#nixosConfigurations.webdav.config.systemd.services.webdav.serviceConfig --json > /dev/null
           nix eval .#nixosConfigurations.agent-vault.config.systemd.services.agent-vault.serviceConfig --json > /dev/null
           nix eval '.#nixosConfigurations.pi.config.environment.etc."garden-agent/session.json".text' --raw > /dev/null
-      - name: Build seeds, edge and native Caddy validation
+      - name: Run focused native application checks
         run: |
           nix build --no-link \
-            .#edge-image .#identity-image .#open-webui-image .#immich-image .#webdav-image .#agent-vault-image .#pi-image \
-            .#nixosConfigurations.agent-vault.config.system.build.toplevel \
-            .#nixosConfigurations.pi.config.system.build.toplevel \
-            .#nixosConfigurations.edge.config.system.build.toplevel \
             .#checks.x86_64-linux.caddy-config \
             .#checks.x86_64-linux.webdav-ingress \
             .#checks.x86_64-linux.webdav-accounts

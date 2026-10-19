@@ -106,7 +106,12 @@ allowed/denied roles and Caddy's closed admin port. Route changes require NixOS
 deployment. Restart affected guests and verify persistence. Recovery changes
 require an independent restore.
 
-Inspect `.github/workflows/validate.yml` for the current CI checks. CI does not
-build every secret-consuming closure or prove live acceptance. Record exact passed
-and pending source/build/live checks in the PR; keep live acceptance records
-private with revision, date, environment and observed results.
+Routine CI in `.github/workflows/validate.yml` runs formatting, Python tests,
+OpenTofu validation, Nix evaluation and focused native application checks. Full
+seed-image and selected system builds are available through the manual
+`.github/workflows/full-build.yml` workflow instead of every PR/push. Neither
+workflow builds every secret-consuming closure or proves live acceptance.
+Before deployment, build the affected guest through the deployment entry point;
+before provisioning, build and retain its system-specific seed. Record exact
+passed and pending source/build/live checks in the PR; keep live acceptance
+records private with revision, date, environment and observed results.
