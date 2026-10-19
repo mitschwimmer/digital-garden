@@ -37,13 +37,15 @@ jobs:
           persist-credentials: false
       - uses: cachix/install-nix-action@448cde739abec1eaf0646249e3d25bb8d9bc7702
       - name: Check changed Nix formatting
-        run: nix develop --command fish -c 'nixfmt --check flake.nix systems/open-webui/configuration.nix'
+        run: |
+          nix develop --command fish -c 'nixfmt flake.nix systems/open-webui/configuration.nix nix/packages/agent-vault.nix nix/packages/pi.nix systems/agent-vault/*.nix systems/pi/*.nix'
+          git diff --exit-code
       - name: Check flake outputs
         run: nix flake check --no-build
       - name: Validate infrastructure schemas
         run: |
           nix develop --command fish -c '
-            for root in platform systems/edge systems/identity systems/open-webui systems/immich systems/webdav systems/inference systems/walter
+            for root in platform systems/edge systems/identity systems/open-webui systems/immich systems/webdav systems/inference systems/walter systems/agent-vault systems/pi
               tofu -chdir=$root fmt -check -diff; or exit
               tofu -chdir=$root init -backend=false -input=false -lockfile=readonly; or exit
               tofu -chdir=$root validate; or exit
@@ -62,10 +64,14 @@ jobs:
           nix eval .#nixosConfigurations.immich.config.services.immich.package.version --raw
           nix eval .#nixosConfigurations.webdav.config.services.webdav.settings --json > /dev/null
           nix eval .#nixosConfigurations.webdav.config.systemd.services.webdav.serviceConfig --json > /dev/null
+          nix eval .#nixosConfigurations.agent-vault.config.systemd.services.agent-vault.serviceConfig --json > /dev/null
+          nix eval '.#nixosConfigurations.pi.config.environment.etc."garden-agent/session.json".text' --raw > /dev/null
       - name: Build seeds, edge and native Caddy validation
         run: |
           nix build --no-link \
-            .#edge-image .#identity-image .#open-webui-image .#immich-image .#webdav-image \
+            .#edge-image .#identity-image .#open-webui-image .#immich-image .#webdav-image .#agent-vault-image .#pi-image \
+            .#nixosConfigurations.agent-vault.config.system.build.toplevel \
+            .#nixosConfigurations.pi.config.system.build.toplevel \
             .#nixosConfigurations.edge.config.system.build.toplevel \
             .#checks.x86_64-linux.caddy-config \
             .#checks.x86_64-linux.webdav-ingress \

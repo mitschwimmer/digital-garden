@@ -1,0 +1,14 @@
+# Public configuration only. Create these credential slots privately before
+# applying; this does not create credentials or configure model endpoints.
+services:
+  - name: github-api
+    host: api.github.com:443
+    auth:
+      type: bearer
+      token: GITHUB_PAT
+  - name: github-git
+    host: github.com:443/mitschwimmer/*
+    auth:
+      type: basic
+      username: GITHUB_USERNAME
+      password: GITHUB_PAT
