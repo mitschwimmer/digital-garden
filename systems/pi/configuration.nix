@@ -59,6 +59,7 @@ in
     fd
     jq
     tmux
+    ghostty.terminfo
     cacert
   ];
   systemd.tmpfiles.rules = [
