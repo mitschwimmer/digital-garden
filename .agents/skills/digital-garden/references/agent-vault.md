@@ -51,7 +51,7 @@ Follow [setup](lifecycle.md#setup), [platform inputs](platform.md),
    (replace `REMOTE` with the inspected alias):
 
    ```fish
-   incus exec REMOTE:agent-vault --project agent-vault -- agent-vault register
+   incus exec REMOTE:agent-vault --project agent-vault -- agent-vault auth register
    incus exec REMOTE:agent-vault --project agent-vault -- agent-vault owner config set --invite-only
    incus exec REMOTE:agent-vault --project agent-vault -- agent-vault vault create pi
    ```
