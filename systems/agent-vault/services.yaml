@@ -12,3 +12,9 @@ services:
       type: basic
       username: GITHUB_USERNAME
       password: GITHUB_PAT
+
+  - name: tensorx
+    host: api.tensorx.ai:443/v1/*
+    auth:
+      type: bearer
+      token: TENSORX_API_KEY

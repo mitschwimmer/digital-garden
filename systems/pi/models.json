@@ -1,3 +1,14 @@
 {
-  "providers": {}
+  "providers": {
+    "tensorx": {
+      "baseUrl": "https://api.tensorx.ai/v1",
+      "api": "openai-completions",
+      "apiKey": "__tensorx_api_key__",
+      "models": [
+        {
+          "id": "deepseek/deepseek-v4.1-flash-1017"
+        }
+      ]
+    }
+  }
 }

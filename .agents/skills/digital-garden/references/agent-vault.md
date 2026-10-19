@@ -56,9 +56,10 @@ Follow [setup](lifecycle.md#setup), [platform inputs](platform.md),
    incus exec REMOTE:agent-vault --project agent-vault -- agent-vault vault create pi-agent
    ```
 
-5. Set only the required upstream credentials privately through the vault CLI.
-   Inspect `agent-vault vault credential set --help` and use interactive/file
-   inputs, never literal secret values in arguments. A fine-grained GitHub PAT
+5. Set only the required upstream credentials privately. In pinned v0.40.0,
+   `vault credential set` accepts values only as arguments; use a native proposal
+   and its hidden approval prompt instead (see TensorX below). Never put secret
+   values in arguments. A fine-grained GitHub PAT
    must restrict repository access and permissions upstream; API path filtering
    cannot express GraphQL repository permissions. Store the GitHub login as
    `GITHUB_USERNAME` and PAT as `GITHUB_PAT`. Apply the reviewed public
@@ -99,6 +100,45 @@ Upgrades must preserve the database, password and CA identity. Review migrations
 and the pinned server/client interfaces before changing the release hash. A NixOS
 generation rollback does not roll back database migrations. Keep a matching
 pre-upgrade backup and old binary. Upstream is preview software.
+
+## TensorX model
+
+Pi declares `tensorx` in `systems/pi/models.json`, using OpenAI Chat
+Completions at `https://api.tensorx.ai/v1` and model
+`deepseek/deepseek-v4.1-flash-1017`. Its API key is a public placeholder;
+the proxy replaces the Authorization header using `TENSORX_API_KEY`.
+Settings select that provider/model by default. Context limits, pricing and
+reasoning capabilities use Pi's custom-model defaults until verified.
+
+For first enrollment, create a native proposal containing only the TensorX rule
+and its empty credential slot. This leaves any existing services intact and
+does not require the GitHub credentials yet:
+
+```fish
+incus exec REMOTE:agent-vault --project agent-vault -- \
+  agent-vault vault proposal create --vault pi-agent \
+  --name tensorx --host 'api.tensorx.ai:443/v1/*' \
+  --auth-type bearer --token-key TENSORX_API_KEY \
+  --credential 'TENSORX_API_KEY=TensorX API key' \
+  --message 'Enable TensorX for Pi'
+```
+
+Review the returned proposal number, then approve it in an interactive terminal
+(replace `NUMBER`). Answer the confirmation before entering the actual API key
+at the hidden credential prompt; never supply it as an argument:
+
+```fish
+incus exec REMOTE:agent-vault --project agent-vault -- \
+  agent-vault vault proposal approve --vault pi-agent NUMBER
+incus exec REMOTE:agent-vault --project agent-vault -- \
+  agent-vault vault credential list --vault pi-agent
+incus exec REMOTE:agent-vault --project agent-vault -- \
+  agent-vault vault service list --vault pi-agent
+```
+
+Do not apply the entire `services.yaml` until every referenced credential exists.
+After deployment, test a streamed Pi response and a tool call; a successful
+plain Chat Completions request alone does not establish tool compatibility.
 
 ## Backup, restore and retirement
 
