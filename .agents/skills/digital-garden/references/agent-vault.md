@@ -39,8 +39,11 @@ Follow [setup](lifecycle.md#setup), [platform inputs](platform.md),
    SOPS ciphertext with one `master-password` string containing an independent
    random password. Install the machine key on its verified secret mount.
    Never use passwordless mode or regenerate a password for an existing store.
-3. Deploy the full vault closure. sops-nix delivers `/run/secrets/master-password`;
-   systemd loads it as a credential and feeds stdin to `server --password-stdin`.
+3. Deploy the full vault closure. sops-nix delivers `/run/secrets/master-password`
+   owned by `agent-vault` with mode `0400`; systemd opens that runtime file as stdin
+   for `server --password-stdin`. Do not point `StandardInput=file:` at `%d`:
+   per-unit credential paths are unavailable when systemd opens stdin
+   ([upstream limitation](https://github.com/systemd/systemd/issues/31213)).
    Nothing is passed in process arguments or OpenTofu state. Missing ciphertext
    does not prevent source builds, but missing runtime credentials prevent startup.
 4. Before provisioning Pi's session, register the first owner locally and enable
