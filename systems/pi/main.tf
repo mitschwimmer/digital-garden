@@ -12,7 +12,7 @@ resource "incus_network_acl" "sandbox" {
   description = "Pi can initiate TCP connections only to the credential proxy"
   project     = "default"
   remote      = var.incus_remote
-  egress      = [
+  egress = [
     {
       action           = "allow"
       state            = "enabled"
@@ -39,8 +39,8 @@ variable "image_directory" {
 }
 
 resource "incus_image" "seed" {
-  project     = local.target.project
-  remote      = var.incus_remote
+  project = local.target.project
+  remote  = var.incus_remote
   source_file = {
     metadata_path = "${var.image_directory}/metadata.tar.xz"
     data_path     = "${var.image_directory}/rootfs.tar.xz"
@@ -79,8 +79,8 @@ resource "incus_instance" "pi" {
   }
 
   device {
-    name       = "root"
-    type       = "disk"
+    name = "root"
+    type = "disk"
     properties = {
       path = "/"
       pool = data.incus_storage_pool.root.name
@@ -89,8 +89,8 @@ resource "incus_instance" "pi" {
   }
 
   device {
-    name       = "eth0"
-    type       = "nic"
+    name = "eth0"
+    type = "nic"
     properties = {
       network                                = data.incus_network.agent.name
       name                                   = "eth0"
@@ -102,8 +102,8 @@ resource "incus_instance" "pi" {
   }
 
   device {
-    name       = "pi-state"
-    type       = "disk"
+    name = "pi-state"
+    type = "disk"
     properties = {
       path   = "/home/pi"
       pool   = incus_storage_volume.pi.pool

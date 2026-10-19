@@ -31,7 +31,12 @@ stdenv.mkDerivation rec {
     mkdir -p "$out/lib/pi" "$out/bin"
     cp -R . "$out/lib/pi"
     makeWrapper "$out/lib/pi/pi" "$out/bin/pi" \
-      --prefix PATH : ${lib.makeBinPath [ ripgrep fd ]}
+      --prefix PATH : ${
+        lib.makeBinPath [
+          ripgrep
+          fd
+        ]
+      }
     runHook postInstall
   '';
   doInstallCheck = true;

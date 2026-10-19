@@ -29,8 +29,8 @@ variable "image_directory" {
 }
 
 resource "incus_image" "seed" {
-  project     = local.target.project
-  remote      = var.incus_remote
+  project = local.target.project
+  remote  = var.incus_remote
   source_file = {
     metadata_path = "${var.image_directory}/metadata.tar.xz"
     data_path     = "${var.image_directory}/rootfs.tar.xz"
@@ -81,8 +81,8 @@ resource "incus_instance" "agent_vault" {
   }
 
   device {
-    name       = "root"
-    type       = "disk"
+    name = "root"
+    type = "disk"
     properties = {
       path = "/"
       pool = data.incus_storage_pool.root.name
@@ -91,8 +91,8 @@ resource "incus_instance" "agent_vault" {
   }
 
   device {
-    name       = "eth0"
-    type       = "nic"
+    name = "eth0"
+    type = "nic"
     properties = {
       network = data.incus_network.private.name
       name    = "eth0"
@@ -100,8 +100,8 @@ resource "incus_instance" "agent_vault" {
   }
 
   device {
-    name       = "eth1"
-    type       = "nic"
+    name = "eth1"
+    type = "nic"
     properties = {
       network                  = data.incus_network.agent.name
       name                     = "eth1"
@@ -110,8 +110,8 @@ resource "incus_instance" "agent_vault" {
   }
 
   device {
-    name       = "agent-vault-state"
-    type       = "disk"
+    name = "agent-vault-state"
+    type = "disk"
     properties = {
       path   = "/var/lib/agent-vault"
       pool   = incus_storage_volume.agent_vault.pool
@@ -120,8 +120,8 @@ resource "incus_instance" "agent_vault" {
   }
 
   device {
-    name       = "agent-vault-secrets"
-    type       = "disk"
+    name = "agent-vault-secrets"
+    type = "disk"
     properties = {
       path   = "/var/lib/garden-secrets"
       pool   = incus_storage_volume.agent_vault_secrets.pool

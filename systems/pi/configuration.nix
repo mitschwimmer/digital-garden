@@ -5,16 +5,16 @@ let
   caReady = builtins.pathExists ../agent-vault/ca.pem;
   launcher =
     pkgs.runCommand "garden-agent"
-    {
-      nativeBuildInputs = [ pkgs.makeWrapper ];
-    }
-    ''
-      mkdir -p "$out/bin"
-      makeWrapper ${pkgs.python3}/bin/python "$out/bin/garden-agent" \
-        --add-flags ${../../operations/agent_session.py} \
-        --add-flags /etc/garden-agent/session.json \
-        --add-flags ${pi}/bin/pi
-    '';
+      {
+        nativeBuildInputs = [ pkgs.makeWrapper ];
+      }
+      ''
+        mkdir -p "$out/bin"
+        makeWrapper ${pkgs.python3}/bin/python "$out/bin/garden-agent" \
+          --add-flags ${../../operations/agent_session.py} \
+          --add-flags /etc/garden-agent/session.json \
+          --add-flags ${pi}/bin/pi
+      '';
 in
 {
   users.groups.pi.gid = 1000;
