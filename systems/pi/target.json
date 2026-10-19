@@ -1,0 +1,9 @@
+{
+  "system": "pi",
+  "project": "agent-sandbox",
+  "instance": "pi",
+  "mounts": [
+    "/home/pi"
+  ],
+  "units": []
+}

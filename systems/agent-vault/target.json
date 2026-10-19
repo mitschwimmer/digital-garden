@@ -1,0 +1,12 @@
+{
+  "system": "agent-vault",
+  "project": "agent-vault",
+  "instance": "agent-vault",
+  "mounts": [
+    "/var/lib/agent-vault",
+    "/var/lib/garden-secrets"
+  ],
+  "units": [
+    "agent-vault"
+  ]
+}
