@@ -37,7 +37,7 @@ in
       inherit caReady;
       proxyHost = network.vaultIPv4;
       proxyPort = network.proxyPort;
-      vault = "pi";
+      vault = "pi-agent";
       tokenFile = "/run/garden-agent/token";
       caBundle = "/etc/ssl/certs/ca-certificates.crt";
     };

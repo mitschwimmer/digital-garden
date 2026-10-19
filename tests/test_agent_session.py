@@ -26,7 +26,7 @@ class SessionTests(unittest.TestCase):
         self.ca = root / "ca.pem"
         self.ca.write_text("test bundle")
         self.config = dict(caReady=True, tokenFile=str(self.token), caBundle=str(self.ca),
-                           proxyHost="10.203.0.1", proxyPort=14322, vault="pi")
+                           proxyHost="10.203.0.1", proxyPort=14322, vault="pi-agent")
 
     def test_refuses_launch_until_ca_is_deployed(self):
         self.config["caReady"] = False
@@ -40,7 +40,7 @@ class SessionTests(unittest.TestCase):
         })
         proxy = urlsplit(env["HTTPS_PROXY"])
         self.assertEqual((proxy.hostname, proxy.port, proxy.username, proxy.password),
-                         ("10.203.0.1", 14322, "av_sess_test_session", "pi"))
+                         ("10.203.0.1", 14322, "av_sess_test_session", "pi-agent"))
         self.assertEqual(env["HTTP_PROXY"], env["http_proxy"])
         self.assertEqual(env["HTTPS_PROXY"], env["https_proxy"])
         self.assertEqual(env["NO_PROXY"], "localhost,127.0.0.1")
