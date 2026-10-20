@@ -7,6 +7,12 @@
 let
   network = builtins.fromJSON (builtins.readFile ../../agent-network.json);
   pi = pkgs.callPackage ../../nix/packages/pi.nix { };
+  agentVault = pkgs.callPackage ../../nix/packages/agent-vault.nix { };
+  # Keep the unmodified upstream skill aligned with the installed CLI.
+  agentVaultSkill = pkgs.fetchurl {
+    url = "https://raw.githubusercontent.com/Infisical/agent-vault/v${agentVault.version}/cmd/skill_cli.md";
+    sha256 = "545e9ec47f7523f91d72547e89fee46f07b464a21f44b62089f7722890834391";
+  };
   caReady = builtins.pathExists ../agent-vault/ca.pem;
   # Mount the store output, not a file beneath an already read-only input mount.
   caStorePath = builtins.head (
@@ -52,6 +58,7 @@ in
     };
     "garden-agent/models.json".source = ./models.json;
     "garden-agent/settings.json".source = ./settings.json;
+    "garden-agent/skills/agent-vault-cli/SKILL.md".source = agentVaultSkill;
   };
   # The daemon starts through the same runtime credential reader as Pi.
   # Stage a proxy-only token, then restart the daemon when rotating sessions.
@@ -72,6 +79,7 @@ in
   environment.systemPackages = with pkgs; [
     pi
     launcher
+    agentVault
     git
     gh
     go
@@ -87,6 +95,7 @@ in
     ghostty.terminfo
     cacert
   ];
+  environment.variables.AGENT_VAULT_TELEMETRY = "false";
   systemd.tmpfiles.rules = [
     "d /home/pi 0700 pi pi -"
     "d /home/pi/workspace 0700 pi pi -"
@@ -94,6 +103,8 @@ in
     "d /home/pi/.pi/agent 0700 pi pi -"
     "L+ /home/pi/.pi/agent/models.json - - - - /etc/garden-agent/models.json"
     "L+ /home/pi/.pi/agent/settings.json - - - - /etc/garden-agent/settings.json"
+    "d /home/pi/.pi/agent/skills 0700 pi pi -"
+    "L+ /home/pi/.pi/agent/skills/agent-vault-cli - - - - /etc/garden-agent/skills/agent-vault-cli"
     # Operator stages an expiring proxy token here; no admin token is installed.
     "d /run/garden-agent 0750 root pi -"
   ];
