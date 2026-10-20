@@ -28,10 +28,11 @@ in
   environment.systemPackages = [ agentVault ];
   environment.variables.AGENT_VAULT_TELEMETRY = "false";
 
-  # Administrative API is loopback-accessible through Incus exec only.
-  # No listeners are opened on the garden backend interface.
+  # Pi may use its scoped token on the API over the isolated link.
+  # Operator sessions remain local; neither port is open on the backend NIC.
   networking.firewall.extraInputRules = ''
     iifname "eth1" ip saddr ${network.sandboxIPv4} tcp dport ${toString network.proxyPort} accept
+    iifname "eth1" ip saddr ${network.sandboxIPv4} tcp dport ${toString network.apiPort} accept
   '';
   systemd.services.agent-vault = {
     description = "Standalone Agent Vault credential proxy";
@@ -65,7 +66,7 @@ in
       # service-owned sops-nix file, which exists before the unit starts.
       StandardInput = "file:/run/secrets/master-password";
       ExecStartPre = "${pkgs.coreutils}/bin/test -s /run/secrets/master-password";
-      ExecStart = "${agentVault}/bin/agent-vault server --host 0.0.0.0 --port 14321 --mitm-port ${toString network.proxyPort} --password-stdin";
+      ExecStart = "${agentVault}/bin/agent-vault server --host 0.0.0.0 --port ${toString network.apiPort} --mitm-port ${toString network.proxyPort} --password-stdin";
       Restart = "on-failure";
       RestartSec = "5s";
       UMask = "0077";

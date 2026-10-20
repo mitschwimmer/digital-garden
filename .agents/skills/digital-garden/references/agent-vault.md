@@ -15,13 +15,15 @@ platform owns its unnumbered bridge and the two project namespaces. Review the
 chosen subnet against host/LAN/VPN networks before creation. Neither the bridge
 nor Pi has a gateway, DHCP or DNS service. The vault drops IP forwarding.
 
-Only Pi's isolated address may connect to the proxy port. The management API is
-reachable locally through authenticated Incus exec; neither interface permits
-remote management connections. No Caddy route, public DNS, OIDC client, SMTP
-service or public application is introduced. Operators use the CLI in the vault
-guest. Never install operator login sessions in Pi or forward an Incus socket.
+Only Pi's isolated address may connect to the proxy and API ports on eth1.
+The backend interface permits neither port. Pi uses its vault-scoped proxy-role
+token for discovery and proposal creation/status; server role checks deny
+credential disclosure, approval, service mutation and token minting.
+Operators use the CLI locally through authenticated Incus exec. No Caddy route,
+public DNS, OIDC client, SMTP service or public application is introduced.
+Never install operator login sessions in Pi or forward an Incus socket.
 
-The proxy listener uses plain HTTP transport on this private link. Agents trust
+The proxy and scoped API use plain HTTP transport on this private link. Agents trust
 the vault CA for intercepted upstream HTTPS; that CA does not encrypt proxy
 authentication on the private link. Preserve separation from other workloads.
 Both guests share the Incus host kernel; this is not a VM isolation boundary.
@@ -171,7 +173,7 @@ routes/resources, retain required audit/recovery data, and follow
   administrative calls by a proxy session. Use disposable test credentials and
   a controlled upstream to check headers without logging real secrets.
 - Verify the API and proxy cannot be reached from backend neighbours; Pi may reach
-  only the proxy. Run the host isolation checks in [Pi](pi.md#acceptance).
+  only those two vault ports. Run the host isolation checks in [Pi](pi.md#acceptance).
 - Restart the vault and confirm real credentials, grants and CA fingerprint persist.
   Prove an isolated restore with actual backed-up data before relying on recovery.
 

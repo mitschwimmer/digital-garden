@@ -33,10 +33,14 @@ def session_environment(config, environ, *, allow_missing_token=False):
     proxy = (f'http://{quote(token, safe="")}:{quote(config["vault"], safe="")}@'
              f'{config["proxyHost"]}:{config["proxyPort"]}')
     env = dict(environ)
+    # Reuse the vault-scoped proxy role; never stage an operator login in Pi.
+    env["AGENT_VAULT_TOKEN"] = token
+    env["AGENT_VAULT_ADDR"] = f'http://{config["proxyHost"]}:{config["apiPort"]}'
+    env["AGENT_VAULT_VAULT"] = config["vault"]
     # Overwrite both cases: libcurl and other subprocesses differ in precedence.
     for name in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY"):
         env[name] = env[name.lower()] = proxy
-    env["NO_PROXY"] = env["no_proxy"] = "localhost,127.0.0.1"
+    env["NO_PROXY"] = env["no_proxy"] = f'localhost,127.0.0.1,{config["proxyHost"]}'
     for name in ("SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS", "REQUESTS_CA_BUNDLE",
                  "CURL_CA_BUNDLE", "GIT_SSL_CAINFO", "DENO_CERT", "NPM_CONFIG_CAFILE",
                  "NIX_SSL_CERT_FILE"):

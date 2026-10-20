@@ -17,30 +17,37 @@ pinned tool versions.
 
 ## Bundled Agent Vault skill
 
-NixOS installs the matching Agent Vault CLI and its unmodified upstream
-`cmd/skill_cli.md`, pinned by version and SHA-256 in the Pi configuration.
+NixOS installs the pinned Agent Vault CLI and the sandbox-specific
+`systems/pi/agent-vault-cli/SKILL.md`, reviewed against v0.40.0.
 The managed `~/.pi/agent/skills/agent-vault-cli` link makes it available in every
 workspace after deployment, without a runtime download or `pi install`.
 Use `/reload` in an existing session, then `/skill:agent-vault-cli` to load it.
 
-The skill describes upstream capabilities beyond this sandbox's current access.
-Its proposal/discovery/credential commands require the vault management API and
-an authenticated CLI environment; `garden-agent` currently supplies only proxy
-variables. The management API remains unreachable from Pi and no operator login
-is installed. For authentication failures, ask the operator to configure access
-locally in the vault guest using [Agent Vault](agent-vault.md). Do not attempt to
-read upstream credentials into Pi. Bundling the skill does not enable its proposal
-workflow; that needs a separately reviewed management API access design.
+`garden-agent` supplies `AGENT_VAULT_TOKEN`, `AGENT_VAULT_ADDR` and
+`AGENT_VAULT_VAULT` from the existing staged proxy-role session. Pi can reach the
+vault API directly over the isolated link. Server role checks permit discovery
+and proposal creation/status but deny credential disclosure, service mutation,
+approval and token minting. No operator login is installed in Pi.
+The skill polls the scoped HTTP endpoint: v0.40.0 has no `proposal get --json`,
+and `show`/`list` require a saved operator session.
 
-When upgrading Agent Vault, update the skill hash with its version and review
-the skill before deployment. After deployment, verify `agent-vault version`,
+When upgrading Agent Vault, review the local skill against the new pinned CLI
+and server, including authentication and polling. After deployment, verify `agent-vault version`,
 the managed skill link and Pi's startup skill diagnostics from an actual session.
+
+For the proposal-workflow rollout, build/deploy both Pi and Agent Vault closures
+and review/apply `systems/pi`'s complete plan to update the host NIC ACL. The API
+port comes from `agent-network.json`; keep the backend interface closed. Restart
+Pi through `garden-agent` to inherit the CLI variables, then reload the skill.
+Reuse a valid staged proxy token; deployment does not require an operator login
+or a more privileged token. Verify the proposal and denial cases under Acceptance
+before treating the workflow as available.
 
 ## Boundary
 
 `agent-network.json` supplies the static address. There is no default route or
 DNS resolver. Host-enforced ACLs on the instance NIC allow only TCP to the vault
-proxy and deny unmatched ingress/egress, independently of Pi's environment and
+proxy/API and deny unmatched ingress/egress, independently of Pi's environment and
 guest firewall. Apply the ACL directly to the NIC: a bridge-wide ACL alone does
 not filter peer traffic. The dedicated bridge has no host IP/DHCP/DNS services,
 avoiding Incus baseline service exceptions. IPv6 is disabled in NixOS and has no
@@ -119,11 +126,12 @@ incus exec REMOTE:pi --project agent-sandbox --user 1000 --group 1000 --cwd /hom
 ```
 
 Use `garden-agent -- fish` for a shell with the same proxy environment. The launcher
-reads the token from a file, supplies proxy variables in both cases and CA-bundle
+reads the token from a file, supplies proxy and scoped CLI variables and CA-bundle
 variables to Pi/Node, Git, Go and npm, then execs the command. It never fetches a
 CA, logs a token or passes the token in process arguments. Session tokens are
-still available in that process environment; they are bearer authority to proxy,
-not upstream secrets. NixOS installs the reviewed CA alongside normal roots.
+still available in that process environment; they authorize proxy use and scoped
+proposal/discovery operations without revealing upstream secrets. NixOS installs
+the reviewed CA alongside normal roots.
 
 Keep this token between work sessions; closing Pi does not require revocation.
 After rotation, restart Pi and any shells launched through `garden-agent`;
@@ -206,7 +214,7 @@ not Incus firewall enforcement. The following checks require the actual host:
 - Confirm only one sandbox NIC, no default route/resolver, no IPv6 allow rules,
   correct NIC ACL/default actions, and no bridge host address or DNS/DHCP listener.
 - Verify direct TCP to a public IP, garden/backend/LAN hosts, metadata and the
-  vault management port fails with proxy variables unset. Check IPv6, direct DNS
+  unapproved vault ports fails with proxy variables unset. Check IPv6, direct DNS
   packets and a deliberately altered guest route/firewall as root on a disposable
   sandbox. Inspect host traffic/ACL logs; a missing route alone is not proof that
   the host ACL enforces the boundary. Keep these tests separate from real work.
@@ -217,6 +225,10 @@ not Incus firewall enforcement. The following checks require the actual host:
   Go module/cache and npm project/cache, then run real repository tests/builds.
 - Verify trusted HTTPS clone/fetch/push on a disposable branch, `gh` API/PR work,
   streamed Pi output and tool execution for every configured model endpoint.
+- Verify discovery and a disposable proposal from an actual Pi session. Poll its
+  status, approve locally as the operator, and observe applied from Pi. Verify
+  credential reveal, service mutation, approval and session minting fail with
+  Pi's proxy-role token; expired/revoked tokens must fail on both listeners.
 - Verify forbidden private upstreams via the vault and expiry/revocation of an
   active session. Stop the vault: public requests must fail without a direct fallback.
 - Reboot Pi and verify workspace/session persistence, root:pi 0640 token permissions
