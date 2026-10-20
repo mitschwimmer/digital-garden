@@ -74,29 +74,45 @@ credential rule. Do not put real keys or credential-reading commands here.
 `settings.json` selects SSE and disables install telemetry. These files are
 declaratively linked into Pi's home; change them in source and redeploy.
 
-For each work session, mint a proxy-only scoped token in the vault guest using
-the operator's local login. From a private terminal in the workstation development
-shell, replace `REMOTE` with the inspected alias:
+Enroll the sandbox with a seven-day proxy-only token, then rotate it before
+expiry or when access should change. Pinned Agent Vault v0.40.0 permits at most
+604800 seconds (seven days); this is a fixed lifetime, not renewed by use.
+The token remains revocable and cannot mint replacements or administer the vault.
+A copied token can use the vault's permitted upstream services until revoked or
+expired. Keep upstream API keys and the operator login in the vault guest.
+
+From a private terminal in the workstation development shell, replace `REMOTE`
+with the inspected alias and mint using the operator's local login:
 
 ```fish
 umask 077
 set -l session_work (mktemp -d)
-incus exec REMOTE:agent-vault --project agent-vault -T -- agent-vault vault token --vault pi-agent --ttl 14400 > "$session_work/token"
+incus exec REMOTE:agent-vault --project agent-vault -T -- agent-vault vault token --vault pi-agent --ttl 604800 > "$session_work/token"
 ```
 
 Check success and nonempty output before transferring; never print its content.
 The token command defaults to proxy role; do not substitute a user login token,
 which uses the same prefix and cannot be distinguished locally by the launcher.
 Verify the recipient's identity against this root's applied deployment output,
-then transfer the token to its tmpfs runtime directory:
+then transfer the token to its persistent, root-owned directory. Deploy the
+updated Pi closure first so this directory exists. Stage to a separate file and
+rename only after a successful transfer, leaving the current token intact if
+transfer fails:
 
 ```fish
-incus file push "$session_work/token" REMOTE:pi/run/garden-agent/token --project agent-sandbox --uid 0 --gid 1000 --mode 0640
-# Run after a successful transfer, with no active Nix builds.
+incus file push "$session_work/token" REMOTE:pi/var/lib/garden-agent/token.new --project agent-sandbox --uid 0 --gid 1000 --mode 0640
+# Continue only after a successful transfer, with no active Nix builds.
+incus exec REMOTE:pi --project agent-sandbox -- mv -f /var/lib/garden-agent/token.new /var/lib/garden-agent/token
 incus exec REMOTE:pi --project agent-sandbox -- systemctl restart nix-daemon.service
+rm -r "$session_work"
 ```
 
-The directory is root-owned and group-readable. Start an interactive session:
+The directory is root-owned with mode 0750 and the token is root:pi 0640.
+It survives process restarts, closure deployments and container reboots on the
+existing root disk. Recreating the guest requires enrollment again; the token
+is deliberately outside the protected home volume and its backups.
+
+Start an interactive session:
 
 ```fish
 incus exec REMOTE:pi --project agent-sandbox --user 1000 --group 1000 --cwd /home/pi/workspace --env HOME=/home/pi -- garden-agent
@@ -109,11 +125,20 @@ CA, logs a token or passes the token in process arguments. Session tokens are
 still available in that process environment; they are bearer authority to proxy,
 not upstream secrets. NixOS installs the reviewed CA alongside normal roots.
 
-At the end, revoke the session using the vault token-management UI/CLI, remove
-the staged token and this operation's temporary workstation file. Removing a file
-does not revoke a token already read by a running process; expiry/revocation does.
-Reboot clears `/run/garden-agent/token`; issue a new session rather than restoring
-one. No automatic token-issuing daemon or scheduler is introduced.
+Keep this token between work sessions; closing Pi does not require revocation.
+After rotation, restart Pi and any shells launched through `garden-agent`;
+`/reload` does not replace their inherited proxy environment. Verify a model
+request and a daemon dependency download before revoking the previous token
+through the operator's vault token-management UI/API. Remove the temporary
+workstation file after staging. Deleting a file does not revoke a token already
+read by a process. Revoke the token when retiring the sandbox or after suspected
+compromise. No automatic token issuer or scheduler is introduced.
+
+When upgrading from the former four-hour session setup, mint a fresh seven-day
+token at the new path after deploying, restart the daemon and Pi, then revoke
+the old session and remove `/run/garden-agent/token`. Existing tokens do not gain
+a longer lifetime from deployment. If rolling back to the old closure, its launcher
+reads the old path and needs a separately staged valid token there.
 
 HTTPS Git is required. The vault injects Basic authentication for the selected
 Git owner/path and Bearer authentication for the GitHub API; `gh` receives only a
@@ -122,7 +147,7 @@ dummy token. Add Git LFS/submodule hosts and authentication rules only when need
 ## Project Nix builds
 
 The Nix daemon uses `garden-agent --allow-missing-session -- nix-daemon --daemon`
-to read the runtime token into its own environment. Shell proxy variables alone
+to read the persisted token into its own environment. Shell proxy variables alone
 do not configure the daemon. Without a staged token it starts offline so local
 store/activation operations remain available; host ACLs still deny direct egress.
 Stage a token and restart it through operator Incus exec. Restart after every token replacement,
@@ -140,9 +165,10 @@ must honor those interfaces too. No proxy URL/token is serialized into Nix sourc
 derivations, OpenTofu state or command arguments. Keep build logs free of proxy
 environment dumps. Do not grant Pi Nix trusted-user privileges.
 
-After applying this root's nesting change, restart the container before testing;
-this clears its staged runtime token. Deploy the updated closure, stage a fresh
-session, start the daemon as above, then run inside the actual project checkout:
+After applying this root's nesting change, restart the container before testing.
+The persisted token survives; check it has not expired. Deploy the updated closure,
+enroll or rotate if needed, start the daemon as above, then run inside the actual
+project checkout:
 
 ```fish
 nix develop --command true
@@ -163,7 +189,8 @@ Checkpoint the home volume off-host according to [recovery](recovery.md), quiesc
 Pi and build processes first. It includes unpushed work and private transcripts;
 dependency caches may be discarded. Preserve ownership uid/gid 1000. Restore home
 into a freshly provisioned isolated guest, install the same reviewed public CA,
-and stage a newly issued session. Do not back up the runtime token.
+and stage a newly issued session. Do not back up the proxy token from
+`/var/lib/garden-agent`.
 
 Upgrade Pi independently of the vault and verify their proxy/client interfaces.
 Use the garden's closure rollback procedure; rollback does not revert home/session
@@ -192,9 +219,11 @@ not Incus firewall enforcement. The following checks require the actual host:
   streamed Pi output and tool execution for every configured model endpoint.
 - Verify forbidden private upstreams via the vault and expiry/revocation of an
   active session. Stop the vault: public requests must fail without a direct fallback.
-- Reboot Pi and verify workspace/session persistence, absent staged token and
-  refusal to launch until a new token is supplied. Verify both trust and expected
-  failure after a deliberate CA mismatch in an isolated test.
+- Reboot Pi and verify workspace/session persistence, root:pi 0640 token permissions
+  and successful model/daemon requests with the same unexpired token. Separately
+  revoke or expire a disposable token and verify requests are rejected; an absent
+  token must prevent Pi launch while the daemon can start offline. Verify both
+  trust and expected failure after a deliberate CA mismatch in an isolated test.
 
 Do not declare the network boundary accepted from static configuration or green CI.
 Record actual results privately with revision, date and host environment.
@@ -203,3 +232,7 @@ Pinned upstream interfaces:
 [Pi binary layout](https://github.com/earendil-works/pi/blob/v1.3.0/scripts/build-binaries.sh),
 [Pi models](https://github.com/earendil-works/pi/blob/v1.3.0/packages/coding-agent/docs/models.md),
 [vault proxy environment](https://github.com/Infisical/agent-vault/blob/v0.40.0/internal/isolation/env.go).
+
+Token lifetime interface:
+[CLI TTL](https://github.com/Infisical/agent-vault/blob/v0.40.0/cmd/token.go),
+[server bounds](https://github.com/Infisical/agent-vault/blob/v0.40.0/internal/server/server.go).

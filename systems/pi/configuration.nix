@@ -53,7 +53,7 @@ in
       proxyHost = network.vaultIPv4;
       proxyPort = network.proxyPort;
       vault = "pi-agent";
-      tokenFile = "/run/garden-agent/token";
+      tokenFile = "/var/lib/garden-agent/token";
       caBundle = config.security.pki.caBundle;
     };
     "garden-agent/models.json".source = ./models.json;
@@ -105,7 +105,7 @@ in
     "L+ /home/pi/.pi/agent/settings.json - - - - /etc/garden-agent/settings.json"
     "d /home/pi/.pi/agent/skills 0700 pi pi -"
     "L+ /home/pi/.pi/agent/skills/agent-vault-cli - - - - /etc/garden-agent/skills/agent-vault-cli"
-    # Operator stages an expiring proxy token here; no admin token is installed.
-    "d /run/garden-agent 0750 root pi -"
+    # Retain the scoped proxy token across reboots; no admin token is installed.
+    "d /var/lib/garden-agent 0750 root pi -"
   ];
 }

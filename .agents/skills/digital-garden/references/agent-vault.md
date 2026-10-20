@@ -152,7 +152,7 @@ entire state tree (including SQLite WAL/SHM and any CA files), then restart and
 verify. Follow [off-host recovery](recovery.md); local volumes are not backups.
 Restore the matching group with the compatible pinned version, verify the CA
 fingerprint and proxy a real authenticated request before reopening Pi access.
-Do not generate a replacement CA on restore. Exclude Pi's staged runtime tokens
+Do not generate a replacement CA on restore. Exclude Pi's persisted proxy tokens
 from backups; issue new sessions after recovery.
 
 On retirement revoke all vault sessions and upstream credentials before removing
