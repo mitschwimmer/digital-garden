@@ -3,5 +3,6 @@
   "vaultIPv4": "10.203.0.1",
   "sandboxIPv4": "10.203.0.2",
   "prefixLength": 30,
-  "proxyPort": 14322
+  "proxyPort": 14322,
+  "apiPort": 14321
 }

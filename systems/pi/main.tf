@@ -9,7 +9,7 @@ data "incus_network" "agent" {
 }
 resource "incus_network_acl" "sandbox" {
   name        = "garden-pi-egress"
-  description = "Pi can initiate TCP connections only to the credential proxy"
+  description = "Pi can reach only the vault proxy and scoped API"
   project     = "default"
   remote      = var.incus_remote
   egress = [
@@ -18,7 +18,7 @@ resource "incus_network_acl" "sandbox" {
       state            = "enabled"
       protocol         = "tcp"
       destination      = "${local.agent_network.vaultIPv4}/32"
-      destination_port = tostring(local.agent_network.proxyPort)
+      destination_port = "${local.agent_network.proxyPort},${local.agent_network.apiPort}"
     }
   ]
 }

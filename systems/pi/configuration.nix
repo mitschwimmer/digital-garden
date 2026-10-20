@@ -8,11 +8,8 @@ let
   network = builtins.fromJSON (builtins.readFile ../../agent-network.json);
   pi = pkgs.callPackage ../../nix/packages/pi.nix { };
   agentVault = pkgs.callPackage ../../nix/packages/agent-vault.nix { };
-  # Keep the unmodified upstream skill aligned with the installed CLI.
-  agentVaultSkill = pkgs.fetchurl {
-    url = "https://raw.githubusercontent.com/Infisical/agent-vault/v${agentVault.version}/cmd/skill_cli.md";
-    sha256 = "545e9ec47f7523f91d72547e89fee46f07b464a21f44b62089f7722890834391";
-  };
+  # Sandbox instructions match the pinned CLI and its proxy-role authority.
+  agentVaultSkill = ./agent-vault-cli/SKILL.md;
   caReady = builtins.pathExists ../agent-vault/ca.pem;
   # Mount the store output, not a file beneath an already read-only input mount.
   caStorePath = builtins.head (
@@ -52,6 +49,7 @@ in
       inherit caReady;
       proxyHost = network.vaultIPv4;
       proxyPort = network.proxyPort;
+      apiPort = network.apiPort;
       vault = "pi-agent";
       tokenFile = "/var/lib/garden-agent/token";
       caBundle = config.security.pki.caBundle;

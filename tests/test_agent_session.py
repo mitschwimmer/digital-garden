@@ -26,7 +26,8 @@ class SessionTests(unittest.TestCase):
         self.ca = root / "ca.pem"
         self.ca.write_text("test bundle")
         self.config = dict(caReady=True, tokenFile=str(self.token), caBundle=str(self.ca),
-                           proxyHost="10.203.0.1", proxyPort=14322, vault="pi-agent")
+                           proxyHost="10.203.0.1", proxyPort=14322, apiPort=14321,
+                           vault="pi-agent")
 
     def test_refuses_launch_until_ca_is_deployed(self):
         self.config["caReady"] = False
@@ -37,13 +38,15 @@ class SessionTests(unittest.TestCase):
         env = session.session_environment(self.config, {
             "http_proxy": "http://old.invalid", "NO_PROXY": "*", "no_proxy": "*",
             "GH_TOKEN": "old-token", "PATH": "/bin",
+            "AGENT_VAULT_TOKEN": "old-token", "AGENT_VAULT_ADDR": "http://wrong.invalid",
+            "AGENT_VAULT_VAULT": "wrong-vault",
         })
         proxy = urlsplit(env["HTTPS_PROXY"])
         self.assertEqual((proxy.hostname, proxy.port, proxy.username, proxy.password),
                          ("10.203.0.1", 14322, "av_sess_test_session", "pi-agent"))
         self.assertEqual(env["HTTP_PROXY"], env["http_proxy"])
         self.assertEqual(env["HTTPS_PROXY"], env["https_proxy"])
-        self.assertEqual(env["NO_PROXY"], "localhost,127.0.0.1")
+        self.assertEqual(env["NO_PROXY"], "localhost,127.0.0.1,10.203.0.1")
         self.assertEqual(env["no_proxy"], env["NO_PROXY"])
         for key in ("SSL_CERT_FILE", "NODE_EXTRA_CA_CERTS", "GIT_SSL_CAINFO",
                     "NPM_CONFIG_CAFILE", "CURL_CA_BUNDLE", "REQUESTS_CA_BUNDLE",
@@ -51,6 +54,9 @@ class SessionTests(unittest.TestCase):
             self.assertEqual(env[key], str(self.ca))
         self.assertEqual(env["GH_TOKEN"], "__github_pat__")
         self.assertEqual(env["PATH"], "/bin")
+        self.assertEqual(env["AGENT_VAULT_TOKEN"], "av_sess_test_session")
+        self.assertEqual(env["AGENT_VAULT_ADDR"], "http://10.203.0.1:14321")
+        self.assertEqual(env["AGENT_VAULT_VAULT"], "pi-agent")
 
     def test_refuses_world_readable_or_missing_tokens(self):
         self.token.chmod(0o644)
