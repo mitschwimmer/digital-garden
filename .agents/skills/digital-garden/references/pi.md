@@ -15,6 +15,27 @@ can download dependencies through the vault using the staged proxy-only session.
 NixOS owns the base tools and daemon configuration; project flakes own their
 pinned tool versions.
 
+## Bundled Agent Vault skill
+
+NixOS installs the matching Agent Vault CLI and its unmodified upstream
+`cmd/skill_cli.md`, pinned by version and SHA-256 in the Pi configuration.
+The managed `~/.pi/agent/skills/agent-vault-cli` link makes it available in every
+workspace after deployment, without a runtime download or `pi install`.
+Use `/reload` in an existing session, then `/skill:agent-vault-cli` to load it.
+
+The skill describes upstream capabilities beyond this sandbox's current access.
+Its proposal/discovery/credential commands require the vault management API and
+an authenticated CLI environment; `garden-agent` currently supplies only proxy
+variables. The management API remains unreachable from Pi and no operator login
+is installed. For authentication failures, ask the operator to configure access
+locally in the vault guest using [Agent Vault](agent-vault.md). Do not attempt to
+read upstream credentials into Pi. Bundling the skill does not enable its proposal
+workflow; that needs a separately reviewed management API access design.
+
+When upgrading Agent Vault, update the skill hash with its version and review
+the skill before deployment. After deployment, verify `agent-vault version`,
+the managed skill link and Pi's startup skill diagnostics from an actual session.
+
 ## Boundary
 
 `agent-network.json` supplies the static address. There is no default route or
