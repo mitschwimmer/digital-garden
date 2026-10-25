@@ -1,6 +1,12 @@
 {
-  "defaultProvider": "tensorx",
-  "defaultModel": "deepseek/deepseek-v4.1-flash-1017",
+  "defaultProvider": "strata",
+  "defaultModel": "qwen3.8-flash-next-iq3_s",
   "transport": "sse",
-  "enableInstallTelemetry": false
+  "enableInstallTelemetry": false,
+  "defaultThinkingLevel": "medium",
+  "compaction": {
+    "enabled": true,
+    "reserveTokens": 17768,
+    "keepRecentTokens": 4000
+  }
 }

@@ -109,7 +109,7 @@ Pi declares `tensorx` in `systems/pi/models.json`, using OpenAI Chat
 Completions at `https://api.tensorx.ai/v1` and model
 `deepseek/deepseek-v4.1-flash-1017`. Its API key is a public placeholder;
 the proxy replaces the Authorization header using `TENSORX_API_KEY`.
-Settings select that provider/model by default. Context limits, pricing and
+TensorX remains selectable; Strata is the default. Context limits, pricing and
 reasoning capabilities use Pi's custom-model defaults until verified.
 
 For first enrollment, create a native proposal containing only the TensorX rule
@@ -145,6 +145,52 @@ incus exec REMOTE:agent-vault --project agent-vault -- \
 Do not apply the entire `services.yaml` until every referenced credential exists.
 After deployment, test a streamed Pi response and a tool call; a successful
 plain Chat Completions request alone does not establish tool compatibility.
+
+## Strata LAN model
+
+Pi declares `strata` at `http://192.168.1.28:8080/v1`, model
+`qwen3.8-flash-next-iq3_s`, with the operator-supplied text-only, reasoning,
+32768-token context and 4096-token output metadata. The provider disables
+`supportsDeveloperRole` and `supportsReasoningEffort`. Its key is a public
+placeholder; the vault injects `STRATA_API_KEY` only for
+`192.168.1.28:8080/v1/*`. TensorX remains configured.
+
+The vault netguard permits only `192.168.1.28/32` as a private upstream exception;
+all other private ranges remain blocked. Netguard's exception is IP-wide, while
+the credential rule is port/path scoped: unmatched requests to other ports/paths
+on this address may pass without a brokered credential. The HTTP upstream carries
+the key and prompts unencrypted on the trusted LAN. Pi receives no direct route,
+NIC ACL exception or `NO_PROXY` bypass for this address.
+
+Enroll the supplied key privately through a native proposal and hidden approval
+prompt, preserving existing services. Replace `REMOTE` with the inspected alias:
+
+```fish
+incus exec REMOTE:agent-vault --project agent-vault -- \
+  agent-vault vault run --vault pi-agent --ttl 300 -- \
+  agent-vault vault proposal create --vault pi-agent \
+  --name strata --host '192.168.1.28:8080/v1/*' \
+  --auth-type bearer --token-key STRATA_API_KEY \
+  --credential 'STRATA_API_KEY=Strata API key' \
+  --message 'Enable Strata LAN model for Pi'
+# Replace NUMBER with the returned proposal number; enter the key only at the prompt.
+incus exec REMOTE:agent-vault --project agent-vault -- \
+  agent-vault vault proposal approve --vault pi-agent NUMBER
+```
+
+Build/deploy Agent Vault for the netguard exception, then build/deploy Pi for
+models, settings and `PI_SKIP_VERSION_CHECK=1`. No infrastructure apply is needed.
+Do not apply the complete service file unless all referenced credentials exist.
+Restart Pi through `garden-agent`; new sessions default to Strata with medium
+thinking. Settings enable compaction with 17768 reserve and 4000 recent tokens;
+these are global settings and also apply when selecting TensorX. Existing sessions
+retain their selected model; use `/model` to switch.
+
+Verify a streamed response and tool-call round trip from an actual sandbox
+session, plus a TensorX request. Verify direct LAN access remains denied, another
+private IP is still blocked through the proxy, and credential injection is limited
+to the intended host/port/path. Model availability, streaming and tool behavior
+require live acceptance; configured metadata alone does not prove them.
 
 ## Backup, restore and retirement
 
