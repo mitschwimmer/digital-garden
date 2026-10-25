@@ -78,7 +78,9 @@ Edit `systems/pi/models.json` with actual OpenAI-compatible provider definitions
 base URL, supported API type (`openai-completions` or `openai-responses`), model
 IDs/capabilities, and a dummy `apiKey`. Pair each provider with an exact vault
 credential rule. Do not put real keys or credential-reading commands here.
-`settings.json` selects SSE and disables install telemetry. These files are
+`settings.json` selects Strata by default, retains SSE and disables install telemetry.
+The [Strata procedure](agent-vault.md#strata-lan-model) owns its LAN exception,
+credential enrollment and rollout. Pi sets `PI_SKIP_VERSION_CHECK=1`. These files are
 declaratively linked into Pi's home; change them in source and redeploy.
 
 Enroll the sandbox with a seven-day proxy-only token, then rotate it before

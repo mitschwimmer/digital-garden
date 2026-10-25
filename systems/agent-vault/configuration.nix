@@ -43,8 +43,8 @@ in
       HOME = "/var/lib/agent-vault";
       AGENT_VAULT_TELEMETRY = "false";
       AGENT_VAULT_ALLOW_PRIVATE_RANGES = "false";
-      # Intentionally empty until individual internal endpoints are approved.
-      AGENT_VAULT_NETWORK_ALLOWLIST = "";
+      # Strata is the only approved private upstream; Pi still uses the proxy.
+      AGENT_VAULT_NETWORK_ALLOWLIST = "192.168.1.28/32";
     };
     unitConfig = {
       RequiresMountsFor = [

@@ -9,6 +9,33 @@
           "id": "deepseek/deepseek-v4.1-flash-1017"
         }
       ]
+    },
+    "strata": {
+      "baseUrl": "http://192.168.1.28:8080/v1",
+      "api": "openai-completions",
+      "apiKey": "__strata_api_key__",
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "qwen3.8-flash-next-iq3_s",
+          "name": "Qwen3.8-Flash-Next (Strata, local)",
+          "reasoning": true,
+          "input": [
+            "text"
+          ],
+          "contextWindow": 32768,
+          "maxTokens": 4096,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          }
+        }
+      ]
     }
   }
 }

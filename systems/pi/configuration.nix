@@ -93,7 +93,10 @@ in
     ghostty.terminfo
     cacert
   ];
-  environment.variables.AGENT_VAULT_TELEMETRY = "false";
+  environment.variables = {
+    AGENT_VAULT_TELEMETRY = "false";
+    PI_SKIP_VERSION_CHECK = "1";
+  };
   systemd.tmpfiles.rules = [
     "d /home/pi 0700 pi pi -"
     "d /home/pi/workspace 0700 pi pi -"
