@@ -25,6 +25,8 @@ in
     group = "agent-vault";
     home = "/var/lib/agent-vault";
   };
+  # Service rules require a hostname; only the vault resolves this LAN upstream.
+  networking.hosts."192.168.1.28" = [ "strata.internal" ];
   environment.systemPackages = [ agentVault ];
   environment.variables.AGENT_VAULT_TELEMETRY = "false";
 
