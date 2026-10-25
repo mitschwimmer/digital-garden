@@ -148,12 +148,17 @@ plain Chat Completions request alone does not establish tool compatibility.
 
 ## Strata LAN model
 
-Pi declares `strata` at `http://192.168.1.28:8080/v1`, model
+Pi declares `strata` at `http://strata.internal:8080/v1`, model
 `qwen3.8-flash-next-iq3_s`, with the operator-supplied text-only, reasoning,
 32768-token context and 4096-token output metadata. The provider disables
 `supportsDeveloperRole` and `supportsReasoningEffort`. Its key is a public
 placeholder; the vault injects `STRATA_API_KEY` only for
-`192.168.1.28:8080/v1/*`. TensorX remains configured.
+`strata.internal:8080/v1/*`. TensorX remains configured.
+
+Agent Vault v0.40.0 rejects IP literals in service rules. The vault maps
+`strata.internal` to `192.168.1.28` through its NixOS `networking.hosts`;
+Pi sends that hostname through the proxy without needing a DNS resolver.
+Deploy the vault hostname mapping before creating the proposal.
 
 The vault netguard permits only `192.168.1.28/32` as a private upstream exception;
 all other private ranges remain blocked. Netguard's exception is IP-wide, while
@@ -169,7 +174,7 @@ prompt, preserving existing services. Replace `REMOTE` with the inspected alias:
 incus exec REMOTE:agent-vault --project agent-vault -- \
   agent-vault vault run --vault pi-agent --ttl 300 -- \
   agent-vault vault proposal create --vault pi-agent \
-  --name strata --host '192.168.1.28:8080/v1/*' \
+  --name strata --host 'strata.internal:8080/v1/*' \
   --auth-type bearer --token-key STRATA_API_KEY \
   --credential 'STRATA_API_KEY=Strata API key' \
   --message 'Enable Strata LAN model for Pi'
