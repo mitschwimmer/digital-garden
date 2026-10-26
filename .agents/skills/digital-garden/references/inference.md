@@ -44,14 +44,14 @@ reachability and lack of public routing rather than assuming address privacy.
 In systems/inference, set the remote and PCI from this root's reviewed local
 inputs (not another task's shell variables):
 
-```fish
-set -l GARDEN_REMOTE (jq -r .incus_remote site.auto.tfvars.json)
-set -l GARDEN_GPU_PCI (jq -r .llama_gpu_pci site.auto.tfvars.json)
+```bash
+GARDEN_REMOTE="$(jq -r .incus_remote site.auto.tfvars.json)"
+GARDEN_GPU_PCI="$(jq -r .llama_gpu_pci site.auto.tfvars.json)"
 ```
 
 Both values must match the inspected host inventory.
 
-```fish
+```bash
 jq --arg pci "$GARDEN_GPU_PCI" '.llama_gpu_pci = $pci' site.auto.tfvars.json > site.auto.tfvars.json.tmp
 mv site.auto.tfvars.json.tmp site.auto.tfvars.json
 ```
@@ -70,7 +70,7 @@ systemd readiness loop.
 
 ### 3. Verify API readiness before requesting models
 
-```fish
+```bash
 incus info "$GARDEN_REMOTE:garden-llama" --project inference
 incus exec "$GARDEN_REMOTE:garden-llama" --project inference -- env LD_LIBRARY_PATH=/app /app/llama-server --list-devices
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --retry 15 --retry-connrefused --retry-delay 2 --connect-timeout 5 --max-time 10 --retry-max-time 90 http://garden-llama.garden.internal:8080/health
@@ -87,7 +87,7 @@ profiles are `qwen38` and `qwen38-chat`; both share one GGUF, and the chat profi
 also uses a projector. Send native
 API requests from the trusted WebUI guest, one model at a time:
 
-```fish
+```bash
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen38","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen38-chat","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen38","messages":[{"role":"user","content":"Say hello again."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions

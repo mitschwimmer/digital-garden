@@ -113,7 +113,7 @@ account's directory. Other applications' data must not be mounted beneath it.
 
 Source/build gates from the repository root:
 
-```fish
+```bash
 nix build .#webdav-image --no-link
 nix build .#checks.x86_64-linux.caddy-config .#checks.x86_64-linux.webdav-ingress .#checks.x86_64-linux.webdav-accounts --no-link
 nix build .#nixosConfigurations.edge.config.system.build.toplevel --no-link

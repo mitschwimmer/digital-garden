@@ -6,7 +6,7 @@ Never carry a guest/config selection from another terminal task.
 
 For example, for identity (replace YOUR_REMOTE with its applied remote):
 
-```fish
+```bash
 incus info YOUR_REMOTE:identity --project identity
 incus config get YOUR_REMOTE:identity user.garden.system --project identity
 incus exec YOUR_REMOTE:identity --project identity -- timeout 90 systemctl is-system-running --wait

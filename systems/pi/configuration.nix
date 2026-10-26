@@ -36,9 +36,7 @@ in
     group = "pi";
     home = "/home/pi";
     createHome = false;
-    shell = pkgs.fish;
   };
-  programs.fish.enable = true;
   security.sudo.enable = false;
 
   # Bootstrap the vault first, retrieve its public CA through authenticated

@@ -26,7 +26,7 @@ first/sole-user admin promotion still exists: the operator must log in first
 with the intended admins account, then verify ordinary-user and denied-user
 behavior. Do not let an ordinary user initialize an empty database.
 
-```fish
+```bash
 incus exec YOUR_REMOTE:open-webui --project ai -- systemctl is-active open-webui
 incus exec YOUR_REMOTE:open-webui --project ai -- curl --fail --connect-timeout 5 --max-time 30 http://127.0.0.1:8080/health
 ```
@@ -75,7 +75,7 @@ replace YOUR_REMOTE and YOUR_POOL below with those inspected values. Choose an
 unused snapshot name and an absent export path in a secured off-host directory.
 Stop the instance so neither its database nor machine key changes during backup:
 
-```fish
+```bash
 incus stop YOUR_REMOTE:open-webui --project ai
 incus storage volume snapshot create YOUR_REMOTE:YOUR_POOL garden-open-webui-state before-update --project ai
 incus storage volume snapshot create YOUR_REMOTE:YOUR_POOL garden-open-webui-secrets before-update --project ai
@@ -92,7 +92,7 @@ For other systems use their actual volume names and project, never WebUI's.
 If an incompatible upgrade requires data rollback, first stop WebUI and mask it in
 runtime state so older code cannot open the newer database during deployment:
 
-```fish
+```bash
 incus exec YOUR_REMOTE:open-webui --project ai -- systemctl stop open-webui
 incus exec YOUR_REMOTE:open-webui --project ai -- systemctl mask --runtime open-webui
 python ../../operations/activate.py rollback .operations/FAILED-ATTEMPT/deployment.json
@@ -103,7 +103,7 @@ because the service is masked. Verify the profile matches that record's previous
 closure before continuing. Then stop the instance, restore the matching snapshot,
 and start the old generation; reboot clears the runtime mask:
 
-```fish
+```bash
 incus stop YOUR_REMOTE:open-webui --project ai
 incus storage volume snapshot restore YOUR_REMOTE:YOUR_POOL garden-open-webui-state before-update --project ai
 incus start YOUR_REMOTE:open-webui --project ai

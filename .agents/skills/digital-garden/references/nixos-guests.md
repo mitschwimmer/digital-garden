@@ -3,7 +3,7 @@
 From the selected NixOS root `systems/NAME`, build only its `NAME-image` output
 registered in `flake.nix`. For example, from `systems/identity`:
 
-```fish
+```bash
 nix build ../..#identity-image --out-link result-seed
 readlink -f result-seed
 ```

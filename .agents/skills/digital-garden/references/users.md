@@ -88,7 +88,7 @@ After declaring the person in Nix and deploying identity, authenticate the
 workstation client interactively with the provisioned idm-admin password. Keep
 the password out of arguments and shell history. For an existing declared person:
 
-```fish
+```bash
 kanidm login --url https://auth.archaic.work --name idm_admin
 kanidm person credential create-reset-token PERSON_NAME --url https://auth.archaic.work --name idm_admin
 ```

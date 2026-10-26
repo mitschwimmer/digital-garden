@@ -30,7 +30,7 @@ including seeds and workstation tools; a separate service pin need not.
    needs its native migration procedure, not just a changed package declaration.
 4. Run [validation](validation.md) for changed layers and all affected consumers,
    including seeds/closures and service-specific interface checks. Full consumer
-   builds need real staged ciphertext. Re-enter `nix develop --command fish` after
+   builds need real staged ciphertext. Re-enter `nix develop` after
    tool pin changes. Commit reviewed changes before live rollout.
 5. Choose a dependency-aware rollout/window; [deploy NixOS](deployment.md) or use
    the OCI workload's stop/plan/apply procedure one root at a time. Stop on failure.

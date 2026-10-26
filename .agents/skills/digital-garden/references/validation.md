@@ -33,24 +33,24 @@ unavailable tools, ciphertext, keys or host access.
 
 ## Native commands
 
-Run from the repository root in the fish development shell. Select the commands
+Run from the repository root in the development shell. Select the commands
 and actual paths/names from the table; placeholders below are not literal inputs.
 
 Whitespace for every change:
 
-```fish
+```bash
 git diff --check
 ```
 
 Deployment code/tests:
 
-```fish
+```bash
 python -m unittest discover -s tests -v
 ```
 
 Nix formatting and an affected guest build (replace NAME and changed paths):
 
-```fish
+```bash
 nixfmt --check CHANGED_NIX_FILES
 nix build .#nixosConfigurations.NAME.config.system.build.toplevel --no-link
 ```
@@ -62,7 +62,7 @@ the pinned module when adding a new interface. Avoid evaluating secret contents.
 
 Provider schema validation in each affected root (replace ROOT):
 
-```fish
+```bash
 tofu -chdir=ROOT fmt -check -diff
 tofu -chdir=ROOT init -backend=false -input=false -lockfile=readonly
 tofu -chdir=ROOT validate
@@ -70,14 +70,14 @@ tofu -chdir=ROOT validate
 
 Edge routing uses the native validator:
 
-```fish
+```bash
 nix build .#checks.x86_64-linux.caddy-config --no-link
 ```
 
 Shared-input checks; build each affected guest as above, and each affected seed
 using `nix build .#NAME-image --no-link`:
 
-```fish
+```bash
 nix flake check --no-build
 ```
 

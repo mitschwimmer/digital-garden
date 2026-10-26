@@ -10,7 +10,7 @@ the protected home volume, which contains workspaces, Pi sessions and caches.
 
 The native release archive is pinned in `nix/packages/pi.nix`, including its
 bundled Bun runtime, themes and native helpers. Go, Node/npm, Git, `gh`, compiler
-tools and fish come from the shared Nix pin. Project devShells and Nix builds
+tools and Bash come from the shared Nix pin. Project devShells and Nix builds
 can download dependencies through the vault using the staged proxy-only session.
 NixOS owns the base tools and daemon configuration; project flakes own their
 pinned tool versions.
@@ -93,9 +93,9 @@ expired. Keep upstream API keys and the operator login in the vault guest.
 From a private terminal in the workstation development shell, replace `REMOTE`
 with the inspected alias and mint using the operator's local login:
 
-```fish
+```bash
 umask 077
-set -l session_work (mktemp -d)
+session_work="$(mktemp -d)"
 incus exec REMOTE:agent-vault --project agent-vault -T -- agent-vault vault token --vault pi-agent --ttl 604800 > "$session_work/token"
 ```
 
@@ -108,7 +108,7 @@ updated Pi closure first so this directory exists. Stage to a separate file and
 rename only after a successful transfer, leaving the current token intact if
 transfer fails:
 
-```fish
+```bash
 incus file push "$session_work/token" REMOTE:pi/var/lib/garden-agent/token.new --project agent-sandbox --uid 0 --gid 1000 --mode 0640
 # Continue only after a successful transfer, with no active Nix builds.
 incus exec REMOTE:pi --project agent-sandbox -- mv -f /var/lib/garden-agent/token.new /var/lib/garden-agent/token
@@ -123,11 +123,11 @@ is deliberately outside the protected home volume and its backups.
 
 Start an interactive session:
 
-```fish
+```bash
 incus exec REMOTE:pi --project agent-sandbox --user 1000 --group 1000 --cwd /home/pi/workspace --env HOME=/home/pi -- garden-agent
 ```
 
-Use `garden-agent -- fish` for a shell with the same proxy environment. The launcher
+Use `garden-agent -- bash` for a shell with the same proxy environment. The launcher
 reads the token from a file, supplies proxy and scoped CLI variables and CA-bundle
 variables to Pi/Node, Git, Go and npm, then execs the command. It never fetches a
 CA, logs a token or passes the token in process arguments. Session tokens are
@@ -180,7 +180,7 @@ The persisted token survives; check it has not expired. Deploy the updated closu
 enroll or rotate if needed, start the daemon as above, then run inside the actual
 project checkout:
 
-```fish
+```bash
 nix develop --command true
 nix develop --command ./scripts/check.sh
 nix flake check --no-write-lock-file
@@ -223,7 +223,7 @@ not Incus firewall enforcement. The following checks require the actual host:
 - Verify `nix develop`, binary-cache downloads and an uncached sandboxed Nix build,
   including a fixed-output Go dependency fetch through the vault. Restart after
   token rotation and verify the old session's revocation/expiry denies downloads.
-- Verify public dependency downloads through `garden-agent -- fish`: use a throwaway
+- Verify public dependency downloads through `garden-agent -- bash`: use a throwaway
   Go module/cache and npm project/cache, then run real repository tests/builds.
 - Verify trusted HTTPS clone/fetch/push on a disposable branch, `gh` API/PR work,
   streamed Pi output and tool execution for every configured model endpoint.

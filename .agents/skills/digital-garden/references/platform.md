@@ -1,13 +1,13 @@
 # Establish workstation and host inputs
 
-Use an x86_64-linux Nix workstation (or configured Linux builder), flakes, fish,
+Use an x86_64-linux Nix workstation (or configured Linux builder), flakes, Bash,
 and an authenticated Incus client. Build on the workstation, never IncusOS.
-From the checkout enter `nix develop --command fish`. Each operation then runs
+From the checkout enter `nix develop`. Each operation then runs
 inside exactly one root from [architecture](architecture.md).
 
 Inspect the target before filling root-local `site.auto.tfvars.json`:
 
-```fish
+```bash
 incus remote list
 incus info YOUR_REMOTE: --project default
 incus list YOUR_REMOTE: --all-projects
@@ -42,9 +42,9 @@ keys and data. Do not erase records to fix a failed service.
 
 After initial creation, before a change in an existing root, choose a new secured off-host checkpoint:
 
-```fish
+```bash
 umask 077
-set -l backup /ABSOLUTE/SECURE/CHECKPOINT
+backup=/ABSOLUTE/SECURE/CHECKPOINT
 mkdir -p "$backup"
 tofu state pull > "$backup/state.json"
 cp site.auto.tfvars.json "$backup/"

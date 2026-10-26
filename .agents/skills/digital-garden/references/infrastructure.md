@@ -6,9 +6,9 @@ roots can resolve `gardenbr0`. Do not use another root's plan, inputs or state.
 
 ## Review and apply the whole plan
 
-Run in the selected root, in the repository's fish development shell:
+Run in the selected root, in the repository's development shell:
 
-```fish
+```bash
 tofu fmt -check -diff
 tofu init -input=false -lockfile=readonly
 tofu validate
@@ -21,7 +21,7 @@ intended ownership. Review replacements, deletions and device changes explicitly
 The first plan creates this root's resources, including volumes. Resource counts
 are not acceptance criteria. Only apply that exact reviewed saved plan:
 
-```fish
+```bash
 tofu apply change.tfplan
 ```
 

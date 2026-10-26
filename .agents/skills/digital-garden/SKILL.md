@@ -29,7 +29,7 @@ Do not maintain a second service inventory in this file.
 For live operations, inspect current inventory/state and keys/data to preserve;
 confirm the requested live change is authorized. Read
 [platform inputs](references/platform.md) before targeting a host. Run commands
-in `nix develop --command fish`; build on the workstation, never IncusOS.
+in `nix develop`; build on the workstation, never IncusOS.
 Select one operation root per operation; never copy mutable state, inputs or
 plans between roots. Review destructive replacement separately.
 
@@ -69,6 +69,8 @@ exception and its compensating controls. Declare trusted callers and IPv4/IPv6
 exposure. Prefer native HCL/Nix/upstream tools. Justify helpers/control planes by
 their unmet requirement and maintenance cost; do not hide programs in Nix strings.
 Pin dependencies and give upstream patches explicit removal conditions.
+Prefer defaults and concise commands; specify options only when they change
+required behavior.
 
 ## Finish
 

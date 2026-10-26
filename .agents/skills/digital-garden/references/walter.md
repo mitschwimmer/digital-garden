@@ -61,9 +61,9 @@ Walter needs only one startup-read secret file. Native Incus custom-volume file
 transfer avoids a new guest or secret controller and keeps plaintext outside
 OpenTofu state. In the private operator terminal, from the repository root:
 
-```fish
+```bash
 umask 077
-set -l secret_work (mktemp -d)
+secret_work="$(mktemp -d)"
 sops --decrypt --extract '["walter-client"]' systems/identity/walter-secrets.yaml > "$secret_work/oidc-client"
 ```
 
@@ -71,9 +71,9 @@ Require success and a nonempty file before transfer; never print it. Inspect
 `systems/walter/site.auto.tfvars.json`, applied state, remote inventory and volume
 identity first. Load only this root's inputs:
 
-```fish
-set -l WALTER_REMOTE (jq -r .incus_remote systems/walter/site.auto.tfvars.json)
-set -l WALTER_POOL (jq -r .storage_pool systems/walter/site.auto.tfvars.json)
+```bash
+WALTER_REMOTE="$(jq -r .incus_remote systems/walter/site.auto.tfvars.json)"
+WALTER_POOL="$(jq -r .storage_pool systems/walter/site.auto.tfvars.json)"
 incus storage volume file push "$secret_work/oidc-client" "$WALTER_REMOTE:$WALTER_POOL" walter-secrets/oidc-client --project ai --uid 65532 --gid 65532 --mode 0400
 ```
 
@@ -102,10 +102,10 @@ state; do not start manually to bypass the preparation gates.
 ## Fast development updates
 
 For disposable development chats, per-update backups are intentionally skipped.
-Persistent volumes remain protected. In the repository's fish development shell,
+Persistent volumes remain protected. In the repository's development shell,
 authenticate GitHub CLI once with `gh auth login`. Then run:
 
-```fish
+```bash
 python operations/watch_walter_image.py
 ```
 
@@ -126,9 +126,9 @@ image/config editing and deployment remain native operator commands.
 Use `--json` to print the complete published lock when updating the pin, keeping
 revision and publication metadata accurate:
 
-```fish
-python operations/watch_walter_image.py --json > systems/walter/image.lock.json.tmp
-and mv systems/walter/image.lock.json.tmp systems/walter/image.lock.json
+```bash
+python operations/watch_walter_image.py --json > systems/walter/image.lock.json.tmp &&
+  mv systems/walter/image.lock.json.tmp systems/walter/image.lock.json
 ```
 
 Review the lock diff, then run `tofu apply` yourself from `systems/walter` and
@@ -144,7 +144,7 @@ appropriate for valuable data.
 
 From edge, require bounded private readiness before browser tests:
 
-```fish
+```bash
 incus exec "$WALTER_REMOTE:edge" --project default -- curl --fail --retry 15 --retry-connrefused --retry-delay 2 --connect-timeout 5 --max-time 10 --retry-max-time 90 http://walter.garden.internal:8080/healthz
 incus console "$WALTER_REMOTE:walter" --project ai --show-log
 ```
