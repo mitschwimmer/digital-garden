@@ -94,7 +94,7 @@ Read this section for deployment-code changes or installation/architecture
 acceptance; ordinary service changes use only their affected service checks.
 
 The regression suite mocks native commands: it proves guard/control flow, not
-Incus behavior. On a disposable host, require rejection of a WebUI closure from
+Incus behavior. On a disposable host, require rejection of an identity closure from
 edge before profile mutation; also reject missing metadata and wrong seed input.
 Then deploy correct closures and verify their services.
 

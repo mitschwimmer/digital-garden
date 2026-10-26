@@ -64,8 +64,4 @@ generation (reboot clears runtime masks). Restore coupled secret state/ciphertex
 only as required by that checkpoint. Repeat data, access and restart checks before
 reopening traffic. Never use another root's rollback record.
 
-See the [Open WebUI worked example](open-webui.md#checkpoint-and-data-rollback-example)
-for native snapshot/export and guarded data rollback commands. Substitute the
-selected service's actual units, volumes, pools and consistency requirements.
-
 Source: [Incus custom-volume backup](https://linuxcontainers.org/incus/docs/main/howto/storage_backup_volume/).

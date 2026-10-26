@@ -14,7 +14,7 @@ in {
     age.keyFile = "/var/lib/garden-secrets/age.key";
     age.sshKeyPaths = [ ];
     gnupg.sshKeyPaths = [ ];
-    secrets = lib.genAttrs [ "admin" "idm-admin" "webui-client" ] (_: {
+    secrets = lib.genAttrs [ "admin" "idm-admin" ] (_: {
       owner = "kanidm";
       group = "kanidm";
       mode = "0400";
@@ -54,24 +54,12 @@ in {
       idmAdminPasswordFile = "/run/secrets/idm-admin";
       # Deletion must be explicit (present = false), not an accidental omission.
       autoRemove = false;
+      # Retain the tombstone: autoRemove = false does not delete omitted clients.
       systems.oauth2.open-webui = {
+        present = false;
         displayName = "Open WebUI";
         originUrl = "https://ai.archaic.work/oauth/oidc/callback";
         originLanding = "https://ai.archaic.work";
-        basicSecretFile = "/run/secrets/webui-client";
-        preferShortUsername = true;
-        scopeMaps = {
-          ai-users = [ "openid" "profile" "email" ];
-          admins = [ "openid" "profile" "email" ];
-        };
-        # Keep role values separate from Kanidm's built-in groups claim.
-        claimMaps.webui_roles = {
-          joinType = "array";
-          valuesByGroup = {
-            ai-users = [ "ai-users" ];
-            admins = [ "admins" ];
-          };
-        };
       };
     };
   };

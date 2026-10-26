@@ -3,7 +3,7 @@ let
   ready = builtins.pathExists ./immich-secrets.yaml;
 in {
   # Stage the new ciphertext before provisioning this client. Existing identity
-  # and WebUI remain buildable during preparation; autoRemove remains false.
+  # remains buildable during preparation; autoRemove remains false.
   sops.secrets.immich-client = lib.mkIf ready {
     sopsFile = ./immich-secrets.yaml;
     owner = "kanidm";

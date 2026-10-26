@@ -18,7 +18,7 @@ TARGET = {"system": "edge", "project": "default", "instance": "edge", "remote": 
 
 class ActivationTests(unittest.TestCase):
     def test_wrong_local_closure_rejected(self):
-        with patch.object(Path, "read_text", return_value="open-webui\n"):
+        with patch.object(Path, "read_text", return_value="identity\n"):
             with self.assertRaisesRegex(RuntimeError, "Closure identity"):
                 a.check_local(TARGET, CLOSURE)
 
@@ -35,7 +35,7 @@ class ActivationTests(unittest.TestCase):
             if args[:3] == ("incus", "config", "get"):
                 return "edge"
             if "cat" in args:
-                return "open-webui"
+                return "identity"
             return ""
         with patch.object(a, "run", side_effect=command):
             with self.assertRaisesRegex(RuntimeError, "Remote closure identity"):
@@ -86,7 +86,7 @@ class ActivationTests(unittest.TestCase):
 
     def test_other_roots_applied_target_rejected(self):
         root = a.REPO / "systems/edge"
-        other = dict(TARGET, system="open-webui", instance="open-webui", project="ai")
+        other = dict(TARGET, system="identity", instance="identity", project="identity")
         with patch.dict(a.os.environ, {}, clear=True), \
              patch.object(a, "run", side_effect=["default", json.dumps(other)]):
             with self.assertRaisesRegex(RuntimeError, "differs"):

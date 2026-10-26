@@ -84,7 +84,7 @@ incus stop "$GARDEN_REMOTE:garden-llama" --project inference
 Require success, then run the [whole plan/apply procedure](infrastructure.md#review-and-apply-the-whole-plan).
 For a preset-only edit, expect the config volume's file content to update and the
 stopped instance's running state to return to true. No guest replacement, volume
-deletion or changes to edge/WebUI are expected. Apply only the reviewed saved
+deletion or changes to edge or application callers are expected. Apply only the reviewed saved
 plan. OpenTofu delivers the file before starting the dependent guest.
 
 Do not push files manually, edit the guest's read-only mount, or use a targeted
@@ -96,14 +96,14 @@ configuration before retrying.
 ### 3. Verify and keep the change
 
 ```bash
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --retry 15 --retry-connrefused --retry-delay 2 --connect-timeout 5 --max-time 10 --retry-max-time 90 http://garden-llama.garden.internal:8080/health
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --connect-timeout 5 --max-time 30 http://garden-llama.garden.internal:8080/v1/models
+incus exec "$GARDEN_REMOTE:edge" --project default -- curl --fail --retry 15 --retry-connrefused --retry-delay 2 --connect-timeout 5 --max-time 10 --retry-max-time 90 http://garden-llama.garden.internal:8080/health
+incus exec "$GARDEN_REMOTE:edge" --project default -- curl --fail --connect-timeout 5 --max-time 30 http://garden-llama.garden.internal:8080/v1/models
 incus console "$GARDEN_REMOTE:garden-llama" --project inference --show-log
 ```
 
 Run each check separately. Require successful health, the intended aliases and no
 preset/load errors. Repeat the inference service’s generated-text/GPU checks for each
-affected model, then test it in WebUI. New models may download on their first
+affected model, then test generated chat in Walter. New models may download on their first
 request. After restarting llama, repeat health and generation and confirm the
 cache persists. Record the accepted revision and commit the public changes.
 
