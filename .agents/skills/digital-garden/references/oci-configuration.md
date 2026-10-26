@@ -12,7 +12,7 @@
 | Goal | Change public presets, image or launch settings with declared ownership and safe restart. |
 | Prerequisites | A working inference service; retain inference selection, GPU input, state and configuration backups. |
 | Sources | `systems/inference/models.ini`, image/model locks and `systems/inference/main.tf`. |
-| Execution and inputs | Fish workstation from repository root; changed declared files and reviewed whole plan. |
+| Execution and inputs | workstation from repository root; changed declared files and reviewed whole plan. |
 | Expected infrastructure effects | Preset-only change updates config file and running state; review image/launch changes separately. |
 
 OpenTofu owns image digest, entrypoint, public environment, volume mounts,
@@ -34,7 +34,7 @@ whole plan restore running/autostart after delivery. Use
 
 ## Apply the change
 
-Run in fish from the repository root against an existing inference service. Keep root-local
+Run from the repository root against an existing inference service. Keep root-local
 inputs with the inspected GPU PCI address. This OCI workload needs no
 NixOS build or deployment.
 
@@ -66,8 +66,8 @@ Higher context/concurrency can require more RAM/VRAM; review available capacity.
 
 From systems/inference, load its applied remote for the diagnostic commands:
 
-```fish
-set -l GARDEN_REMOTE (jq -r .incus_remote site.auto.tfvars.json)
+```bash
+GARDEN_REMOTE="$(jq -r .incus_remote site.auto.tfvars.json)"
 ```
 
 Compare it with this root's state and inspected host before proceeding.
@@ -77,7 +77,7 @@ save state using the [state backup procedure](platform.md#starting-state-and-ret
 Use a new protected backup directory per checkpoint. Stop the guest before
 changing its mounted configuration:
 
-```fish
+```bash
 incus stop "$GARDEN_REMOTE:garden-llama" --project inference
 ```
 
@@ -95,7 +95,7 @@ configuration before retrying.
 
 ### 3. Verify and keep the change
 
-```fish
+```bash
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --retry 15 --retry-connrefused --retry-delay 2 --connect-timeout 5 --max-time 10 --retry-max-time 90 http://garden-llama.garden.internal:8080/health
 incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --connect-timeout 5 --max-time 30 http://garden-llama.garden.internal:8080/v1/models
 incus console "$GARDEN_REMOTE:garden-llama" --project inference --show-log

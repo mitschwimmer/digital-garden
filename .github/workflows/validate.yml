@@ -38,19 +38,20 @@ jobs:
       - uses: cachix/install-nix-action@448cde739abec1eaf0646249e3d25bb8d9bc7702
       - name: Check changed Nix formatting
         run: |
-          nix develop --command fish -c 'nixfmt flake.nix systems/open-webui/configuration.nix nix/packages/agent-vault.nix nix/packages/pi.nix systems/agent-vault/*.nix systems/pi/*.nix'
+          nix develop --command nixfmt flake.nix systems/open-webui/configuration.nix nix/packages/agent-vault.nix nix/packages/pi.nix systems/agent-vault/*.nix systems/pi/*.nix
           git diff --exit-code
       - name: Check flake outputs
         run: nix flake check --no-build
       - name: Validate infrastructure schemas
         run: |
-          nix develop --command fish -c '
-            for root in platform systems/edge systems/identity systems/open-webui systems/immich systems/webdav systems/inference systems/walter systems/agent-vault systems/pi
-              tofu -chdir=$root fmt -check -diff; or exit
-              tofu -chdir=$root init -backend=false -input=false -lockfile=readonly; or exit
-              tofu -chdir=$root validate; or exit
-            end
-          '
+          nix develop <<'EOF'
+          set -e
+          for root in platform systems/edge systems/identity systems/open-webui systems/immich systems/webdav systems/inference systems/walter systems/agent-vault systems/pi; do
+            tofu -chdir="$root" fmt -check -diff
+            tofu -chdir="$root" init -backend=false -input=false -lockfile=readonly
+            tofu -chdir="$root" validate
+          done
+          EOF
       - name: Evaluate identity and application module options
         run: |
           nix eval .#nixosConfigurations.identity.config.services.kanidm.provision --json > /dev/null

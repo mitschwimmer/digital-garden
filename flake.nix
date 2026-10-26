@@ -109,7 +109,6 @@
         packages = with pkgs; [
           opentofu
           incus
-          fish
           age
           sops
           openssl

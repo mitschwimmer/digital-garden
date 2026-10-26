@@ -52,7 +52,7 @@ Follow [setup](lifecycle.md#setup), [platform inputs](platform.md),
    invite-only registration. For example, from a private operator terminal
    (replace `REMOTE` with the inspected alias):
 
-   ```fish
+   ```bash
    incus exec REMOTE:agent-vault --project agent-vault -- agent-vault auth register
    incus exec REMOTE:agent-vault --project agent-vault -- agent-vault owner config set --invite-only
    incus exec REMOTE:agent-vault --project agent-vault -- agent-vault vault create pi-agent
@@ -75,7 +75,7 @@ Follow [setup](lifecycle.md#setup), [platform inputs](platform.md),
    add an exact host/port/path credential rule. Do not enable all private ranges.
 7. Extract the real CA over the authenticated management channel:
 
-   ```fish
+   ```bash
    incus exec REMOTE:agent-vault --project agent-vault -T -- agent-vault ca fetch > systems/agent-vault/ca.pem
    openssl x509 -in systems/agent-vault/ca.pem -noout -subject -fingerprint -sha256
    ```
@@ -119,7 +119,7 @@ vault-scoped session; `--vault` alone does not scope an owner login token.
 The outer `vault run` mints a five-minute proxy-role session for creation without
 printing the token. Run approval separately using the owner login session:
 
-```fish
+```bash
 incus exec REMOTE:agent-vault --project agent-vault -- \
   agent-vault vault run --vault pi-agent --ttl 300 -- \
   agent-vault vault proposal create --vault pi-agent \
@@ -133,7 +133,7 @@ Review the returned proposal number, then approve it in an interactive terminal
 (replace `NUMBER`). Answer the confirmation before entering the actual API key
 at the hidden credential prompt; never supply it as an argument:
 
-```fish
+```bash
 incus exec REMOTE:agent-vault --project agent-vault -- \
   agent-vault vault proposal approve --vault pi-agent NUMBER
 incus exec REMOTE:agent-vault --project agent-vault -- \
@@ -170,7 +170,7 @@ NIC ACL exception or `NO_PROXY` bypass for this address.
 Enroll the supplied key privately through a native proposal and hidden approval
 prompt, preserving existing services. Replace `REMOTE` with the inspected alias:
 
-```fish
+```bash
 incus exec REMOTE:agent-vault --project agent-vault -- \
   agent-vault vault run --vault pi-agent --ttl 300 -- \
   agent-vault vault proposal create --vault pi-agent \

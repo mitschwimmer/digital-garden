@@ -32,11 +32,11 @@ guest only, generate a distinct age key into an absent protected path, back it u
 off-host, and put only its public recipient in the appropriate `.sops.yaml` rule.
 Inspect the rule's exact path regex and recipient set before encrypting.
 
-In fish, begin a new private workspace:
+Begin a new private workspace:
 
-```fish
+```bash
 umask 077
-set -l secret_work (mktemp -d)
+secret_work="$(mktemp -d)"
 age-keygen -o "$secret_work/consumer.agekey"
 ```
 
@@ -48,7 +48,7 @@ basic client, both consumers need the same raw secret, not a password digest.
 From the repository root, encrypt the protected input using its real destination
 path for creation-rule selection (replace INPUT_JSON and CIPHERTEXT_PATH):
 
-```fish
+```bash
 sops --encrypt --input-type json --output-type yaml --filename-override CIPHERTEXT_PATH INPUT_JSON > CIPHERTEXT_PATH
 ```
 

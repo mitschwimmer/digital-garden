@@ -83,7 +83,7 @@ exec before normal browser login. In the secured secret working directory,
 assemble a private `bootstrap.json` containing `name`, `email`, and a new random
 `password`; do not put it in Git or arguments. From the workstation:
 
-```fish
+```bash
 incus exec YOUR_REMOTE:immich --project photos -T -- curl --fail --silent --show-error --output /dev/null --header 'Content-Type: application/json' --data-binary @- http://127.0.0.1:2283/api/auth/admin-sign-up < "$secret_work/bootstrap.json"
 ```
 
@@ -128,7 +128,7 @@ those through Immich and test previously authenticated clients too.
 Require active `postgresql`, `redis-immich`, `immich-server` and
 `immich-machine-learning` units, all three mounts, and no failed units. Verify:
 
-```fish
+```bash
 incus exec YOUR_REMOTE:immich --project photos -- curl --fail --max-time 30 http://127.0.0.1:2283/api/server/ping
 curl --fail --max-time 30 -4 https://photos.archaic.work/api/server/ping
 ```

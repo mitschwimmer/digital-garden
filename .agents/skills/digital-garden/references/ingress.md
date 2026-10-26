@@ -26,7 +26,7 @@ configuration uses eth0 backend DHCP and eth1 LAN DHCP/IPv6 RA. Only LAN TCP
 80/443 is open; HTTP/3 is disabled. Backend admin/health ports are not public.
 Build the native Caddy validator from the checkout:
 
-```fish
+```bash
 nix build .#checks.x86_64-linux.caddy-config --no-link
 ```
 
@@ -49,7 +49,7 @@ private API or Incus management ports. Backend bridge workloads are trusted.
 
 Use the applied remote in place of YOUR_REMOTE:
 
-```fish
+```bash
 incus exec YOUR_REMOTE:edge --project default -- systemctl is-active caddy
 incus exec YOUR_REMOTE:edge --project default -- curl --fail --max-time 30 http://127.0.0.1:8080/healthz
 curl --fail --max-time 30 -4 https://test.archaic.work

@@ -11,9 +11,9 @@ activation is one part of that switch. The repository entry point remains
 
 ## Deploy
 
-Use the fish development shell and enter the intended system root:
+Use the development shell and enter the intended system root:
 
-```fish
+```bash
 cd systems/edge
 python ../../operations/activate.py deploy
 ```
@@ -48,7 +48,7 @@ does not imply a clean worktree.
 
 To check a locally built closure without changing the guest profile:
 
-```fish
+```bash
 python ../../operations/activate.py check /nix/store/EXACT-SYSTEM-CLOSURE
 ```
 
@@ -61,7 +61,7 @@ Retain the failed attempt's record and inspect journals/mounts. Profile selectio
 may have succeeded while switching failed. Repair the declared prerequisite and
 repeat deploy, or use that attempt's rollback record:
 
-```fish
+```bash
 python ../../operations/activate.py rollback .operations/ATTEMPT/deployment.json
 ```
 
