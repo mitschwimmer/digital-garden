@@ -4,7 +4,11 @@ Identify its dependents, public routes, OIDC client, secrets and owned data.
 Review a backup/retention plan before stopping the service. Withdraw any public
 route in edge Nix and retire any OAuth client through an explicit
 `present = false` identity declaration (`autoRemove = false` does not delete
-omitted clients). Revoke application sessions/API keys where required. For private
+omitted clients). Check the pinned provisioner's removal behavior in
+[identity](identity.md): version 1.3.0 can delete an absent entity and then fail
+while tracking its deleted name. Confirm actual deletion before removing a
+redundant absence declaration and redeploying; do not retain a failing tombstone.
+Revoke application sessions/API keys where required. For private
 services, remove caller configuration and verify consumers handle withdrawal.
 Apply/deploy integration owners in dependency order and test surviving services.
 
