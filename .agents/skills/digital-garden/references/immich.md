@@ -68,10 +68,10 @@ output paths. No plaintext or placeholder ciphertext belongs in the checkout.
 Verify operator decryption to `/dev/null` and stage the real ciphertext/policy.
 Install only Immich's new key into its verified `/var/lib/garden-secrets` mount,
 following the guarded key-transfer workflow with instance `immich`, project
-`photos`. Preserve identity and other clients credentials and their encrypted inputs.
+`photos`. Preserve existing identity/client credentials and their encrypted inputs.
 
 Until identity's additional ciphertext exists, its new client is not provisioned;
-existing identity and other clients builds continue to work. Absence never removes a previously
+existing identity and application builds continue to work. Absence never removes a previously
 provisioned client (`autoRemove = false`). Immich's full closure refuses to build
 without both encrypted files. Seeds and module-option evaluation need no secrets.
 Once prepared, build the affected identity and Immich closures, verify consumer

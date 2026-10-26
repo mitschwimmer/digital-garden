@@ -1,7 +1,8 @@
 { lib, ... }:
 let
   ready = builtins.pathExists ./immich-secrets.yaml;
-in {
+in
+{
   # Stage the new ciphertext before provisioning this client. Existing identity
   # remains buildable during preparation; autoRemove remains false.
   sops.secrets.immich-client = lib.mkIf ready {
@@ -25,8 +26,16 @@ in {
     allowInsecureClientDisablePkce = false;
     enableLegacyCrypto = false;
     scopeMaps = {
-      photos-users = [ "openid" "profile" "email" ];
-      admins = [ "openid" "profile" "email" ];
+      photos-users = [
+        "openid"
+        "profile"
+        "email"
+      ];
+      admins = [
+        "openid"
+        "profile"
+        "email"
+      ];
     };
     claimMaps.immich_role = {
       joinType = "array";
