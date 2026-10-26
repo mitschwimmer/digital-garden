@@ -64,13 +64,6 @@ in
       idmAdminPasswordFile = "/run/secrets/idm-admin";
       # Deletion must be explicit (present = false), not an accidental omission.
       autoRemove = false;
-      # Retain the tombstone: autoRemove = false does not delete omitted clients.
-      systems.oauth2.open-webui = {
-        present = false;
-        displayName = "Open WebUI";
-        originUrl = "https://ai.archaic.work/oauth/oidc/callback";
-        originLanding = "https://ai.archaic.work";
-      };
     };
   };
   systemd.services.kanidm = {

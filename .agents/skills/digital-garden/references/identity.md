@@ -28,10 +28,7 @@ reconciled by the module; change authorization in Nix, not interactively.
 ## Secret contract
 
 Identity consumes `admin` and `idm-admin` from `systems/identity/secrets.yaml`
-as 0400 kanidm-owned files through native provisioning options. The retired
-`webui-client` entry remains encrypted for recovery; it is no longer delivered.
-Remove it only by decrypting and re-encrypting with SOPS after its retention
-period, preserving the administrator values. Application-specific
+as 0400 kanidm-owned files through native provisioning options. Application-specific
 client declarations may live in imported modules with separate ciphertext; inspect
 those imports and their owning service references. Do not replace existing admin
 or unrelated client inputs when adding a client. Follow [secret delivery](secrets.md).

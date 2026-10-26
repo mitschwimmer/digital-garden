@@ -45,7 +45,7 @@ jobs:
       - name: Validate infrastructure schemas
         run: |
           nix develop --command sh -ec '
-            for root in platform systems/edge systems/identity systems/open-webui systems/immich systems/webdav systems/inference systems/walter systems/agent-vault systems/pi; do
+            for root in platform systems/edge systems/identity systems/immich systems/webdav systems/inference systems/walter systems/agent-vault systems/pi; do
               tofu -chdir="$root" fmt -check -diff
               tofu -chdir="$root" init -backend=false -input=false -lockfile=readonly
               tofu -chdir="$root" validate
