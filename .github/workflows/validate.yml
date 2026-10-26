@@ -44,14 +44,13 @@ jobs:
         run: nix flake check --no-build
       - name: Validate infrastructure schemas
         run: |
-          nix develop <<'EOF'
-          set -e
-          for root in platform systems/edge systems/identity systems/open-webui systems/immich systems/webdav systems/inference systems/walter systems/agent-vault systems/pi; do
-            tofu -chdir="$root" fmt -check -diff
-            tofu -chdir="$root" init -backend=false -input=false -lockfile=readonly
-            tofu -chdir="$root" validate
-          done
-          EOF
+          nix develop --command sh -ec '
+            for root in platform systems/edge systems/identity systems/open-webui systems/immich systems/webdav systems/inference systems/walter systems/agent-vault systems/pi; do
+              tofu -chdir="$root" fmt -check -diff
+              tofu -chdir="$root" init -backend=false -input=false -lockfile=readonly
+              tofu -chdir="$root" validate
+            done
+          '
       - name: Evaluate identity and application module options
         run: |
           nix eval .#nixosConfigurations.identity.config.services.kanidm.provision --json > /dev/null
