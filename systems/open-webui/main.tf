@@ -8,7 +8,7 @@ resource "incus_storage_volume" "webui" {
   config  = { "initial.mode" = "0700" }
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
@@ -20,6 +20,6 @@ resource "incus_storage_volume" "webui_secrets" {
   config  = { "initial.mode" = "0700" }
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
