@@ -105,11 +105,12 @@ resource "incus_instance" "walter" {
     "environment.WALTER_OIDC_CLIENT_ID"          = "walter"
     "environment.WALTER_OIDC_CLIENT_SECRET_FILE" = "/run/secrets/oidc-client"
     "environment.WALTER_ALLOWED_GROUPS"          = "ai-users@auth.archaic.work"
-    "environment.WALTER_LLAMA_ENDPOINT"          = "http://garden-llama.garden.internal:8080/v1/chat/completions"
-    "environment.WALTER_MODEL"                   = "qwen38-chat"
-    "environment.WALTER_QUICK_JSON"              = var.quick_profile
-    "environment.WALTER_THOUGHTFUL_JSON"         = var.thoughtful_profile
+    "environment.WALTER_MODEL"                   = "qwen3.8-flash-next-iq3_s"
     "environment.WALTER_GENERATION_TIMEOUT"      = "2h"
+    "environment.WALTER_INFERENCE_BACKEND"       = "openai"
+    "environment.WALTER_INFERENCE_ENDPOINT"      = "http://192.168.1.28:8080/v1/chat/completions"
+    "environment.WALTER_INFERENCE_API_KEY_FILE"  = "/run/secrets/strata-api-key"
+    "environment.WALTER_MODEL"                   = "qwen3.8-flash-next-iq3_s"
     "environment.WALTER_MAX_HISTORY_BYTES"       = "48000"
     "environment.WALTER_MAX_OUTPUT_TOKENS"       = "4096"
   }

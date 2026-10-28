@@ -9,3 +9,6 @@ creation_rules:
     age: age1yv47tnq9ganc880ss86262uxrr4xymgpavk92dm2kvyfrwaj7vrqns4let,age1p23melktk4dgy2fn24e7vnfxwd644crjtpxztxxp9n88255kjdks3re0t5
   - path_regex: ^systems/agent-vault/secrets\.yaml$
     age: age1yv47tnq9ganc880ss86262uxrr4xymgpavk92dm2kvyfrwaj7vrqns4let,age1ss9fjhv6dr072nsau8n23f3tlud7dn4c2nhk9ljcz8gep55lds7qgn5afv
+
+  - path_regex: ^systems/walter/secrets\.yaml$
+    age: age1yv47tnq9ganc880ss86262uxrr4xymgpavk92dm2kvyfrwaj7vrqns4let,age19uqc75c727245clpevv325t8xmelahdkndgr98s4q8hngyt7npxqdax8l5
