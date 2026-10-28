@@ -113,7 +113,23 @@ resource "incus_instance" "walter" {
     "environment.WALTER_MODEL"                   = "qwen3.8-flash-next-iq3_s"
     "environment.WALTER_MAX_HISTORY_BYTES"       = "48000"
     "environment.WALTER_MAX_OUTPUT_TOKENS"       = "4096"
+    "environment.WALTER_QUICK_JSON" = jsonencode({
+      reasoning_effort = "none"
+      temperature      = 0.7
+      top_p            = 0.8
+      presence_penalty = 1.5
+      max_tokens       = 2048
+    })
+
+    "environment.WALTER_THOUGHTFUL_JSON" = jsonencode({
+      reasoning_effort = "high"
+      temperature      = 1.0
+      top_p            = 0.95
+      presence_penalty = 0.0
+      max_tokens       = 4096
+    })
   }
+
 
   device {
     name       = "root"
