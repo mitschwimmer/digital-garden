@@ -7,7 +7,7 @@ services:
       type: bearer
       token: GITHUB_PAT
   - name: github-git
-    host: github.com:443/mitschwimmer/*
+    host: github.com:443
     auth:
       type: basic
       username: GITHUB_USERNAME

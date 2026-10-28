@@ -66,7 +66,8 @@ Follow [setup](lifecycle.md#setup), [platform inputs](platform.md),
    cannot express GraphQL repository permissions. Store the GitHub login as
    `GITHUB_USERNAME` and PAT as `GITHUB_PAT`. Apply the reviewed public
    `systems/agent-vault/services.yaml` through `vault service set --vault pi-agent --file` after
-   transferring that file to the guest. Narrow its Git owner/path if needed.
+   transferring that file to the guest. GitHub owner/repository access is enforced
+   by the PAT; the Git rule matches `github.com:443` for any owner.
 6. Leave `unmatched_host_policy` at its upstream default, passthrough, so public
    Go/npm dependencies and source archives work without receiving credentials.
    Verify that setting explicitly during acceptance. Private/reserved upstream
@@ -102,6 +103,63 @@ Upgrades must preserve the database, password and CA identity. Review migrations
 and the pinned server/client interfaces before changing the release hash. A NixOS
 generation rollback does not roll back database migrations. Keep a matching
 pre-upgrade backup and old binary. Upstream is preview software.
+
+## GitHub access
+
+The Git rule matches `github.com:443` without an owner/path restriction.
+Basic authentication uses `GITHUB_USERNAME` and `GITHUB_PAT`; the API rule
+uses the same PAT as a Bearer token on `api.github.com:443`. GitHub enforces
+the PAT's repository selection and permissions. The Git rule supplies credentials
+on all HTTPS paths at that exact host/port, including paths for other owners;
+it grants no access beyond the PAT. Do not put a real PAT in Pi's environment,
+Git configuration or remote URLs. Use ordinary HTTPS clone/fetch/push and `gh`.
+
+A fine-grained PAT is limited to one resource owner (a user or organization).
+Changing repositories within that owner requires updating its GitHub settings,
+not the vault rule. Access to another owner needs an appropriate token. For
+simultaneous access with distinct tokens, use separate vaults/sessions or explicitly
+designed credential routing; one shared API Bearer rule cannot select tokens for
+different owners at the same GraphQL endpoint.
+
+For initial enrollment, create the Git service and both referenced credential
+slots together, then approve separately with the owner session:
+
+```fish
+incus exec REMOTE:agent-vault --project agent-vault -- \
+  agent-vault vault run --vault pi-agent --ttl 300 -- \
+  agent-vault vault proposal create --vault pi-agent \
+  --name github-git --host 'github.com:443' --auth-type basic \
+  --username-key GITHUB_USERNAME --password-key GITHUB_PAT \
+  --credential 'GITHUB_USERNAME=GitHub login' \
+  --credential 'GITHUB_PAT=Fine-grained GitHub token' \
+  --message 'Enable GitHub for Pi'
+incus exec REMOTE:agent-vault --project agent-vault -- \
+  agent-vault vault proposal approve --vault pi-agent NUMBER
+incus exec REMOTE:agent-vault --project agent-vault -- \
+  agent-vault vault service add --vault pi-agent \
+  --name github-api --host 'api.github.com:443' \
+  --auth-type bearer --token-key GITHUB_PAT
+```
+
+Enter credential values only at the hidden approval prompts. Proposal validation
+requires every supplied credential slot to be referenced by a proposed service.
+
+To update an existing owner-scoped Git rule after both credentials exist, upsert
+the public rule directly; no NixOS deployment or new Pi session is required:
+
+```fish
+incus exec REMOTE:agent-vault --project agent-vault -- \
+  agent-vault vault service add --vault pi-agent \
+  --name github-git --host 'github.com:443' --auth-type basic \
+  --username-key GITHUB_USERNAME --password-key GITHUB_PAT
+```
+
+Check `vault service list` for narrower rules: they take precedence over this
+catch-all and may deliberately use other credentials. Verify authenticated API
+access and HTTPS Git against a private repository selected in the PAT; a public
+`git ls-remote` alone does not prove authentication. Do not enable verbose HTTP
+tracing with real tokens. A checkout reconstructed via API with a synthetic base
+commit must be replaced by a genuine clone before normal Git collaboration.
 
 ## TensorX model
 
