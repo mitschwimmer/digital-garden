@@ -26,7 +26,7 @@ jobs:
           else
             git show --format= --check HEAD
           fi
-      - name: Test activation guards
+      - name: Test operation helpers
         run: python3 -m unittest discover -s tests -v
   native:
     runs-on: ubuntu-24.04

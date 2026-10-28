@@ -24,9 +24,9 @@ does not prove a deployment. Service references explain semantics absent from
 source, especially consistency, bootstrap, migration and acceptance constraints.
 
 Each root has its own local inputs, OpenTofu state, provider lock and saved plans.
-NixOS roots also have `target.json`, a unique seed and `.operations/` deployment
-records. Never copy mutable operation files between roots. Shared Nix source,
-flake pins and procedures are reusable; deployment state is not shared. Leaf
+NixOS roots also have `target.json`, a unique seed and their own guest system
+profile generations. Never copy mutable operation files between roots. Shared
+Nix source, flake pins and procedures are reusable; deployment state is not shared. Leaf
 roots look up the existing bridge by name; they do not read platform state.
 Provision platform first. Namespaces do not isolate traffic on the trusted bridge.
 
@@ -42,8 +42,6 @@ own mutable state on protected volumes. Each guest has its own disposable root;
 no Nix store or writable volume is shared across guests. Seeds are for creation;
 closure deployment updates existing NixOS guests.
 
-The deployment entry point is a small exception to the preference for native
-commands: it binds root, applied target, metadata and closure identity before
-changing the profile. It calls native Nix/Incus commands and generates no service
-configuration. It locks within one checkout; coordinate across operators. See
-[deployment](deployment.md) for limits and rollback.
+Deploy with native Nix/Incus commands and `nixos-rebuild --store-path` in the
+guest. Operators select the matching configuration and destination and coordinate
+changes. See [deployment](deployment.md) for switching and generation rollback.

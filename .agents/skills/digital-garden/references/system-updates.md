@@ -17,7 +17,7 @@ including seeds and workstation tools; a separate service pin need not.
 ## Update and roll out
 
 1. Record revision, locks and affected running closures/image digests. Preserve
-   deployment records/GC roots and [matching data backups](recovery.md#backup).
+   retained system generations and [matching data backups](recovery.md#backup).
    Review release notes and migrations for each changed component.
 2. For an exact-revision flake input, edit that input's URL deliberately, then run
    `nix flake update INPUT_NAME` with its actual name. Lock regeneration alone

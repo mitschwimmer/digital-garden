@@ -13,7 +13,7 @@ closure builds or a live host. CI may run its broader suite independently.
 
 | Change | Required source/build checks | Live checks when deploying |
 |---|---|---|
-| Operation helpers or their tests | Python regression suite | Deployment guard cases below |
+| Operation helpers or their tests | Python regression suite | Owning service acceptance |
 | HCL, targets, provider pins | Tofu format/schema validation in affected roots | Reviewed whole saved plan; devices/mounts/connectivity |
 | One guest's Nix configuration | Format changed Nix; evaluate/build that guest | Its service acceptance |
 | `directory.nix` | Format; evaluate Kanidm provisioning; build identity | Reconciliation and user/access checks in [users](users.md) |
@@ -42,7 +42,7 @@ Whitespace for every change:
 git diff --check
 ```
 
-Deployment code/tests:
+Operation helpers/tests:
 
 ```bash
 python -m unittest discover -s tests -v
@@ -90,13 +90,14 @@ do not substitute for live acceptance.
 
 ## Live acceptance
 
-Read this section for deployment-code changes or installation/architecture
+Read this section for deployment-procedure changes or installation/architecture
 acceptance; ordinary service changes use only their affected service checks.
 
-The regression suite mocks native commands: it proves guard/control flow, not
-Incus behavior. On a disposable host, require rejection of an identity closure from
-edge before profile mutation; also reject missing metadata and wrong seed input.
-Then deploy correct closures and verify their services.
+On a disposable guest, build and transfer its closure, run `dry-activate`, switch
+with `nixos-rebuild --store-path`, inspect selected/running generations and verify
+its services. Exercise rollback to a retained compatible generation and recheck.
+Native deployment does not reject another garden system's closure; inspect the
+configuration, destination, metadata and mounts before switching.
 
 For a first installation or changes to cross-root ownership/isolation, review
 first-create plans per root and update one while verifying other roots' resources
@@ -111,7 +112,7 @@ OpenTofu validation, Nix evaluation and focused native application checks. Full
 seed-image and selected system builds are available through the manual
 `.github/workflows/full-build.yml` workflow instead of every PR/push. Neither
 workflow builds every secret-consuming closure or proves live acceptance.
-Before deployment, build the affected guest through the deployment entry point;
-before provisioning, build and retain its system-specific seed. Record exact
+Build the affected guest using [deployment](deployment.md) before switching;
+build and retain its system-specific seed before provisioning. Record exact
 passed and pending source/build/live checks in the PR; keep live acceptance
 records private with revision, date, environment and observed results.
