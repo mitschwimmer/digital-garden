@@ -163,7 +163,7 @@ metadata and login. ML cache can be rebuilt. Recreating a volume is not restorat
 Before an upgrade, take a consistent checkpoint and review migrations. A closure
 rollback alone cannot reverse database changes. For incompatible migrations,
 mask `immich-server` and `immich-machine-learning`, select and verify the recorded
-old generation using the guarded rollback workflow, then stop the guest and
+old generation using the native rollback procedure, then stop the guest and
 restore its matching media/database checkpoint before restarting. Preserve the
 matching machine key and both consumer ciphertexts; restore secret state only if
 that checkpoint requires it, never rotate credentials as a rollback shortcut. Follow the

@@ -74,7 +74,7 @@ changing guest accounts through their owning NixOS configuration.
    Record pending revocation explicitly; do not claim offboarding is complete
    while existing access remains.
 
-For a failed deployment, inspect the attempt record and repair/retry or use
+For a failed deployment, inspect the journal and selected generation, then repair/retry or use
 [deployment rollback](deployment.md#resume-and-rollback). Directory deletion is
 persistent database state: rolling back a NixOS closure does not undo it. A prior
 person declaration may recreate an account without its former credentials or

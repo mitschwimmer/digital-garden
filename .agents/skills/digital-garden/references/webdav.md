@@ -165,7 +165,7 @@ state stays with edge's backup. Retained volumes are not off-host backups.
 Restore independently on an isolated target and verify actual Enpass data,
 credentials, TLS and allowed/denied access before relying on the backup.
 
-For upgrades, use the guarded guest rollback procedure; restore matching data
+For upgrades, use the native guest rollback procedure; restore matching data
 if a version changes its on-disk expectations. Roll back edge independently for
 route changes. To close access immediately, deploy edge with an empty
 `webdavLanCidrs` list; keep the backend data and identity intact.

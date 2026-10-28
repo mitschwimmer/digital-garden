@@ -14,7 +14,8 @@ together and which caches are disposable; do not duplicate the mount inventory h
 Guest `user.garden.system` metadata comes from the root's `target.json`, which
 also supplies deployment identity and required mount checks. Update target,
 configuration, devices and the owning service's recovery requirements together.
-Never change metadata just to make a mismatched closure pass deployment checks.
+Compare metadata and closure identity before switching; native deployment does
+not enforce their match.
 
 Namespaces do not isolate bridge traffic. Only trusted workloads may join.
 Do not expose backend ports or Incus management publicly. Untrusted tenants need
