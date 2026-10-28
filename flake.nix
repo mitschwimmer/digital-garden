@@ -22,7 +22,6 @@
       names = [
         "edge"
         "identity"
-        "open-webui"
         "immich"
         "webdav"
         "agent-vault"
@@ -55,7 +54,6 @@
           ++ lib.optionals (!seed) [
             sops-nix.nixosModules.sops
             (./systems + "/${name}/configuration.nix")
-            { nixpkgs.config.allowUnfreePredicate = pkg: lib.getName pkg == "open-webui"; }
           ];
         };
       guests = lib.genAttrs names (name: mkSystem name false);

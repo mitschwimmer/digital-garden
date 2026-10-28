@@ -2,9 +2,6 @@ creation_rules:
   - path_regex: ^systems/identity/(secrets|immich-secrets|walter-secrets)\.yaml$
     age: age1yv47tnq9ganc880ss86262uxrr4xymgpavk92dm2kvyfrwaj7vrqns4let,age19uqc75c727245clpevv325t8xmelahdkndgr98s4q8hngyt7npxqdax8l5
 
-  - path_regex: ^systems/open-webui/secrets\.yaml$
-    age: age1yv47tnq9ganc880ss86262uxrr4xymgpavk92dm2kvyfrwaj7vrqns4let,age15wt5dvn7m3sye4spu4eqn3n7qphrh8eyw53wfkq6xmddras8sgsq7g8qmy
-
   - path_regex: ^systems/immich/secrets\.yaml$
     age: age1yv47tnq9ganc880ss86262uxrr4xymgpavk92dm2kvyfrwaj7vrqns4let,age1u0qy02l54tr6q0eqcwtzqzjrd5s0h83v9n9uptkzfqv8z2yvjv2qs624z2
   

@@ -18,7 +18,7 @@ jobs:
       - name: Build seed images and systems without bootstrap inputs
         run: |
           nix build --no-link \
-            .#edge-image .#identity-image .#open-webui-image .#immich-image .#webdav-image .#agent-vault-image .#pi-image \
+            .#edge-image .#identity-image .#immich-image .#webdav-image .#agent-vault-image .#pi-image \
             .#nixosConfigurations.agent-vault.config.system.build.toplevel \
             .#nixosConfigurations.pi.config.system.build.toplevel \
             .#nixosConfigurations.edge.config.system.build.toplevel

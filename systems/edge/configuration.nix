@@ -79,10 +79,6 @@ in
           '';
         };
         # Native OIDC belongs to the application. Caddy never authenticates users.
-        "ai.archaic.work" = {
-          logFormat = null;
-          extraConfig = "reverse_proxy open-webui.garden.internal:8080";
-        };
         "walter.archaic.work" = {
           logFormat = null;
           extraConfig = ''

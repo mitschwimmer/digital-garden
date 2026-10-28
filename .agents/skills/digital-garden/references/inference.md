@@ -21,9 +21,9 @@ before creating or upgrading the guest. Newer source releases may precede
 publication of their ROCm images; use a verified published image digest.
 
 The OCI guest, cache and configuration volumes belong to project `inference`.
-The checks below use the configured WebUI guest as a trusted caller; another
-trusted caller may exercise the same endpoints. Operate inference independently from its own root; see [platform inputs](platform.md).
-Open WebUI callers run in `ai`; both use the shared bridge in `default`.
+The checks below use edge as a trusted diagnostic caller with curl installed.
+Walter is the application caller in `ai`; both use the shared bridge in `default`.
+Operate inference independently from its own root; see [platform inputs](platform.md).
 
 `systems/inference/main.tf` uses the upstream digest in `systems/inference/image.lock.json`, explicit
 unprivileged GPU/KFD mappings, UID/GID 1000, one private NIC, 32 GiB root and a
@@ -73,8 +73,8 @@ systemd readiness loop.
 ```bash
 incus info "$GARDEN_REMOTE:garden-llama" --project inference
 incus exec "$GARDEN_REMOTE:garden-llama" --project inference -- env LD_LIBRARY_PATH=/app /app/llama-server --list-devices
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --retry 15 --retry-connrefused --retry-delay 2 --connect-timeout 5 --max-time 10 --retry-max-time 90 http://garden-llama.garden.internal:8080/health
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --connect-timeout 5 --max-time 30 --fail http://garden-llama.garden.internal:8080/v1/models
+incus exec "$GARDEN_REMOTE:edge" --project default -- curl --fail --retry 15 --retry-connrefused --retry-delay 2 --connect-timeout 5 --max-time 10 --retry-max-time 90 http://garden-llama.garden.internal:8080/health
+incus exec "$GARDEN_REMOTE:edge" --project default -- curl --connect-timeout 5 --max-time 30 --fail http://garden-llama.garden.internal:8080/v1/models
 ```
 
 Stop unless health succeeds within the retry budget and the catalog is available.
@@ -85,25 +85,24 @@ A running OCI process or device enumeration alone does not pass the check.
 Require the aliases declared in `models.ini` even before downloads. The current
 profiles are `qwen38` and `qwen38-chat`; both share one GGUF, and the chat profile
 also uses a projector. Send native
-API requests from the trusted WebUI guest, one model at a time:
+API requests from the trusted edge guest, one model at a time:
 
 ```bash
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen38","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen38-chat","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen38","messages":[{"role":"user","content":"Say hello again."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
-incus exec "$GARDEN_REMOTE:open-webui" --project ai -- curl --connect-timeout 5 --max-time 30 --fail http://garden-llama.garden.internal:8080/models
+incus exec "$GARDEN_REMOTE:edge" --project default -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen38","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
+incus exec "$GARDEN_REMOTE:edge" --project default -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen38-chat","messages":[{"role":"user","content":"Say hello in one sentence."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
+incus exec "$GARDEN_REMOTE:edge" --project default -- curl --fail --max-time 7200 -H 'Content-Type: application/json' -d '{"model":"qwen38","messages":[{"role":"user","content":"Say hello again."}],"max_tokens":64}' http://garden-llama.garden.internal:8080/v1/chat/completions
+incus exec "$GARDEN_REMOTE:edge" --project default -- curl --connect-timeout 5 --max-time 30 --fail http://garden-llama.garden.internal:8080/models
 incus console "$GARDEN_REMOTE:garden-llama" --project inference --show-log
 ```
 
 Require responses contain actual generated text; logs show ROCm and layers
 **offloaded**, not merely enumerated devices. Catalog status shows only the
-selected model loaded (models-max 1). When WebUI is enabled, select coding -> chat -> coding and
-chat; switching needs no infrastructure apply/restart. First download/load may
-be slow. Cold model requests may take up to the documented 7200-second timeout;
-do not treat this as the short API readiness check. Cached models must survive restarting inference. If WebUI is enabled, its chat
-state and client integration must also survive restarting both guests. Wait for WebUI via [guest readiness](readiness.md)
-in `ai`, and repeat the bounded inference health check above before requests. Repeat
-an API request and, when enabled, browser chat after restart and ensure no full re-download.
+selected model loaded (models-max 1). First download/load may be slow. Cold model
+requests may take up to the documented 7200-second timeout; do not treat this as
+the short API readiness check. Cached models must survive restarting inference.
+Repeat the bounded health and API generation checks after restart and ensure no
+full re-download. Test generated chat, streaming, login and existing conversation
+persistence through Walter as described in [its acceptance checks](walter.md#acceptance-updates-and-recovery).
 
 Before deployment, reconcile `models.ini` with `models.lock.json`: every model
 and projector needs an immutable revision and expected SHA256/size. Stop if URLs
@@ -116,7 +115,7 @@ record verified results and repeat after changing bytes, not every restart.
 ## Resume and rollback
 
 Inspect container log, GPU devices/permissions, memory and cache
-capacity, outbound Hugging Face DNS/TLS, selected model status and WebUI backend
+capacity, outbound Hugging Face DNS/TLS, selected model status and the application caller’s backend
 URL. If Qwen cannot fit, review an explicit context/offload change. Do not enable
 privileged mode or bypass checks with an architecture override. A failed initial
 apply resumes with the same state/volumes and whole plan.

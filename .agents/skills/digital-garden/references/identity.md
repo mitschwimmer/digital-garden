@@ -21,15 +21,23 @@ and fresh bootstrap plus restart/rotation checks pass without it. There is no
 local Kanidm fork or custom provisioning service.
 
 Provisioning uses explicit admin/idm-admin password files; omitting idm-admin
-would reset its password on each restart. autoRemove is false: retain an explicit
-`present = false` declaration for intentional entity deletion. Membership is
-reconciled by the module; change authorization in Nix, not interactively.
+would reset its password on each restart. autoRemove is false: omitting an entity
+does not delete it. Membership is reconciled by the module; change authorization
+in Nix, not interactively.
+
+The pinned kanidm-provision 1.3.0 has an absent-entity tracking bug: it can delete
+an entity marked `present = false`, then fail provisioning while adding that
+now-missing name to its tracking group. Because provisioning is ExecStartPost,
+this stops Kanidm. Use a fixed provisioner for future removal operations. If the
+journal already confirms successful deletion followed by this tracking failure,
+remove the redundant absence declaration and redeploy identity. Verify the
+service and surviving logins before continuing. Do not enable broad automatic
+removal or recreate the deleted entity to work around the tracking error.
 
 ## Secret contract
 
-`systems/identity/secrets.yaml` contains `admin`, `idm-admin` and `webui-client`.
-Deliver them as 0400 kanidm-owned files through native provisioning options.
-The WebUI client raw value must match its consumer ciphertext. Application-specific
+Identity consumes `admin` and `idm-admin` from `systems/identity/secrets.yaml`
+as 0400 kanidm-owned files through native provisioning options. Application-specific
 client declarations may live in imported modules with separate ciphertext; inspect
 those imports and their owning service references. Do not replace existing admin
 or unrelated client inputs when adding a client. Follow [secret delivery](secrets.md).
