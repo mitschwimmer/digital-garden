@@ -1,10 +1,10 @@
 {
   description = "Digital Garden isolated IncusOS systems";
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/26f4107e47e3ad0ffd0db220469ba83b6f6d96e8";
-  # Immich 2 at the shared stable pin is unsupported; isolate its supported pin.
-  inputs.nixpkgs-immich.url = "github:NixOS/nixpkgs/55bfb4d7437bd4e09ab7cba58a43bd68eb310044";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+  # Keep Immich on the rolling NixOS branch until the stable package supports it.
+  inputs.nixpkgs-immich.url = "github:NixOS/nixpkgs/nixos-unstable";
   inputs.sops-nix = {
-    url = "github:Mic92/sops-nix/44931708c62937c2b1bf7953902989fa5bb9ee1b";
+    url = "github:Mic92/sops-nix";
     inputs.nixpkgs.follows = "nixpkgs";
   };
 
