@@ -1,6 +1,7 @@
 # Update software components
 
-Guests use declared pinned software. An unchanged rebuild fetches no new packages;
+Guests use software resolved in the committed `flake.lock`. Flake inputs track
+upstream branches, but an unchanged lock rebuilds the same packages;
 do not upgrade channels or install packages inside guests. IncusOS owns the
 kernel and has a separate host update lifecycle.
 
@@ -19,11 +20,14 @@ including seeds and workstation tools; a separate service pin need not.
 1. Record revision, locks and affected running closures/image digests. Preserve
    retained system generations and [matching data backups](recovery.md#backup).
    Review release notes and migrations for each changed component.
-2. For an exact-revision flake input, edit that input's URL deliberately, then run
-   `nix flake update INPUT_NAME` with its actual name. Lock regeneration alone
-   cannot advance a fixed revision. Change following relationships intentionally;
-   review `git diff -- flake.nix flake.lock`. For separately pinned packages or
-   images, update the owning expression/lock and its integrity metadata instead.
+2. Run `nix flake update` to refresh the moving branch inputs, or
+   `nix flake update INPUT_NAME` to advance just one input. The shared nixpkgs
+   follows `nixos-26.05`, Immich follows `nixos-unstable`, and sops-nix uses
+   its default upstream branch. Review `git diff -- flake.lock` and release
+   notes before building or deploying; a newer lock is not automatically a
+   compatible update. Change following relationships intentionally. For
+   separately pinned packages or images, update the owning expression/lock and
+   its integrity metadata instead.
 3. Inspect affected module/package interfaces and independently versioned
    databases/extensions. Retain `system.stateVersion` unless separately reviewing
    state compatibility; it is not the installed version. A database major update
