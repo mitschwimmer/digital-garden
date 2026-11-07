@@ -11,7 +11,7 @@ metadata:
       - name: StorageType
         value: "hostpath"
       - name: BasePath
-        value: "/var/mnt/k8s-data/openebs"
+        value: "/var/mnt/k8s-data"
 provisioner: openebs.io/local
 reclaimPolicy: Retain
 volumeBindingMode: WaitForFirstConsumer
