@@ -127,12 +127,26 @@ not proof. No storage provisioner should run on an unmounted filesystem.
   destructive even if custom volumes are protected.
 - Both custom volumes are pinned by separate Incus resource objects and
   may not be shrunk after creation.
-- The physical GPU is exclusive to the VM when passed through; no Incus
-  hotplug is assumed. Select it with only `pci = "0000:04:00.0"`:
-  Incus rejects mixing `pci` with `productid` or `vendorid` in a GPU device.
-  Cold-stop the VM first and keep `start_vm = false` while adding the device.
-  Re-plan after any failed apply and confirm the sole in-place change before
-  using a newly saved plan. Reboot the VM only in a separately reviewed plan.
+- The physical Radeon GPU is exclusive to the VM when passed through;
+  Incus VM PCI devices cannot hotplug. The graphics function at host
+  `0000:04:00.0` (IOMMU group 13) uses `type = "gpu"` with only
+  `pci = "0000:04:00.0"`: Incus rejects mixing `pci` with `productid` or
+  `vendorid`. The card's HDMI/DP audio function `0000:04:00.1` (IOMMU
+  group 14) is attached to the **same VM** as `type = "pci"` with
+  `address = "0000:04:00.1"`, even when audio isn't used. QEMU logged
+  `Cannot reset device 0000:04:00.0, depends on group 14 which is not owned`
+  during a failed RDNA4 MES/PSP recovery with only the graphics function.
+  Attaching the missing function addresses that VFIO reset-ownership error;
+  it does **not** prove HIP/ROCm will work or resolve unrelated VFIO DMA BAR
+  mapping failures. Inspect both host IOMMU groups before applying.
+  Capture Talos diagnostics and verify the sole node, etcd and attached
+  volumes before downtime. Cold-stop the VM and set `start_vm = false` for a
+  separate saved OpenTofu attachment plan. Only after confirming the
+  in-place device addition with **no disk/VM replacements** start the VM
+  via another reviewed plan with `start_vm = true`. A forced stop is
+  last-resort if graceful Talos/Incus shutdown fails; do not restart the
+  IncusOS host automatically. Recheck Talos, Cilium, Argo, OpenEBS and GPU
+  reset logs before attempting further ROCm tests.
 - A passing OpenTofu plan or applied VM is not a working Talos cluster.
 - Inspect `incus info measerve:garden-k8s`,
   `incus config show measerve:garden-k8s --expanded` and
