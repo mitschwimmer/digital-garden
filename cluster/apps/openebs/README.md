@@ -81,12 +81,13 @@ After the JSONPatch correction, the operator confirmed:
   `restricted:latest` warnings were emitted independently, without blocking
   the canaries; inspect PSA warn/audit settings separately if relevant.
 
-**Next:** collect the fallback guard log, delete the three test Pods, and
-remove the temporary manually managed admission policy/binding as prescribed
-by `tests/README.md` before Argo takeover (while no OpenEBS controller or
-PVC exists). Do not delete the namespace if it contains other resources or
-was not created for these tests. OpenEBS remains **not activated**: GitOps
-AppProject permissions, chart deployment, real helper Pod injection and
+**Cleanup confirmed by operator output:** no resources were reported in
+the `openebs` namespace, no StorageClasses were present, and `garden-root`
+remained Synced/Healthy. The preceding admission policy/binding
+`--ignore-not-found` commands returned no resource records, consistent with
+removal of the temporary manually managed guard. The exact fallback guard
+log line has not been copied. OpenEBS remains **not activated**: GitOps
+AppProject permissions, chart deployment, actual helper Pod injection, and
 sacrificial PVC write/read checks are still pending. This canary establishes
 mount protection for the tested helper signature, not universal hostPath
 protection or existing PV consumer recovery.
