@@ -6,6 +6,8 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingAdmissionPolicy
 metadata:
   name: garden-openebs-mount-guard
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   failurePolicy: Fail
   reinvocationPolicy: IfNeeded
@@ -88,5 +90,7 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingAdmissionPolicyBinding
 metadata:
   name: garden-openebs-mount-guard
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   policyName: garden-openebs-mount-guard
