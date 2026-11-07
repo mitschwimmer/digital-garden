@@ -83,6 +83,12 @@ check_root() {
   tofu -chdir="$repo/$root" init -input=false -lockfile=readonly >/dev/null
   [[ $(tofu -chdir="$repo/$root" workspace show) == default ]] ||
     die "$root has a non-default OpenTofu workspace."
+  local snapshot
+  if ! snapshot=$(tofu -chdir="$repo/$root" state pull); then
+    die "$root state snapshot is unavailable. Do not assume resources are absent."
+  fi
+  printf '%s\n' "$snapshot" | jq -e '(.lineage | type == "string") and (.resources | type == "array")' >/dev/null ||
+    die "$root has no verifiable existing OpenTofu state snapshot."
   if ! state=$(tofu -chdir="$repo/$root" state list); then
     die "$root state is unavailable. Do not assume resources are absent."
   fi
