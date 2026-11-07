@@ -15,7 +15,7 @@ node (`192.168.1.49`), and Cilium **v1.20.4** installed via a bootstrap Helm
 release. The node, Cilium agent/operator/Envoy and the **single-node Cilium
 connectivity suite** passed operator checks. The test suite needs a
 `privileged` Pod Security *test-namespace-only* exception; see
-[`cluster/bootstrap/cilium/README.md`](../../../cluster/bootstrap/cilium/README.md).
+`cluster/bootstrap/cilium/README.md`.
 The initial ISO was detached after Talos installation.
 
 **Next stage:** Talos UserVolumes on the two additional disks, then OpenEBS
@@ -30,7 +30,7 @@ production services. Don't remove/reinstall the working CNI for this reason.
 
 ## Route the task
 
-- Read [cluster](references/kubernetes-cluster.md) for current deployment state, Incus VM, Talos bootstrap, Cilium, physical GPU, disk/mount design or upgrades. Use [Talos bootstrap](../../../cluster/talos/README.md) and [Cilium acceptance](../../../cluster/bootstrap/cilium/README.md) for exact, version-pinned commands.
+- Read [cluster](references/kubernetes-cluster.md) for current deployment state, Incus VM, Talos bootstrap, Cilium, physical GPU, disk/mount design or upgrades. Use `cluster/talos/README.md` and `cluster/bootstrap/cilium/README.md` for exact, version-pinned commands.
 - Read [gitops](references/kubernetes-gitops.md) for Argo CD bootstrap, application ordering, secrets, ingress, workloads and software updates.
 - Read [recovery](references/kubernetes-recovery.md) for persistence, backup, restore, destructive changes and decommissioning.
 - Before operating the old garden, use the **retirement branch and its old handbook**. This skill is for the *post-retirement* architecture. Old `systems/*` HCL, NixOS seed definitions and service references carried forward in a transition branch are historical, **not deployable desired state**. Replace them before cluster installation.
