@@ -1,4 +1,6 @@
 # STAGED / UNTESTED: Kubernetes v1.37 built-in admission, no webhook or extra controller.
+# ApplyConfiguration cannot change atomic container command/args; use JSONPatch.
+# Never reinvoke the append mutation to avoid duplicate injected containers.
 # Mutation adds an initContainer only to OpenEBS Hostpath helper Pods.
 # Unknown BasePath fails closed: /expected resolves to /var/mnt and the
 # guard requires /data != /ephemeral, which cannot both pass.
@@ -12,7 +14,7 @@ metadata:
     argocd.argoproj.io/sync-wave: "-2"
 spec:
   failurePolicy: Fail
-  reinvocationPolicy: IfNeeded
+  reinvocationPolicy: Never
   matchConstraints:
     resourceRules:
       - apiGroups: [""]
@@ -51,42 +53,87 @@ spec:
                     type: "Directory"
                   }
                 }
-              ],
-              initContainers: [
-                Object.spec.initContainers{
-                  name: "garden-mount-guard",
-                  image: "docker.io/library/busybox:1.37.0",
-                  command: ["/bin/sh", "-ec"],
-                  args: [
-                    'actual=$(stat -c %d /data); expected=$(stat -c %d /expected); ephemeral=$(stat -c %d /ephemeral); if [ "$actual" != "$expected" ] || [ "$actual" = "$ephemeral" ]; then echo OpenEBS_Hostpath_mount_not_verified >&2; exit 1; fi'
-                  ],
-                  securityContext: Object.spec.initContainers.securityContext{
-                    runAsUser: 65534,
-                    runAsNonRoot: true,
-                    readOnlyRootFilesystem: true,
-                    allowPrivilegeEscalation: false
-                  },
-                  volumeMounts: [
-                    Object.spec.initContainers.volumeMounts{
-                      name: "data",
-                      mountPath: "/data",
-                      readOnly: true
-                    },
-                    Object.spec.initContainers.volumeMounts{
-                      name: "garden-expected-volume",
-                      mountPath: "/expected",
-                      readOnly: true
-                    },
-                    Object.spec.initContainers.volumeMounts{
-                      name: "garden-ephemeral-reference",
-                      mountPath: "/ephemeral",
-                      readOnly: true
-                    }
-                  ]
-                }
               ]
             }
           }
+    - patchType: JSONPatch
+      jsonPatch:
+        expression: >-
+          has(object.spec.initContainers)
+            ? [
+                JSONPatch{
+                  op: "add",
+                  path: "/spec/initContainers/-",
+                  value: Object.spec.initContainers{
+                    name: "garden-mount-guard",
+                    image: "docker.io/library/busybox:1.37.0",
+                    command: ["/bin/sh", "-ec"],
+                    args: [
+                      'actual=$(stat -c %d /data); expected=$(stat -c %d /expected); ephemeral=$(stat -c %d /ephemeral); if [ "$actual" != "$expected" ] || [ "$actual" = "$ephemeral" ]; then echo OpenEBS_Hostpath_mount_not_verified >&2; exit 1; fi'
+                    ],
+                    securityContext: Object.spec.initContainers.securityContext{
+                      runAsUser: 65534,
+                      runAsNonRoot: true,
+                      readOnlyRootFilesystem: true,
+                      allowPrivilegeEscalation: false
+                    },
+                    volumeMounts: [
+                      Object.spec.initContainers.volumeMounts{
+                        name: "data",
+                        mountPath: "/data",
+                        readOnly: true
+                      },
+                      Object.spec.initContainers.volumeMounts{
+                        name: "garden-expected-volume",
+                        mountPath: "/expected",
+                        readOnly: true
+                      },
+                      Object.spec.initContainers.volumeMounts{
+                        name: "garden-ephemeral-reference",
+                        mountPath: "/ephemeral",
+                        readOnly: true
+                      }
+                    ]
+                  }
+                }
+              ]
+            : [
+                JSONPatch{
+                  op: "add",
+                  path: "/spec/initContainers",
+                  value: [Object.spec.initContainers{
+                    name: "garden-mount-guard",
+                    image: "docker.io/library/busybox:1.37.0",
+                    command: ["/bin/sh", "-ec"],
+                    args: [
+                      'actual=$(stat -c %d /data); expected=$(stat -c %d /expected); ephemeral=$(stat -c %d /ephemeral); if [ "$actual" != "$expected" ] || [ "$actual" = "$ephemeral" ]; then echo OpenEBS_Hostpath_mount_not_verified >&2; exit 1; fi'
+                    ],
+                    securityContext: Object.spec.initContainers.securityContext{
+                      runAsUser: 65534,
+                      runAsNonRoot: true,
+                      readOnlyRootFilesystem: true,
+                      allowPrivilegeEscalation: false
+                    },
+                    volumeMounts: [
+                      Object.spec.initContainers.volumeMounts{
+                        name: "data",
+                        mountPath: "/data",
+                        readOnly: true
+                      },
+                      Object.spec.initContainers.volumeMounts{
+                        name: "garden-expected-volume",
+                        mountPath: "/expected",
+                        readOnly: true
+                      },
+                      Object.spec.initContainers.volumeMounts{
+                        name: "garden-ephemeral-reference",
+                        mountPath: "/ephemeral",
+                        readOnly: true
+                      }
+                    ]
+                  }]
+                }
+              ]
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingAdmissionPolicyBinding
