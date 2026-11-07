@@ -27,18 +27,16 @@ requires that root's immutable `image_directory`; hardware and LAN inputs requir
 actual host inventory, not copied values from another service.
 
 LAN parent must be an IncusOS instances-role bridge; MAC must start with `02`.
-Reserve its DHCP address. Inspect AMD driver/firmware, `/dev/kfd`, compatible ROCm
-and capacity before applying a GPU workload. Retain image paths after creation.
+Reserve its DHCP address. Inspect devices, drivers and capacity when adding a
+hardware workload. Retain image paths after creation.
 There are no global service selectors: only operating a root can change its
 resources. Do not use `-target` to simulate isolation inside a larger state.
 
 ## Starting state and retained resources
 
-The fresh-install path assumes old managed resources were intentionally removed
-by the operator. This repository does not wipe the host. Never reuse old state
-files or reinterpret them as the new roots. Review host inventory before init.
-After first deployment preserve each root's state, local inputs, seed GC root,
-keys and data. Do not erase records to fix a failed service.
+Review host inventory before init. Preserve each root's state, local inputs,
+seed GC root, keys and data. For surviving resources with missing state, use
+[recovery](recovery.md#restore).
 
 After initial creation, before a change in an existing root, choose a new secured off-host checkpoint:
 

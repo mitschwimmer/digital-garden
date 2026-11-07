@@ -1,12 +1,13 @@
 # Declare Kanidm through its NixOS module
 
+- [Entity removal](#entity-removal)
 - [Secret contract](#secret-contract)
 - [Fresh bootstrap](#fresh-bootstrap)
 - [OIDC and acceptance](#oidc-and-acceptance)
 - [User lifecycle and credential enrollment](users.md)
 
-`systems/identity/configuration.nix` owns server settings and OAuth clients;
-`directory.nix` owns persons, groups and membership. All supported administrative
+`systems/identity/configuration.nix` owns server settings and imports client
+modules; `directory.nix` owns persons, groups and membership. Administrative
 configuration is declared under `services.kanidm`, including `provision`.
 Do not run imperative person/group/client setup scripts or make UI configuration
 changes that compete with Nix. User password/passkey enrollment and databases
@@ -14,7 +15,8 @@ remain persistent runtime state, not Nix configuration.
 
 The pinned nixpkgs module supports users, groups, OAuth2 scope/claim maps and
 runtime secret files. `pkgs.kanidm_1_11.withSecretProvisioning` is the nixpkgs-managed
-patched variant (Kanidm 1.11.2 at this pin) needed for stable admin and client secrets.
+patched variant needed for stable admin and client secrets. Resolve its version
+from the locked nixpkgs package.
 Use the matching versioned workstation client; the unversioned alias is removed.
 When updating nixpkgs, retain this variant until upstream supports its interfaces
 and fresh bootstrap plus restart/rotation checks pass without it. There is no
@@ -25,8 +27,11 @@ would reset its password on each restart. autoRemove is false: omitting an entit
 does not delete it. Membership is reconciled by the module; change authorization
 in Nix, not interactively.
 
-The pinned kanidm-provision 1.3.0 has an absent-entity tracking bug: it can delete
-an entity marked `present = false`, then fail provisioning while adding that
+## Entity removal
+
+Check the provisioner selected by `flake.lock` before removing any person, group
+or OAuth client. The currently locked kanidm-provision 1.3.0 has an absent-entity
+tracking bug: it can delete an entity marked `present = false`, then fail provisioning while adding that
 now-missing name to its tracking group. Because provisioning is ExecStartPost,
 this stops Kanidm. Use a fixed provisioner for future removal operations. If the
 journal already confirms successful deletion followed by this tracking failure,
@@ -46,14 +51,14 @@ or unrelated client inputs when adding a client. Follow [secret delivery](secret
 
 1. Provision platform, then edge and identity seeds with separate inputs/state.
 2. Deploy edge and configure DNS/public HTTP reachability as in [ingress](ingress.md).
-3. Add real persons and mailAddresses to directory.nix; assign intended ai-users
-   or admins membership. There is deliberately no guessed operator account.
+3. Review the persons, mail addresses and memberships already declared in
+   `directory.nix`; confirm the intended operator and application access.
 4. Prepare [secrets](secrets.md), install identity's own age key, and stage ciphertext.
 5. Deploy identity. NixOS ACME obtains identity.archaic.work through edge's
    challenge route; Kanidm requires a real certificate before startup. ACME
    renewals restart/reload Kanidm through the module. `/var/lib/acme` is persistent.
-6. Use [credential enrollment](users.md#credential-enrollment) for each person;
-   this is the sole human setup step after declared directory setup.
+6. Use [credential enrollment](users.md#credential-enrollment) for people who
+   do not yet have credentials.
 
 Provisioning connects locally to https://identity.archaic.work:8443 using a local
 hosts entry and verified TLS. Public users use https://auth.archaic.work. No
@@ -74,9 +79,9 @@ Test each affected client's allowed roles and a person without its allowed
 membership (denied). Verify missing/unrelated claims cannot grant roles.
 Test logout, reauthentication, credential enrollment and intended second-factor
 behavior. Restart affected consumers and identity and repeat login/denial. Check
-provisioning
-returns the declared memberships/client settings without duplicating entities.
+provisioning returns the declared memberships/client settings without duplicating
+entities.
 Back up Kanidm's database and keys together; see [recovery](recovery.md).
 
-Sources: [pinned module](https://github.com/NixOS/nixpkgs/blob/26f4107e47e3ad0ffd0db220469ba83b6f6d96e8/nixos/modules/services/security/kanidm.nix),
+Sources: `nixos/modules/services/security/kanidm.nix` in the locked nixpkgs input;
 [Kanidm OAuth2](https://kanidm.github.io/kanidm/stable/integrations/oauth2.html).

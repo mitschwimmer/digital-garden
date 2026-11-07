@@ -5,15 +5,13 @@ The native module runs Immich, machine learning, PostgreSQL with VectorChord,
 and Redis. OpenTofu owns the guest and protected volumes; there is no nested
 Docker runtime. Start with [composition](composition.md) for ownership changes.
 
-The shared stable nixpkgs pin contains unsupported Immich 2.7.5 with known
-vulnerabilities. The separate `nixpkgs-immich` input pins
-`55bfb4d7437bd4e09ab7cba58a43bd68eb310044`, providing Immich 3.3.1 and its matching
-NixOS module/dependencies only for this guest and seed. Do not permit insecure
-packages or downgrade to Immich 2. Keep mobile clients compatible with the server.
-Update this input deliberately with `nix flake update nixpkgs-immich` after
-reviewing its exact URL revision; the shared pin does not advance it. Validate
-the guest and seed plus consumers of any changed integrations. Follow
-[system updates](system-updates.md).
+Immich uses the separate rolling `nixpkgs-immich` input for its package, module
+and dependencies; the shared stable input did not provide a supported release
+when this split was introduced. Resolve current revisions from `flake.lock` and
+versions with `nix eval .#nixosConfigurations.immich.config.services.immich.package.version --raw`.
+Keep mobile clients compatible. Use [system updates](system-updates.md) to update
+this input and validate its guest, seed and affected integrations. Rejoin the
+shared input only after verifying a supported package and compatible module.
 PostgreSQL remains explicitly on major version 16; upgrading it requires its
 native migration procedure, not merely changing the package declaration.
 
@@ -32,8 +30,8 @@ native migration procedure, not merely changing the package declaration.
 | `garden-immich-database` | `local` | `/var/lib/postgresql` (database in `16/`) |
 | `garden-immich-secrets` | `local` | `/var/lib/garden-secrets` |
 
-The root is limited to 24 GiB, with 4 CPU cores and 8 GiB RAM. Monitor root/cache
-and both persistent pools independently. Redis queues and ML cache are disposable;
+Read resource limits in `systems/immich/main.tf`. Monitor root/cache and both
+persistent pools independently. Redis queues and ML cache are disposable;
 after root replacement inspect/requeue incomplete processing jobs. All original
 media and application metadata remain on protected volumes. Start with CPU
 processing; no GPU devices are assigned. A later acceleration change needs its
@@ -53,29 +51,20 @@ volumes to those raw IDs. Systemd creates/owns state directories inside the gues
 
 ## Credentials and first deployment
 
-Use [secret delivery](secrets.md) from a private operator terminal and secured
-workstation directory outside the checkout. Reuse identity's existing machine
-key and recovery recipient. Create a distinct Immich age key; never copy another
-guest's key. Add a real creation rule for `^systems/immich/secrets\.yaml$` with
-the recovery recipient and new Immich public recipient to `.sops.yaml`.
-The existing identity rule also covers `systems/identity/immich-secrets.yaml`.
+Use [secret delivery](secrets.md) for key creation, encryption and guarded key
+installation. For an existing installation reuse its machine keys and ciphertext.
+For a new guest, use a distinct Immich machine key and verify `.sops.yaml` rules.
 
-Generate one new raw OAuth client secret. Encrypt `{ "immich-client": VALUE }`
-separately to `systems/identity/immich-secrets.yaml` and
-`systems/immich/secrets.yaml`, with each consumer's recipients. Use the encryption
-workflow's `--filename-override` and JSON input/output YAML, refusing existing
-output paths. No plaintext or placeholder ciphertext belongs in the checkout.
-Verify operator decryption to `/dev/null` and stage the real ciphertext/policy.
-Install only Immich's new key into its verified `/var/lib/garden-secrets` mount,
-following the guarded key-transfer workflow with instance `immich`, project
-`photos`. Preserve existing identity/client credentials and their encrypted inputs.
+Both `systems/identity/immich-secrets.yaml` and `systems/immich/secrets.yaml`
+contain `immich-client`: the same raw OAuth secret, encrypted separately for each
+consumer's recipients. Preserve identity's existing admin and unrelated client
+inputs. Immich's full closure requires both files; seeds and option evaluation
+need no credentials. A missing identity client file omits that declaration but
+does not delete an existing client (`autoRemove = false`).
 
-Until identity's additional ciphertext exists, its new client is not provisioned;
-existing identity and application builds continue to work. Absence never removes a previously
-provisioned client (`autoRemove = false`). Immich's full closure refuses to build
-without both encrypted files. Seeds and module-option evaluation need no secrets.
-Once prepared, build the affected identity and Immich closures, verify consumer
-decryption and deploy identity first, then Immich through [deployment](deployment.md).
+After readiness, install Immich's key on its persistent secret mount (instance
+`immich`, project `photos`). Build both affected closures, deploy identity first,
+then Immich via [deployment](deployment.md), and verify consumer decryption.
 
 Immich requires first-admin registration even when password login is disabled.
 Bootstrap Henner's declared email (`henner@archaic.work`) through private Incus
@@ -118,8 +107,8 @@ Exact callbacks are `/auth/login`, `/user-settings`, and
 The HTTPS mobile override forwards to Immich's app scheme without registering
 a non-HTTPS origin in Kanidm.
 
-`directory.nix` declares `photos-users` initially containing Henner and Claudi.
-Only that group and `admins` receive login scopes. The `immich_role` array grants
+`directory.nix` owns membership of `photos-users` and `admins`.
+Only `photos-users` and `admins` receive login scopes. The `immich_role` array grants
 `user` to `photos-users`, `admin` to `admins`; Immich gives admin precedence.
 Use [users](users.md) for membership changes. Group removal blocks fresh OIDC
 authorization but does not revoke existing Immich sessions or API keys; revoke
@@ -134,8 +123,8 @@ curl --fail --max-time 30 -4 https://photos.archaic.work/api/server/ping
 ```
 
 Test IPv6 too if AAAA is published. Require trusted TLS. Verify public first-admin
-registration returns 403. Test Henner as admin, Claudi as user and an enrolled
-person outside both groups as denied; verify password login is unavailable.
+registration returns 403. Test a declared admin, an ordinary photos-group member,
+and an enrolled person outside both groups as denied; verify password login is unavailable.
 Test browser/mobile callbacks, logout/reauthentication, a real photo and video
 upload, thumbnails, playback and ML processing. Restart the guest and repeat
 login/media checks, confirming mounts and persistence. These are deployment
@@ -171,7 +160,7 @@ that checkpoint requires it, never rotate credentials as a rollback shortcut. Fo
 with Immich's actual units, pools and volumes; do not reuse another root's records.
 Validate restoration before reopening traffic.
 
-Sources: [pinned NixOS module](https://github.com/NixOS/nixpkgs/blob/55bfb4d7437bd4e09ab7cba58a43bd68eb310044/nixos/modules/services/web-apps/immich.nix),
-[Immich requirements](https://docs.immich.app/install/requirements/),
-[OIDC](https://github.com/immich-app/immich/blob/v3.3.1/docs/docs/administration/oauth.md),
+Sources: `nixos/modules/services/web-apps/immich.nix` in the locked
+`nixpkgs-immich` input; [Immich requirements](https://docs.immich.app/install/requirements/),
+and OAuth documentation for the resolved Immich release;
 [backup and restore](https://docs.immich.app/administration/backup-and-restore/).

@@ -42,7 +42,7 @@ building in the guest; `--no-reexec` avoids evaluating a guest-local configurati
 to rebuild the tool. Use the tool from the candidate closure, including when
 updating an older guest. Both pinned nixpkgs inputs provide this interface.
 Keep `result` until acceptance; system profile generations retain switched
-closures on the guest. There are no custom attempt records, locks or GC roots.
+closures on the guest.
 
 ## Check the result
 
@@ -84,8 +84,8 @@ recovery choice. Repeat the result and service checks after rollback.
 NixOS rollback does not reverse database migrations; use matching
 [data recovery](recovery.md) when required. Reconcile source with running state.
 Retain recovery generations until acceptance; deleting generations and garbage
-collection can remove rollback options. Preserve any older `.operations/` records
-and `garden-*-previous` GC roots until their recovery points are no longer needed.
+collection can remove rollback options.
 
-Sources: pinned [nixos-rebuild manual](https://github.com/NixOS/nixpkgs/blob/26f4107e47e3ad0ffd0db220469ba83b6f6d96e8/pkgs/by-name/ni/nixos-rebuild-ng/nixos-rebuild.8.scd)
-and [system switch](https://github.com/NixOS/nixpkgs/blob/26f4107e47e3ad0ffd0db220469ba83b6f6d96e8/nixos/doc/manual/development/what-happens-during-a-system-switch.chapter.md).
+Sources in each guest's locked nixpkgs input:
+`pkgs/by-name/ni/nixos-rebuild-ng/nixos-rebuild.8.scd` and
+`nixos/doc/manual/development/what-happens-during-a-system-switch.chapter.md`.
