@@ -150,7 +150,7 @@ asset using the published SHA-256. Before generation confirm
 The desired configuration for the two **separately attached Incus block
 volumes** is [user-volumes.yaml](user-volumes.yaml). It uses Talos v1.14
 `UserVolumeConfig` (`volumeType: disk`) with exact Incus SCSI by-id
-symlink matches, a non-system-disk check and expected-size guards.
+symlink matches, writable checks and expected-size guards.
 It provisions **XFS filesystems** mounted under
 `/var/mnt/k8s-nvme` and `/var/mnt/k8s-data` respectively.
 
@@ -215,6 +215,32 @@ This supports proceeding to the **dry-run** below, not directly to disk
 initialization. Recheck the disks before any live apply. Talos disk
 discovery showing no recognized signatures does not itself prove there
 is no valuable raw or previously erased data.
+
+### Disk locator failure and correction (2026-11-07)
+
+The operator applied the first approved version. Both `u-k8s-nvme`
+and `u-k8s-data` entered **failed** with:
+
+```text
+error evaluating disk locator: no such attribute(s): system_disk
+```
+
+Talos v1.14.5's **disk-volume locator** evaluates the CEL expression
+against `disk` only (without the `system_disk` variable), even though
+the provisioning selector context may offer `system_disk`. The initial
+source included `!system_disk`, which was valid at configuration
+dry-run time but failed at runtime before any new filesystem was
+detected. The corrected [user-volumes.yaml](user-volumes.yaml) removes
+`!system_disk` from both selectors, **without** broadening their
+specific by-id paths or size ranges; it retains `!disk.readonly`.
+
+For recovery: refresh the branch source, inspect the diff and repeat
+the Talos dry-run. If only the two selectors change, and the
+previously authorized two dedicated guest volumes still have the
+expected identities, apply the corrected patch. Then inspect
+`get volumestatuses u-k8s-nvme -o yaml` and `u-k8s-data` separately
+for new `spec.errorMessage` values if they do not become ready.
+Do not reboot or configure OpenEBS to work around this error.
 
 ### Dry-run and reviewed application
 
