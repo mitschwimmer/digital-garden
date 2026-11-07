@@ -1,0 +1,33 @@
+# STAGED ONLY: deliberately not listed in cluster/apps/root/kustomization.yaml.
+# NEVER activate before Talos mounts survive reboot AND a fail-closed
+# missing-mount provisioning protection is independently tested.
+# The child has NO automated sync; an explicit, reviewed sync is required.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openebs-localpv
+  namespace: argocd
+spec:
+  project: garden
+  sources:
+    - repoURL: https://openebs.github.io/dynamic-localpv-provisioner
+      chart: localpv-provisioner
+      targetRevision: 4.6.0
+      helm:
+        releaseName: openebs-localpv
+        valueFiles:
+          - $garden/cluster/apps/openebs/values.yaml
+    - repoURL: https://github.com/mitschwimmer/digital-garden.git
+      targetRevision: bootstrap/talos-foundation
+      path: cluster/apps/openebs
+      ref: garden
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openebs
+  syncPolicy:
+    managedNamespaceMetadata:
+      labels:
+        pod-security.kubernetes.io/enforce: privileged
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
