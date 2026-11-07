@@ -7,12 +7,22 @@ directory on the workstation and an independently encrypted off-host copy.
 
 ## Pinned release and installation medium
 
-Initial Talos target: **v1.14.5 (amd64, metal ISO)**, built through the
-official Image Factory with `siderolabs/amdgpu`. Image Factory also provides
-the corresponding extension-aware installer image. Save the schematic ID,
-image digest/checksum and version in private operator notes. If the exact
-Image Factory image cannot be obtained/verified, stop rather than substituting
-an unrelated third-party image.
+Initial Talos target: **v1.14.5 (amd64, metal ISO, Secure Boot off)**,
+from the official Image Factory schematic
+`26a7fb977530a932ea54bbbff1a50973c13b7648599ee4cb6c1a9fed62c15ea7`.
+The source schematic is checked in at [image-factory.yaml](image-factory.yaml).
+It includes `siderolabs/amdgpu`, `siderolabs/kata-containers` (for later
+opt-in workloads) and `siderolabs/qemu-guest-agent`.
+
+Boot ISO:
+`https://factory.talos.dev/image/26a7fb977530a932ea54bbbff1a50973c13b7648599ee4cb6c1a9fed62c15ea7/v1.14.5/metal-amd64.iso`.
+
+**Crucial:** the ISO alone does not pin the installed system. Generate the
+machine configuration with [installer.patch.yaml](installer.patch.yaml), which
+pins the *matching* factory installer:
+`factory.talos.dev/metal-installer/26a7fb977530a932ea54bbbff1a50973c13b7648599ee4cb6c1a9fed62c15ea7:v1.14.5`.
+Verify the official ISO checksum/signature before importing. Preserve
+the verified checksum and ISO separately from cluster secrets.
 
 See [Incus VM prerequisites](../../infrastructure/incus/README.md).
 That OpenTofu root starts with `start_vm=false` and GPU disabled until first
@@ -46,6 +56,7 @@ storage/network boot is verified.
    talosctl gen config garden "https://$TALOS_IP:6443" \
      --install-disk "$SYSTEM_DISK" \
      --config-patch @cluster/talos/cilium.patch.yaml \
+     --config-patch @cluster/talos/installer.patch.yaml \
      --output-dir .operations/talos
    ```
 
@@ -74,6 +85,20 @@ storage/network boot is verified.
    when dedicating the whole block disk; no size constraints in that mode.
    Confirm `/var/mnt/k8s-nvme` and `/var/mnt/k8s-data` are actual mount
    points after reboot. Never let OpenEBS create directories until then.
+### Kata Containers, later
+
+The factory image already includes `siderolabs/kata-containers`; this is
+intentional future support, **not** a request to switch the default pod
+runtime or deploy any Kata workload during bootstrap. Talos itself is a
+KVM guest in IncusOS. Kata starts a further VM inside Talos and needs
+nested KVM support: verify the Incus VM's `security.nesting` behaviour
+(default `true` for Incus VMs), `vmx` CPU flag, and `/dev/kvm`
+availability *inside Talos* before enabling an explicit Kubernetes
+`RuntimeClass` for a sacrificial test pod. Keep normal workloads on
+the default runtime. Review the exact shipped extension's runtime
+handler names before creating a RuntimeClass, and do not install a
+second competing Kata runtime with `kata-deploy`.
+
 9. Cold-attach the Radeon GPU in OpenTofu, verify passthrough and the
    version-matched `amdgpu` extension inside Talos. Later, Argo CD will
    manage the AMD device plugin; acceptance requires a real GPU compute
