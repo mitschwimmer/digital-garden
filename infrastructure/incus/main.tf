@@ -232,8 +232,6 @@ resource "incus_instance" "talos" {
       properties = {
         gputype   = "physical"
         pci       = "0000:04:00.0"
-        vendorid  = "1002"
-        productid = "7590"
       }
     }
   }
