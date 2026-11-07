@@ -2,7 +2,20 @@
 
 ## Bootstrap and ownership
 
-Install the pinned Argo CD release only after Kubernetes and Cilium are healthy. Use local administrative access (port-forward) until the intended gateway, TLS and authentication configuration is ready. Register the Git repository and a minimal root Application that explicitly reconciles child applications. Define namespace ownership, sync waves or dependencies for CRDs/controllers before custom resources. After handoff, stop applying the same objects with ad hoc Helm/kubectl or Talos bootstrap configuration.
+Install a **pinned, non-HA Argo CD bootstrap** after Kubernetes,
+Cilium and DNS are healthy; do **not** wait for OpenEBS. The normal
+Argo CD installation does not need a PersistentVolumeClaim: Kubernetes
+resources hold its configuration, and its Redis instance is a cache.
+Use local administrative access (port-forward or core CLI) until
+gateway, TLS and identity integration exist. Register the Git repository
+and a minimal root Application that explicitly reconciles child apps.
+Prefer Argo CD as owner of OpenEBS, not a one-off Helm release that must
+later be adopted. Talos must create/verify the two UserVolumes via
+its own machine configuration **outside Argo CD** before an OpenEBS
+Application is allowed to provision. Define namespace ownership, sync
+waves and dependencies for CRDs/controllers before custom resources.
+Keep the working bootstrap Cilium release Helm-owned until a separately
+reviewed takeover; avoid competing Helm/Argo CD controllers.
 
 Keep the desired-state layout small: `infrastructure/incus` for OpenTofu, `cluster/talos` and `cluster/bootstrap` for pre-GitOps sources, `cluster/apps` for Argo CD-managed platform and service resources. Source paths are a *target design*, not proof that they exist yet. Do not read the former NixOS `systems/*` HCL as current infrastructure.
 
