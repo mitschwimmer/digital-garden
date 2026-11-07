@@ -69,27 +69,55 @@ asset using the published SHA-256. Before generation confirm
    `k8s-nvme` and 1 TiB `k8s-data` disks, including stable serials.
    The later UserVolume selectors must match the intended guest disks.
 4. Generate configuration **only on the workstation** using the observed
-   install disk and the actual reserved LAN IP:
+   install disk and the actual reserved LAN IP. The two patches use Talos
+   **v1.14 typed documents**, not legacy `v1alpha1` fields; `--install-disk`
+   generates the `UnattendedInstallConfig.provisioning.diskSelector` itself.
+
+   In November 2026 the original v1.13-style patches caused six validation
+   errors against Talos v1.14.5. If you generated configs with those old
+   patches, preserve them separately **without ever applying them** before
+   generating a fresh set. This node has not been configured yet, so generating
+   new PKI is safe. Do not later reuse the old talosconfig with the new config.
 
    ```sh
    # Run from the repository root after entering nix develop.
    umask 077
    export TALOS_IP=192.168.1.49
    export SYSTEM_DISK=/dev/sda
+
+   # Only if the previous, invalid generated files exist:
+   if test -d .operations/talos; then
+     mv .operations/talos .operations/talos-invalid-v114
+   fi
+
    mkdir -p .operations/talos
    chmod 700 .operations/talos
    talosctl gen config garden "https://$TALOS_IP:6443" \
+     --talos-version v1.14.5 \
      --install-disk "$SYSTEM_DISK" \
-     --config-patch @cluster/talos/cilium.patch.yaml \
+     --config-patch-control-plane @cluster/talos/cilium.patch.yaml \
      --config-patch @cluster/talos/installer.patch.yaml \
      --output-dir .operations/talos
+
    talosctl validate --config .operations/talos/controlplane.yaml --mode metal
    ```
 
-   Check the generated machine config, its target disk, the external API
-   endpoint and Talos/Kubernetes version compatibility before applying.
-   The patch explicitly selects **no bundled CNI, no kube-proxy**, and
-   allows workloads on the single control-plane node.
+   Verify the generated document identities and values before installation:
+
+   - **UnattendedInstallConfig:** `provisioning.diskSelector` selects
+     `/dev/sda`; `installer.image` is the exact Image Factory installer.
+   - **KubeProxyConfig:** `enabled: false`.
+   - **KubeFlannelCNIConfig:** no such document in `controlplane.yaml`.
+   - **KubeNodeConfig:** no `node-role.kubernetes.io/control-plane: NoSchedule`
+     taint; retain the generated control-plane labels.
+   - There is no legacy `machine.install`, `cluster.network`,
+     `cluster.proxy` or `cluster.allowSchedulingOnControlPlanes` field
+     competing with those typed documents.
+
+   The patch deliberately selects **no bundled CNI, no kube-proxy**, and
+   allows workloads on the only control-plane node. Validation must pass
+   before continuing; keep the new `talosconfig` with the matching
+   configuration and back both up securely off-host.
 5. Apply `.operations/talos/controlplane.yaml` to the VM using
    `talosctl apply-config --insecure` with the observed node IP; this
    installs Talos to the selected system disk. Boot from the system disk,
