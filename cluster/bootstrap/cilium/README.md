@@ -93,6 +93,11 @@ kubectl get nodes -o wide
 kubectl get pods -A -o wide
 kubectl -n kube-system get pods -l k8s-app=cilium
 kubectl -n kube-system get pods -l k8s-app=kube-dns
+
+# Pin-matched Cilium CLI v0.20.2 is provided by nix develop.
+cilium version --client
+cilium status --wait
+cilium connectivity test
 ```
 
 Only after the node is `Ready` and CoreDNS is `Running` and ready, test a
@@ -107,10 +112,11 @@ kubectl exec cilium-smoke -- wget -q -O - https://example.com/
 kubectl delete pod cilium-smoke
 ```
 
-If a smoke check fails, inspect Cilium and CoreDNS instead of adding
-services. Egress/Service tests do not replace Cilium's full connectivity
-test, including network-policy enforcement. Treat the Kubernetes 1.37
-compatibility decision as open until validated.
+If the CLI connectivity test or any smoke check fails, inspect Cilium
+and CoreDNS instead of adding services. The full test includes network-policy
+enforcement, and may take longer than basic readiness checks. Inspect
+individual failures before rerunning. Treat the Kubernetes 1.37 compatibility
+decision as open until all tests pass and keep the version caveat documented.
 
 ## No dual ownership on the Argo CD handoff
 
