@@ -35,3 +35,31 @@ An interrupted run may be resumed using the same plan directory if the saved pla
 ## After retirement
 
 Verify prepared pools, access to IncusOS, the host LAN bridge and GPU inventory. Switch to `platform/talos-argocd` for the **new** operating skill. That branch initially contains a target architecture and references, not a deployable Talos implementation; remove obsolete source as part of the new cluster provisioning work.
+
+## Partial failure: project not empty
+
+Incus can cache OCI images in a project independently of any OpenTofu-managed instances. After deleting `walter` its `ai` project may still contain one or more cached images. A failed platform destroy may already have removed the other projects and `gardenbr0`; OpenTofu does not roll them back. **Do not reuse the partially applied saved plan.**
+
+First inspect what remains, including image fingerprints:
+
+```bash
+bash operations/retire-garden.sh inspect YOUR_REMOTE
+incus project info YOUR_REMOTE:ai
+incus image list YOUR_REMOTE: --project ai
+```
+
+Verify no instances still depend on the image, and that the fingerprint is exclusively old-garden state. Then remove **only that named image**:
+
+```bash
+incus image delete YOUR_REMOTE:FINGERPRINT --project ai
+```
+
+If other resources remain in `ai` (custom volumes, snapshots, non-default profiles, buckets, instances), investigate and authorize them separately. Never use `incus project delete --force` or blanket deletion to circumvent the check. Once `ai` is empty:
+
+```bash
+bash operations/retire-garden.sh plan YOUR_REMOTE
+# Read the new platform.plan.txt and verify it targets only incus_project.ai.
+# Then use the new printed apply command and plan directory.
+```
+
+A new plan should see the already-deleted roots as empty. If it does not, stop and examine the state/inventory mismatch before applying anything.
