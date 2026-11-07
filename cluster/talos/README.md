@@ -28,6 +28,27 @@ See [Incus VM prerequisites](../../infrastructure/incus/README.md).
 That OpenTofu root starts with `start_vm=false` and GPU disabled until first
 storage/network boot is verified.
 
+## Confirmed installation target (2026-11-07)
+
+This VM is at `192.168.1.49`. The Talos maintenance-mode disk inventory
+identified exact Incus SCSI symlinks:
+
+| Target | Guest path | Stable symlink |
+|---|---|---|
+| Talos system, 64 GiB | `/dev/sda` | `/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_incus_root` |
+| Kubernetes data, 1 TiB | `/dev/sdb` | `/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_incus_k8s--data` |
+| Kubernetes NVMe, 128 GiB | `/dev/sdc` | `/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_incus_k8s--nvme` |
+| Installer CD-ROM | `/dev/sr0` | `/dev/disk/by-id/scsi-0QEMU_QEMU_CD-ROM_incus_installer` |
+
+**Only `/dev/sda` is an installation target. Never install Talos to
+`/dev/sdb` or `/dev/sdc`.** At later reboots, select data disks by
+stable observed identity, not arbitrary `/dev/sdX` ordering.
+
+The original workstation flake carried `talosctl v1.13.11`; it is now
+pinned to the exact node release `v1.14.5` from the upstream GitHub
+asset using the published SHA-256. Before generation confirm
+`talosctl version --client` reports `v1.14.5`.
+
 ## Sequence
 
 1. Confirm the Talos VM and its three virtual disks exist, and that the LAN
@@ -51,6 +72,10 @@ storage/network boot is verified.
    install disk and the actual reserved LAN IP:
 
    ```sh
+   # Run from the repository root after entering nix develop.
+   umask 077
+   export TALOS_IP=192.168.1.49
+   export SYSTEM_DISK=/dev/sda
    mkdir -p .operations/talos
    chmod 700 .operations/talos
    talosctl gen config garden "https://$TALOS_IP:6443" \
@@ -58,6 +83,7 @@ storage/network boot is verified.
      --config-patch @cluster/talos/cilium.patch.yaml \
      --config-patch @cluster/talos/installer.patch.yaml \
      --output-dir .operations/talos
+   talosctl validate --config .operations/talos/controlplane.yaml --mode metal
    ```
 
    Check the generated machine config, its target disk, the external API
