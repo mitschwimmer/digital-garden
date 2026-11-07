@@ -1,5 +1,7 @@
 # STAGED / UNTESTED: Kubernetes v1.37 built-in admission, no webhook or extra controller.
 # Mutation adds an initContainer only to OpenEBS Hostpath helper Pods.
+# Unknown BasePath fails closed: /expected resolves to /var/mnt and the
+# guard requires /data != /ephemeral, which cannot both pass.
 # Test with kubectl server-side admission and a real disposable PVC BEFORE production.
 # Never enable storage if mutation is absent. Does not guard arbitrary privileged pods.
 apiVersion: admissionregistration.k8s.io/v1
@@ -22,10 +24,7 @@ spec:
       expression: >-
         request.namespace == "openebs"
         && object.spec.volumes.exists(v,
-          v.name == "data"
-          && has(v.hostPath)
-          && (v.hostPath.path == "/var/mnt/k8s-data/openebs"
-              || v.hostPath.path == "/var/mnt/k8s-nvme/openebs"))
+          v.name == "data" && has(v.hostPath))
   mutations:
     - patchType: ApplyConfiguration
       applyConfiguration:
@@ -43,9 +42,11 @@ spec:
                 Object.spec.volumes{
                   name: "garden-expected-volume",
                   hostPath: Object.spec.volumes.hostPath{
-                    path: object.spec.volumes.filter(v, v.name == "data")[0].hostPath.path.startsWith("/var/mnt/k8s-data/")
+                    path: object.spec.volumes.filter(v, v.name == "data")[0].hostPath.path == "/var/mnt/k8s-data/openebs"
                       ? "/var/mnt/k8s-data"
-                      : "/var/mnt/k8s-nvme",
+                      : object.spec.volumes.filter(v, v.name == "data")[0].hostPath.path == "/var/mnt/k8s-nvme/openebs"
+                        ? "/var/mnt/k8s-nvme"
+                        : "/var/mnt",
                     type: "Directory"
                   }
                 }
