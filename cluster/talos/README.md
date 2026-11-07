@@ -126,8 +126,7 @@ asset using the published SHA-256. Before generation confirm
 6. Bootstrap the single control-plane's etcd **once**, using the saved
    `talosconfig`. Obtain a kubeconfig and verify API access and etcd
    health. Kubernetes pods will not become ready before Cilium is installed.
-7. Install Cilium using the [pinned and staged bootstrap procedure](
-   ../bootstrap/cilium/README.md) with its Talos-specific values and
+7. Install Cilium using the [pinned Cilium bootstrap](../bootstrap/cilium/README.md) with its Talos-specific values and
    mandatory compatibility/acceptance checks. Cilium v1.20.4 has not yet
    been officially e2e-tested against the generated Kubernetes v1.37.1;
    do not deploy garden services until the full connectivity and policy
