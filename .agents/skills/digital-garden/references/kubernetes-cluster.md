@@ -104,13 +104,18 @@ cluster networking. Gateway API is not enabled by the initial Helm values.
 1. Verify node/Cilium remain healthy and secure off-host copies of
    Talos credentials, the working `talosconfig`, kubeconfig and etcd
    recovery material.
-2. Configure **two** explicit Talos UserVolumes on the existing extra
-   disks, validate selectors, mounts and reboot persistence.
-3. Deploy OpenEBS Local PV Hostpath, limited to separate `nvme` and
-   `data` StorageClasses; use `WaitForFirstConsumer`, `Retain` and no
-   default class until reviewed. Validate provisioning only on true mounts.
-4. Introduce Argo CD and a planned handoff of source ownership. Never
-   double-manage the bootstrap Cilium Helm release.
+2. **Bootstrap pinned Argo CD** into the working cluster, with no PV/PVC
+   requirement. Start with local administrative access, then a minimal
+   root Application. Keep Cilium's existing Helm release independent and
+   do not double-manage it. Argo CD is a control plane for add-ons,
+   not a prerequisite for Talos disk mounts.
+3. Configure **two** explicit Talos UserVolumes on the existing extra
+   disks, via Talos machine configuration *outside Argo CD*. Validate
+   selectors, mounts, restart persistence and data-disk isolation.
+4. Let **Argo CD** deploy OpenEBS Local PV Hostpath and manage the two
+   `nvme` and `data` StorageClasses (`WaitForFirstConsumer`, `Retain`,
+   neither default). Do not enable provisioning until both actual mounts
+   are verified; fail closed if a mount is missing.
 5. Later cold-attach the Radeon physical GPU and verify Talos driver,
    advertised `amd.com/gpu`, and a real GPU compute workload. Do not
    infer functioning GPU from extensions alone. Kata is future opt-in,
