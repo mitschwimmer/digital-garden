@@ -1,8 +1,8 @@
 # Own and operate each system independently
 
-This revision targets a fresh IncusOS installation. There is no migration from
-`tofu/`, the old shared seed or Authelia. Do not apply these roots with old state
-or over surviving resources without an explicit recovery design.
+For a fresh installation, inspect inventory before applying. For surviving
+resources, follow [recovery](recovery.md#restore); do not apply empty or unrelated
+state over them.
 
 ## Concepts and authoritative sources
 

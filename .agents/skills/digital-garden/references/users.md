@@ -27,10 +27,11 @@ changing guest accounts through their owning NixOS configuration.
      displayName = "Alex";
      mailAddresses = [ "alex@example.org" ];
    };
-   groups.ai-users.members = [ "henner" "alex" ];
    ```
 
-   Keep `groups.admins.members` unchanged unless administrator access is intended.
+   Append `"alex"` to the existing `groups.ai-users.members` list in source;
+   preserve every current member. Keep `groups.admins.members` unchanged unless
+   administrator access is intended.
    For role changes, edit the existing group lists; do not create a second owner
    using person-level group declarations. Account names must be unique across
    persons, groups and OAuth clients. Treat a rename as an identity migration,
@@ -53,8 +54,10 @@ changing guest accounts through their owning NixOS configuration.
 1. Identify memberships, application accounts/data, active sessions and API tokens.
    Decide data retention separately from access removal; preserve working operator
    access and back up identity before deletion.
-2. Remove the name from every declared group membership list and replace that
-   person's declaration with an explicit tombstone:
+2. First check [entity removal](identity.md#entity-removal) against the locked
+   provisioner. Do not deploy a tombstone with the affected 1.3.0 provisioner.
+   With a verified fixed provisioner, remove the name from every declared group
+   membership list and replace the person's declaration with an explicit tombstone:
 
    ```nix
    persons.alex = { present = false; };
@@ -62,8 +65,8 @@ changing guest accounts through their owning NixOS configuration.
 
    Keep `autoRemove = false`. Omitting the entry does not delete the existing
    person. A remaining group reference to a person marked absent fails the
-   pinned module's entity validation. Retain the tombstone while any installation
-   may still contain the account.
+   pinned module's entity validation. With the fixed provisioner, retain the
+   tombstone while any installation may still contain the account.
 3. Validate/build and deploy identity as above. Verify reconciliation completed,
    the person is absent and fresh authentication fails. Verify surviving users
    and administrator access still work.

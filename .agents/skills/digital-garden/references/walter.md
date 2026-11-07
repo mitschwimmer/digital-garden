@@ -33,8 +33,7 @@ Walter; startup requires successful HTTPS discovery.
 
 Walter calls the separately operated Strata LAN inference endpoint at
 `http://192.168.1.28:8080/v1/chat/completions`, as declared in
-`systems/walter/main.tf`. This is not the retired `garden-llama` service.
-The public browser cannot access Walter's model endpoint through Caddy.
+`systems/walter/main.tf`. Caddy does not publish the model endpoint.
 Walter has one private NIC, without a proxy device or public port mapping.
 The intended HTTP caller for Walter is edge; trusted host administrators and
 routable garden guests can also reach its backend. Project `ai` and gardenbr0
@@ -51,13 +50,11 @@ and gardenbr0. Give this root its own inspected remote/pool inputs and state.
 Initial whole-plan apply uses the default `start = false`: it creates a stopped
 container and both volumes, with autostart/restart disabled.
 
-Create a new random OIDC client secret in a private operator workspace. Encrypt
-JSON with the single key `walter-client` to
-`systems/identity/walter-secrets.yaml` using the existing identity/recovery
-recipients in `.sops.yaml`. Preserve all existing identity secrets. Follow the
-shared [secret procedure](secrets.md#create-and-encrypt); verify decryption to
-`/dev/null`, stage ciphertext and deploy identity. No fabricated ciphertext is
-included here. The raw value in Walter must match the provisioned basic secret.
+For a new installation, follow [secret creation](secrets.md#create-and-encrypt)
+with the identity/recovery recipients. `systems/identity/walter-secrets.yaml`
+contains `walter-client`, the raw client secret also delivered to Walter. Preserve
+existing identity inputs. For an existing installation reuse its ciphertext;
+rotation is a coordinated change. Deploy identity before Walter startup.
 
 Walter needs both its OIDC client secret and the Strata upstream API key at
 startup. Native Incus custom-volume file transfer avoids a new guest or secret
@@ -91,16 +88,20 @@ use a provider `file`, environment value or local-exec provisioner for plaintext
 Remove only the operation's temporary plaintext after successful delivery and
 verification; retain encrypted recovery material privately.
 
-The Strata endpoint must be healthy and support Walter's configured
-`qwen3.8-flash-next-iq3_s` model. Both profiles are required
-public JSON object strings in this root's local inputs: `quick_profile` and
-`thoughtful_profile`. Defaults are empty preparation values and the start
-precondition rejects them. Verify actual flags against the installed model and
-template before supplying nonempty settings. A candidate pair for testing is
-`{"reasoning_effort":"none"}` and `{"reasoning_effort":"medium"}`; these are not
-accepted settings. Verify German/English answers, both thinking modes, no
-reasoning tags in answer content and `reasoning_format: deepseek`. Check history
-and output limits against the installed 32768-token context; bytes are not tokens.
+Inspect the endpoint, model and profiles in `systems/walter/main.tf` against the
+runtime contract at the revision in `image.lock.json`. This deployment selects
+Walter's `openai` backend. It does not send llama.cpp's `reasoning_format`,
+template flags or progress/timing requests. Verify provider-supported reasoning
+controls and clean answer content; do not assume the two modes toggle thinking.
+Treat context/output limits as provider configuration until verified live.
+
+The current HCL has a configuration mismatch: `quick_profile` and
+`thoughtful_profile` inputs gate `start`, but the runtime JSON profiles are
+hard-coded instead of consuming those inputs. Changing local inputs therefore
+does not change model settings. Resolve that mismatch in source before a new
+startup or profile change; do not fill dummy inputs merely to pass the gate.
+The pinned Walter documentation recommends portable OpenAI profiles unless
+provider-specific controls have been verified.
 
 After secret/discovery/model verification, set `start = true`, review a new whole
 plan and apply it. The plan enables running/autostart/restart. OpenTofu owns this
@@ -116,19 +117,11 @@ authenticate GitHub CLI once with `gh auth login`. Then run:
 python operations/watch_walter_image.py
 ```
 
-The watcher polls Walter's latest main-push `oci.yml` run every five seconds.
-It waits for a successful publication with a digest different from the current
-`systems/walter/image.lock.json`, then prints only `sha256:...` to stdout and
-exits. Progress goes to stderr, so stdout can be captured. Failed/cancelled
-runs are reported once and the watcher waits for another push or successful
-rerun. Interrupt with Ctrl-C. It uses temporary artifact downloads only; it
-never edits the checkout, calls OpenTofu/Incus, stops the app or applies changes.
-
-The `walter-image` artifact must match its run, revision, repository and platform.
-Merge the artifact-producing Walter workflow first; old runs without an artifact
-need a new push. Published artifacts are retained for 30 days. The shell includes
-GitHub CLI. The helper is limited to polling and checking the publication record;
-image/config editing and deployment remain native operator commands.
+The helper waits for a successful main-push `oci.yml` publication with a digest
+different from the current lock. It prints the digest to stdout and progress to
+stderr; Ctrl-C cancels. It validates the artifact's run, revision, repository and
+platform, but does not edit or deploy anything or prove runtime compatibility.
+Missing or expired artifacts need a new successful publication.
 
 Use `--json` to print the complete published lock when updating the pin, keeping
 revision and publication metadata accurate:
@@ -138,14 +131,12 @@ python operations/watch_walter_image.py --json > systems/walter/image.lock.json.
   mv systems/walter/image.lock.json.tmp systems/walter/image.lock.json
 ```
 
-Review the lock diff, then run `tofu apply` yourself from `systems/walter` and
-review its displayed plan before confirming. An image replacement must retain
-both protected volumes; do not accept volume deletion/replacement. OpenTofu
-owns container replacement/startup; no preliminary stop/start configuration
-cycle, identity deployment or edge deployment is needed for an image-only update.
-Afterward verify readiness, re-login, streaming and an existing conversation,
-then commit the image lock. The full backup/restore workflow below remains
-appropriate for valuable data.
+Review and commit the lock diff, then use [infrastructure](infrastructure.md)
+from `systems/walter` to review and apply the exact saved whole plan. An image
+replacement must retain both protected volumes. No preliminary stop/start cycle
+or integration-owner deployment is needed for an image-only update. Verify
+readiness, re-login, streaming and an existing conversation afterward. Use the
+full backup/restore workflow below for valuable data.
 
 ## Acceptance, updates and recovery
 
@@ -158,7 +149,7 @@ incus console "$WALTER_REMOTE:walter" --project ai --show-log
 
 Health proves the process only. Through public HTTPS test allowed AI-group login,
 denied unrelated/missing groups, logout, secure cookies and CSRF rejection.
-Verify incremental SSE, German/English output in both modes, cancellation on stop
+Verify incremental SSE, answer quality in both modes, cancellation on stop
 and browser disconnect, upstream errors and two-user conversation isolation.
 Restart and verify chat persistence, failed interrupted placeholders and renewed
 login. Require actual offline restoration and intended network exposure before
@@ -181,9 +172,10 @@ a backup. Restore data with the writer stopped, use a compatible pinned image,
 restore secret delivery, then verify real conversations, user isolation and
 restart persistence. An image rollback cannot undo a future data-format change.
 
-Decommission by withdrawing the edge route and declaring the dedicated client
-`present = false` in identity; retain ciphertext/data under the shared
-[retirement procedure](retirement.md). Do not remove shared ai-users or the ai project. Data deletion needs its own explicit retention decision.
+Decommission through the shared [retirement procedure](retirement.md), including
+the provisioner check before client deletion; retain required ciphertext/data.
+Do not remove shared ai-users or the ai project.
 
 Upstream runtime contract:
-[Walter deployment](https://github.com/mitschwimmer/walter/blob/ef189ae399bd0a1dce766042634f68bbac9ed8f9/deploy/README.md).
+read `.agents/skills/walter/references/operations.md` and `configuration.md`
+in the Walter source revision recorded by `systems/walter/image.lock.json`.

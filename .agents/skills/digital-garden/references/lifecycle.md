@@ -1,9 +1,8 @@
 # Operate a service through its lifecycle
 
-Use only the stage needed for the requested result. Read the affected service's
-reference for concrete inputs, dependencies, credentials, migration constraints
-and acceptance. Use source for current resource identities and pins as described
-in [architecture](architecture.md). Do not execute live steps for source-only work.
+Use the requested stage and the affected service reference. Discover current
+resources and pins from [source](architecture.md). Source-only work stops after
+editing and validation.
 
 - [Setup](#setup)
 - [Update config](#update-config)
@@ -14,69 +13,46 @@ in [architecture](architecture.md). Do not execute live steps for source-only wo
 
 ## Setup
 
-1. Define the [service contract](composition.md); choose runtime, callers,
-   dependency order and persistence. Add one service reference containing only
-   its specific requirements and exceptions.
-2. Declare its root, project, resources and persistent mounts. Register NixOS
-   configurations/seeds in `flake.nix`; add affected checks to CI. Change shared
-   platform, ingress or identity source only where the service integrates.
-3. Validate changed layers. For live setup, inspect [platform inputs](platform.md)
-   and existing inventory. Reconcile platform dependencies before the leaf root.
-4. For NixOS, build its unique [seed](nixos-guests.md), review/apply its
+1. Define the [contract](composition.md), runtime, callers and persistence in one
+   service reference. Declare resources, integrations and relevant CI checks.
+   Register NixOS configurations/seeds in `flake.nix`.
+2. Validate changed layers. For live setup, inspect [platform inputs](platform.md)
+   and existing inventory; provision platform dependencies first.
+3. For NixOS, build its [seed](nixos-guests.md), reconcile
    [infrastructure](infrastructure.md), check [readiness](readiness.md), install
-   its own [machine key](secrets.md#install-each-machine-key) if needed, and
-   [deploy](deployment.md). For OCI, deliver declared config before startup via
-   its root's whole plan; use its runtime-specific acceptance, not NixOS switching.
-5. Follow the service's bootstrap/access order. Edge must precede identity's ACME
-   issuance, and identity must precede dependent OIDC login. Complete first-admin
-   setup privately before opening application access where required.
-6. Verify actual service work, allowed/denied access and restart persistence.
-   Establish an off-host checkpoint and prove independent restoration before
-   relying on the service's backups.
+   its [machine key](secrets.md#install-each-machine-key) if needed, and
+   [deploy](deployment.md). For OCI, follow the service's preparation/start gates.
+4. Follow bootstrap order: edge before identity ACME, identity before dependent
+   OIDC login, private first-admin setup before normal application access.
+5. Complete service acceptance and establish a tested off-host recovery point.
 
 ## Update config
 
-1. Inspect the owning source, contract and affected integrations. Change declared
-   config, not guest files or UI settings that compete with Nix/OpenTofu.
-2. Identify changed state, access and secrets; take a matching checkpoint before
-   risky live changes. Preserve machine keys and unchanged credential values.
-3. Validate only changed layers and their consumers. Reconcile infrastructure
-   only if HCL/inputs/devices change. A NixOS service/directory config change alone
-   uses deployment, without a seed rebuild or infrastructure apply.
-4. Roll out in dependency order. OCI mounted-file updates must stop the workload
-   before file delivery and let a reviewed whole plan restart it. Follow the
-   workload's update procedure for exact ordering.
-5. Test affected behavior and callers, including denial/revocation for access
-   changes. If acceptance fails, stop dependents and use the service's rollback
-   path; closure/config rollback alone does not undo mutable application state.
+1. Edit owning source and affected integrations. Identify access, secret and data
+   changes; preserve unchanged identities and checkpoint risky live changes.
+2. [Validate](validation.md) changed layers and consumers. Reconcile infrastructure
+   only when HCL/inputs/devices change. NixOS config alone uses closure deployment.
+3. Roll out in dependency order. For OCI mounted-file updates, stop before file
+   delivery and restart through a reviewed whole plan as the service specifies.
+4. Test affected callers and behavior, including denial/revocation. On failure,
+   stop dependents and follow the service's rollback/data-recovery constraints.
 
 ## Update software components
 
-Use [system updates](system-updates.md) to identify the actual pin/package/image
-owner and all consumers. Review application, database, extension, client and
-host-kernel compatibility independently. Preserve a matching data checkpoint and
-previous declarations/closures. Validate and roll out one affected root at a time;
-keep recovery material until service-specific acceptance passes. Do not change
-creation seeds or `system.stateVersion` to upgrade existing software.
+Follow [system updates](system-updates.md) to identify pins and consumers, review
+migrations, validate and roll out. Existing-guest upgrades use closures, not
+creation-image replacement or a changed `system.stateVersion`.
 
 ## Backup
 
-Use [recovery: backup](recovery.md#backup) for a consistent off-host checkpoint.
-Include all state/key volumes and the service's declared consistency group, not
-just a database dump. Record source/pins and restore prerequisites. Treat on-host
-snapshots, protected volumes and automatic local dumps as inputs to backup,
-never as proof of recovery.
+Follow [recovery: backup](recovery.md#backup) with the service's consistency group.
 
 ## Restore
 
-Use [recovery: restore](recovery.md#restore). Inspect survivors, reconcile owning
-state and select compatible software before starting it against restored data.
-Restore keys, ciphertext and coupled data together. Use an isolated target and
-test actual restored content, access and persistence before reopening traffic.
-Follow [data rollback](recovery.md#data-rollback) when an upgrade changed schemas.
+Follow [recovery: restore](recovery.md#restore), or
+[data rollback](recovery.md#data-rollback) after incompatible migrations.
 
 ## Decommission
 
-Use [retirement](retirement.md) to withdraw integrations, revoke access, retain
-recovery material and remove only owned resources. Distinguish disabling service
-access from authorization to delete data. Shared dependencies outlive consumers.
+Follow [retirement](retirement.md) for integration withdrawal, access revocation,
+retention and owned-resource removal.

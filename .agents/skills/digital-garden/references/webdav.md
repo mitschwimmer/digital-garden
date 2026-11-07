@@ -71,13 +71,11 @@ Changing pools for an already provisioned volume requires a reviewed data
 migration; `prevent_destroy` blocks accidental replacement. No application service
 or credentials are present in the seed.
 
-Following [secret delivery](secrets.md), generate a distinct WebDAV machine age
-key on the secured workstation. Add a creation rule for
-`^systems/webdav/secrets\.yaml$` to `.sops.yaml` using the existing operator
-recovery recipient and this new guest's actual public recipient. Do not reuse
-another guest's private key. Encrypt a YAML input with one key, `environment`,
-whose string value is an EnvironmentFile containing these three variables and
-a trailing newline:
+Follow [secret delivery](secrets.md) for a new guest's distinct machine key,
+recipient policy, encryption and guarded installation. Reuse the existing identity
+for an existing installation. Verify the rule for `systems/webdav/secrets.yaml`.
+Its single `environment` key holds an EnvironmentFile string with these variables
+and a trailing newline:
 
 | Account | Password variable | Filesystem root |
 |---|---|---|
@@ -85,23 +83,13 @@ a trailing newline:
 | claudi | `WEBDAV_CLAUDI_PASSWORD` | `/var/lib/webdav/claudi` |
 | elmo | `WEBDAV_ELMO_PASSWORD` | `/var/lib/webdav/elmo` |
 
-Generate each password independently (for example, three separate
-`openssl rand -hex 32` invocations into protected files). Never reuse a value.
-`operations/check_webdav_credentials.py` runs before WebDAV starts and rejects
-missing, blank or duplicate values without printing them. This small helper is
-needed because the native module does not enforce distinct account passwords.
-Tests use synthetic credentials only; real ciphertext remains an operator input.
-Assemble and encrypt in a protected directory; never put plaintext in the
-checkout, shell arguments, Tofu inputs/state or Nix store. Stage only ciphertext
-and real public recipients; no placeholder ciphertext is supplied by this change.
+Generate each password independently. `operations/check_webdav_credentials.py`
+rejects missing, blank or duplicate values before startup; the native module
+does not enforce this. Tests use synthetic credentials only.
 
-After seed readiness, verify `user.garden.system=webdav` and that
-`/var/lib/garden-secrets` is a mount point. Install only this guest's machine key
-at `/var/lib/garden-secrets/age.key`, root-owned with mode 0600, refusing to
-overwrite an existing key. Verify operator decryption to `/dev/null`. Then build
-and deploy from systems/webdav using [deployment](deployment.md).
-The runtime environment is owned by webdav with mode 0400; credential updates
-restart the service. Both persistent mounts are required for service startup.
+After seed readiness and key delivery, build/deploy using [deployment](deployment.md).
+The runtime environment is webdav-owned, mode 0400; credential updates restart
+the service. Both persistent mounts are required for startup.
 
 Deploy edge's reviewed route only after the backend is ready. Enter
 `https://webdav.archaic.work/`, the person's username (henner, claudi or elmo),
@@ -121,8 +109,9 @@ nix build .#nixosConfigurations.webdav.config.system.build.toplevel --no-link
 ```
 
 The full WebDAV closure requires the real staged ciphertext and reserved edge
-address. CI evaluates public service settings and builds the credential-free
-seed and routing checks. The routing regression uses Nix-generated route text,
+address. Routine CI evaluates public settings and builds the routing/account
+checks. The manual full-build workflow builds the credential-free seed; see
+[validation](validation.md). The routing regression uses Nix-generated route text,
 with only TLS transport and the backend dial address replaced for an offline
 test. It checks deny-all defaults, admitted IPv4 clients, denied clients,
 forwarded-header forgery, WebDAV methods and paths, and denied IPv6 when available.
@@ -170,7 +159,7 @@ if a version changes its on-disk expectations. Roll back edge independently for
 route changes. To close access immediately, deploy edge with an empty
 `webdavLanCidrs` list; keep the backend data and identity intact.
 
-Sources: [pinned NixOS module](https://github.com/NixOS/nixpkgs/blob/26f4107e47e3ad0ffd0db220469ba83b6f6d96e8/nixos/modules/services/network-filesystems/webdav.nix),
-[WebDAV configuration](https://github.com/hacdias/webdav/blob/v5.11.9/README.md),
+Sources: `nixos/modules/services/network-filesystems/webdav.nix` and the WebDAV
+package in the locked nixpkgs input; configuration docs for that package version;
 [Caddy IP matchers](https://caddyserver.com/docs/caddyfile/matchers#remote-ip),
 [ACME challenges](https://letsencrypt.org/docs/challenge-types/).
