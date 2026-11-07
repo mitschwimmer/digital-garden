@@ -77,7 +77,7 @@ asset using the published SHA-256. Before generation confirm
    errors against Talos v1.14.5. If you generated configs with those old
    patches, preserve them separately **without ever applying them** before
    generating a fresh set. This node has not been configured yet, so generating
-   new PKI is safe. Do not later reuse the old talosconfig with the new config.
+   new PKI was safe. Do not later reuse the old talosconfig with the new config.
 
    ```sh
    # Run from the repository root after entering nix develop.
@@ -131,12 +131,20 @@ asset using the published SHA-256. Before generation confirm
    been officially e2e-tested against the generated Kubernetes v1.37.1;
    do not deploy garden services until the full connectivity and policy
    gates pass. Enable Cilium Gateway API only in a later reviewed stage.
-8. Only after Cilium is healthy, use `talosctl get disks` and verified
-   serials to create **two** v1.14 `UserVolumeConfig` resources, one
-   on each extra block disk. In Talos v1.14 use `volumeType: disk`
-   when dedicating the whole block disk; no size constraints in that mode.
-   Confirm `/var/mnt/k8s-nvme` and `/var/mnt/k8s-data` are actual mount
-   points after reboot. Never let OpenEBS create directories until then.
+8. After the healthy Cilium bootstrap, **install Argo CD next**, using a
+   separately pinned bootstrap and a minimal root Application. Its initial
+   non-HA installation does not require PVs or OpenEBS; retain direct
+   admin access and don't hand Cilium to Argo CD without a controlled
+   transition. Have Argo CD own OpenEBS deployment later.
+9. Use `talosctl get disks` and verified serials to create **two**
+   v1.14 `UserVolumeConfig` resources, one on each extra block disk.
+   These are **Talos machine configuration**, not Argo CD resources.
+   In Talos v1.14 use `volumeType: disk` for whole-disk volumes
+   without size constraints. Confirm `/var/mnt/k8s-nvme` and
+   `/var/mnt/k8s-data` are actual mounts after restart.
+10. Allow an Argo CD-owned OpenEBS installation and its two StorageClasses
+    only after those mounts are verified. Never let OpenEBS create
+    directories on an absent mount's system-disk fallback path.
 ### Kata Containers, later
 
 The factory image already includes `siderolabs/kata-containers`; this is
@@ -151,7 +159,7 @@ the default runtime. Review the exact shipped extension's runtime
 handler names before creating a RuntimeClass, and do not install a
 second competing Kata runtime with `kata-deploy`.
 
-9. Cold-attach the Radeon GPU in OpenTofu, verify passthrough and the
+11. Cold-attach the Radeon GPU in OpenTofu, verify passthrough and the
    version-matched `amdgpu` extension inside Talos. Later, Argo CD will
    manage the AMD device plugin; acceptance requires a real GPU compute
    pod, not just a device in PCI inventory.
@@ -168,4 +176,6 @@ second competing Kata runtime with `kata-deploy`.
 - Operator can reconstruct access using off-host copies of cluster secrets.
 
 The **next** GitOps milestone is Argo CD, not part of this first foundation
-revision. Keep its bootstrap and child Applications in separate source.
+revision. Bootstrap it before OpenEBS; keep its bootstrap and child
+Applications in separate source. Talos UserVolumes must be mounted first,
+before an Argo CD-managed OpenEBS Application can provision persistent data.
