@@ -43,9 +43,9 @@ spec:
                 Object.spec.volumes{
                   name: "garden-expected-volume",
                   hostPath: Object.spec.volumes.hostPath{
-                    path: object.spec.volumes.filter(v, v.name == "data")[0].hostPath.path == "/var/mnt/k8s-data/openebs"
+                    path: object.spec.volumes.filter(v, v.name == "data")[0].hostPath.path == "/var/mnt/k8s-data"
                       ? "/var/mnt/k8s-data"
-                      : object.spec.volumes.filter(v, v.name == "data")[0].hostPath.path == "/var/mnt/k8s-nvme/openebs"
+                      : object.spec.volumes.filter(v, v.name == "data")[0].hostPath.path == "/var/mnt/k8s-nvme"
                         ? "/var/mnt/k8s-nvme"
                         : "/var/mnt",
                     type: "Directory"
