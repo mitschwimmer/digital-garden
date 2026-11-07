@@ -18,9 +18,10 @@ connectivity suite** passed operator checks. The test suite needs a
 `cluster/bootstrap/cilium/README.md`.
 The initial ISO was detached after Talos installation.
 
-**Next stage:** bootstrap pinned Argo CD on the existing healthy Cilium
-cluster, then configure Talos UserVolumes outside Argo CD, and let Argo CD
-reconcile OpenEBS Local PV Hostpath and the `nvme`/`data` StorageClasses.
+**Next stage:** bootstrap **Argo CD Core v3.6.1** (headless, Helm chart
+10.14.0) on the healthy Cilium cluster, then configure Talos UserVolumes
+outside Argo CD. Let Argo CD reconcile OpenEBS Local PV Hostpath and
+the `nvme`/`data` StorageClasses.
 Do not assume any of those components exist yet. The GPU passthrough and Kata runtime are not
 accepted as functional merely because Talos extensions were bundled.
 
@@ -53,7 +54,8 @@ production services. Don't remove/reinstall the working CNI for this reason.
 - Storage: a Talos system disk and **two independently attached Incus custom block volumes**, mapped to `nvme` and `data`. `data` is an existing mirrored-ZFS pool on the *single host*. Use Talos UserVolumes and OpenEBS Local PV Hostpath; `WaitForFirstConsumer`, `Retain`, no default StorageClass until intentionally chosen. Validate mounts before allowing provisioning.
 - Compute: physical Incus PCI GPU passthrough of the **Radeon RX 9060 XT** to the Talos VM; version-matched Talos `amdgpu` extension, AMD Kubernetes device plugin and a real ROCm workload test. GPU compatibility is an acceptance gate, not an assumption.
 - Optional runtime: the Talos v1.14.5 Image Factory schematic includes `siderolabs/kata-containers` for future workloads, **not** as the default runtime. Validate nested virtualization inside the Incus VM (`vmx` and `/dev/kvm`) and extension-provided handler names before introducing an explicitly selected Kata `RuntimeClass`. Do not install a conflicting Kata runtime or presume passed-through GPU access inside Kata guests.
-- GitOps: Argo CD (not Flux), with a small root Application, explicitly ordered dependencies and independently deployable services.
+- Cluster extensions: **Kubernetes API only by default**. Install Argo CD **Core**, with no Argo CD web UI/API server, Dex, notifications, ingress or OIDC client. Manage `Application` and `ApplicationSet` CRDs via `kubectl`. Apply the same no-UI rule to OpenEBS, monitoring operators, device plugins and other infrastructure extensions; public UIs are only for services that actually need a user interface.
+- GitOps: Argo CD (not Flux), with a small root Application, explicitly ordered dependencies and independently deployable services. Bootstrap instructions: `cluster/bootstrap/argocd/README.md`. The Argo CD Core installation remains Helm-owned; Argo CD manages only explicitly declared child Applications.
 - Backup: Velero with off-`measerve` repository is planned; application-specific consistency/restore checks remain essential. Do not put irreplaceable state into service until its backup path exists and has been tested.
 
 ## Finish
