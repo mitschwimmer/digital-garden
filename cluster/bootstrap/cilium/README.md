@@ -97,8 +97,12 @@ kubectl -n kube-system get pods -l k8s-app=kube-dns
 # Pin-matched Cilium CLI v0.20.2 is provided by nix develop.
 cilium version --client
 cilium status --wait
-# This is a one-node Kubernetes cluster; skip inter-node-only scenarios.
-cilium connectivity test --single-node
+# This is a single-node cluster. The CLI test pods request NET_RAW and
+# hostPort, which the cluster's default baseline Pod Security Admission
+# denies. Scope a privileged admission exception to the temporary test
+# namespace(s) only; do NOT relax policies cluster-wide.
+cilium connectivity test --single-node \
+  --namespace-labels pod-security.kubernetes.io/enforce=privileged
 ```
 
 Only after the node is `Ready` and CoreDNS is `Running` and ready, test a
@@ -133,19 +137,38 @@ kubectl describe node
 Inspect the actual pod and ReplicaSet if created; a zero observed replica
 count can result from missing Pods, scheduling, insufficient resources,
 admission failures or slow controllers. The expected client replicas are
-different from inter-node-only deployments. The single-node switch is
-required for the future rerun, but **does not alone diagnose client=0**.
+different from inter-node-only deployments.
 
-Once the underlying issue has been understood and corrected, remove only
-the CLI's temporary namespace before a clean retry:
+### Diagnosed first-run failure: Pod Security Admission
+
+The 2026-11-07 acceptance logs showed `Ready` control plane, healthy Cilium
+agent/operator/Envoy, and `ReplicaFailure=True / FailedCreate` on every
+connectivity-test Deployment. Admission rejected test Pod `NET_RAW`
+capabilities and echo `hostPort: 4000` under the `baseline` policy.
+No traffic checks had actually run.
+
+The Cilium test framework needs broader privileges than ordinary application
+pods. Use the Cilium CLI's native `--namespace-labels` argument, which applies
+the label when creating a test namespace and updates an existing one. Keep the
+exception strictly to the temporary `cilium-test-*` namespace(s), not the
+default namespace, `kube-system`, or cluster-wide Pod Security configuration.
 
 ```sh
-kubectl delete namespace cilium-test-1
-cilium connectivity test --single-node
+# Existing failed namespace can be repaired directly. Its ReplicaSet
+# controller should then start creating test pods.
+kubectl label namespace cilium-test-1 \
+  pod-security.kubernetes.io/enforce=privileged --overwrite
+kubectl -n cilium-test-1 get deployment,replicaset,pods -o wide
+
+# For a new or repeated test, always pass the scoped admission label:
+cilium connectivity test --single-node \
+  --namespace-labels pod-security.kubernetes.io/enforce=privileged
 ```
 
-Do not delete unrelated namespaces. If `cilium-test-1` does not exist,
-there is nothing to clean up.
+Avoid deleting the current test namespace until its diagnostic events have
+been captured. After testing, remove the temporary namespaces or use Cilium
+CLI's `connectivity test --cleanup` path. If tests still fail, inspect new
+events; do not further weaken admission or change Cilium without evidence.
 
 If the CLI connectivity test or any smoke check fails, inspect Cilium
 and CoreDNS instead of adding services. The full test includes network-policy
