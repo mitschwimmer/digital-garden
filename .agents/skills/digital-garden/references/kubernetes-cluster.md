@@ -111,12 +111,14 @@ operator reports **both XFS volumes ready and mounted**:
 - `u-k8s-nvme`: source `/dev/sdc`, target `/var/mnt/k8s-nvme`
 - `u-k8s-data`: source `/dev/sdb`, target `/var/mnt/k8s-data`
 
-Reboot persistence has **not** been demonstrated. OpenEBS LocalPV
-Hostpath v4.6.0 and two StorageClasses are only **staged in source**,
-not connected to Argo root. Upstream OpenEBS Hostpath may create
-directories beneath BasePath even if the data disk is unmounted,
-so a verifiable fail-closed mount-source guard must be designed and
-tested before enabling. See `cluster/apps/openebs/README.md`.
+The operator rebooted the Talos node, and both XFS mounts persisted
+on their original block devices. Kubernetes v1.37.1 returned Ready,
+Cilium components OK, and Argo CD root Synced/Healthy. OpenEBS
+LocalPV Hostpath v4.6.0, two StorageClasses and a Kubernetes v1.37
+native `MutatingAdmissionPolicy` helper mount guard are **staged
+in source only**, not connected to the root. The guard is still
+untested and must pass API/admission and isolated missing-mount
+checks. See `cluster/apps/openebs/README.md`.
 
 ## Next dependencies
 
