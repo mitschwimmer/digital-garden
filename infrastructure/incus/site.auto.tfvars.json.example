@@ -1,0 +1,14 @@
+{
+  "incus_remote": "measerve",
+  "lan_parent": "enp129s0",
+  "lan_mac": "02:00:00:00:00:00",
+  "installer_iso": "garden-talos-v1.14.5",
+  "start_vm": false,
+  "installation_complete": false,
+  "enable_gpu_passthrough": false,
+  "cpu_count": 8,
+  "vm_memory": "24GiB",
+  "system_disk_size": "64GiB",
+  "nvme_disk_size": "128GiB",
+  "data_disk_size": "1TiB"
+}
