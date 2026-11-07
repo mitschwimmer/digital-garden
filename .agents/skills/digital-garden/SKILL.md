@@ -21,9 +21,8 @@ when adding a service or changing its contract.
 
 Use [the service lifecycle](references/lifecycle.md) for **setup, update config,
 update software components, backup, restore and decommissioning**. Find a service's
-reference by its system name under `references/`; edge uses `ingress.md`, identity
-uses `identity.md`, and the OCI inference workload uses `inference.md` plus
-`oci-configuration.md`. Inspect source if a reference does not yet exist.
+reference by its system name under `references/`; edge uses `ingress.md` and
+identity uses `identity.md`. Inspect source if a reference does not yet exist.
 Do not maintain a second service inventory in this file.
 
 For live operations, inspect current inventory/state and keys/data to preserve;

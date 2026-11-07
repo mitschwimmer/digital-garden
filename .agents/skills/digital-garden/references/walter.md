@@ -31,15 +31,17 @@ Verify discovery at
 returns the exact issuer configured in Walter. Deploy identity before starting
 Walter; startup requires successful HTTPS discovery.
 
-Walter is a trusted inference caller at
-`http://garden-llama.garden.internal:8080/v1/chat/completions`. The public browser
-cannot access inference directly. Only one private NIC exists, without a proxy
-device or public port mapping. The intended HTTP caller is edge; trusted host
-administrators and routable garden guests can also reach the backend, as for the
-existing applications. Project `ai` and gardenbr0 do not enforce caller isolation.
-Walter listens on IPv4 only; gardenbr0 has no IPv6 subnet and must remain private.
-Verify lack of direct public IPv4/IPv6 access to Walter and inference. Stronger
-separation from trusted guests needs a separate network-policy change.
+Walter calls the separately operated Strata LAN inference endpoint at
+`http://192.168.1.28:8080/v1/chat/completions`, as declared in
+`systems/walter/main.tf`. This is not the retired `garden-llama` service.
+The public browser cannot access Walter's model endpoint through Caddy.
+Walter has one private NIC, without a proxy device or public port mapping.
+The intended HTTP caller for Walter is edge; trusted host administrators and
+routable garden guests can also reach its backend. Project `ai` and gardenbr0
+do not enforce caller isolation. Walter listens on IPv4 only; gardenbr0 has
+no IPv6 subnet and must remain private. Verify lack of direct public IPv4/IPv6
+access to Walter. Stronger separation from trusted guests needs a separate
+network-policy change.
 
 ## Prepare, deliver the secret, then start
 
@@ -57,17 +59,19 @@ shared [secret procedure](secrets.md#create-and-encrypt); verify decryption to
 `/dev/null`, stage ciphertext and deploy identity. No fabricated ciphertext is
 included here. The raw value in Walter must match the provisioned basic secret.
 
-Walter needs only one startup-read secret file. Native Incus custom-volume file
-transfer avoids a new guest or secret controller and keeps plaintext outside
-OpenTofu state. In the private operator terminal, from the repository root:
+Walter needs both its OIDC client secret and the Strata upstream API key at
+startup. Native Incus custom-volume file transfer avoids a new guest or secret
+controller and keeps plaintext outside OpenTofu state. In the private operator
+terminal, from the repository root:
 
 ```bash
 umask 077
 secret_work="$(mktemp -d)"
 sops --decrypt --extract '["walter-client"]' systems/identity/walter-secrets.yaml > "$secret_work/oidc-client"
+sops --decrypt --extract '["strata-api-key"]' systems/walter/secrets.yaml > "$secret_work/strata-api-key"
 ```
 
-Require success and a nonempty file before transfer; never print it. Inspect
+Require success and both nonempty files before transfer; never print them. Inspect
 `systems/walter/site.auto.tfvars.json`, applied state, remote inventory and volume
 identity first. Load only this root's inputs:
 
@@ -75,17 +79,20 @@ identity first. Load only this root's inputs:
 WALTER_REMOTE="$(jq -r .incus_remote systems/walter/site.auto.tfvars.json)"
 WALTER_POOL="$(jq -r .storage_pool systems/walter/site.auto.tfvars.json)"
 incus storage volume file push "$secret_work/oidc-client" "$WALTER_REMOTE:$WALTER_POOL" walter-secrets/oidc-client --project ai --uid 65532 --gid 65532 --mode 0400
+incus storage volume file push "$secret_work/strata-api-key" "$WALTER_REMOTE:$WALTER_POOL" walter-secrets/strata-api-key --project ai --uid 65532 --gid 65532 --mode 0400
 ```
 
-Require a host/client supporting custom-volume file transfer. Verify the file
-appears in the container at `/run/secrets/oidc-client` with mapped UID/GID 65532
-and mode 0400, and the directory is 0700; do not chown raw host paths. The secret
-volume is read-only in Walter. Transfer failure keeps startup disabled. Do not
+Require a host/client supporting custom-volume file transfer. Verify both files
+appear in the container at `/run/secrets/oidc-client` and
+`/run/secrets/strata-api-key` with mapped UID/GID 65532 and mode 0400,
+and the directory is 0700; do not chown raw host paths. The secret volume
+is read-only in Walter. Transfer failure keeps startup disabled. Do not
 use a provider `file`, environment value or local-exec provisioner for plaintext.
 Remove only the operation's temporary plaintext after successful delivery and
 verification; retain encrypted recovery material privately.
 
-Inference must be healthy and advertise `qwen38-chat`. Both profiles are required
+The Strata endpoint must be healthy and support Walter's configured
+`qwen3.8-flash-next-iq3_s` model. Both profiles are required
 public JSON object strings in this root's local inputs: `quick_profile` and
 `thoughtful_profile`. Defaults are empty preparation values and the start
 precondition rejects them. Verify actual flags against the installed model and
@@ -176,8 +183,7 @@ restart persistence. An image rollback cannot undo a future data-format change.
 
 Decommission by withdrawing the edge route and declaring the dedicated client
 `present = false` in identity; retain ciphertext/data under the shared
-[retirement procedure](retirement.md). Do not remove shared ai-users, inference
-or the ai project. Data deletion needs its own explicit retention decision.
+[retirement procedure](retirement.md). Do not remove shared ai-users or the ai project. Data deletion needs its own explicit retention decision.
 
 Upstream runtime contract:
 [Walter deployment](https://github.com/mitschwimmer/walter/blob/ef189ae399bd0a1dce766042634f68bbac9ed8f9/deploy/README.md).

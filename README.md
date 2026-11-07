@@ -2,7 +2,7 @@
 
 Self-hosted services on IncusOS: isolated operation roots, NixOS system
 containers, Nix-configured Caddy, declaratively provisioned Kanidm, SOPS + age,
-and direct OCI GPU inference. Published user applications require native OIDC.
+and direct OCI applications. Published user applications require native OIDC.
 Reviewed access exceptions and their controls live in the owning service reference.
 Caddy performs no user authentication and has no mutable configuration API.
 
