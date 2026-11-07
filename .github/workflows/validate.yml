@@ -38,14 +38,14 @@ jobs:
       - uses: cachix/install-nix-action@448cde739abec1eaf0646249e3d25bb8d9bc7702
       - name: Check changed Nix formatting
         run: |
-          nix develop --command nixfmt flake.nix systems/edge/configuration.nix systems/identity/configuration.nix systems/identity/immich.nix nix/packages/agent-vault.nix nix/packages/pi.nix systems/agent-vault/*.nix systems/pi/*.nix
+          nix develop --command nixfmt flake.nix systems/edge/configuration.nix systems/identity/configuration.nix systems/identity/immich.nix
           git diff --exit-code
       - name: Check flake outputs
         run: nix flake check --no-build
       - name: Validate infrastructure schemas
         run: |
           nix develop --command sh -ec '
-            for root in platform systems/edge systems/identity systems/immich systems/webdav systems/inference systems/walter systems/agent-vault systems/pi; do
+            for root in platform systems/edge systems/identity systems/immich systems/webdav systems/walter; do
               tofu -chdir="$root" fmt -check -diff
               tofu -chdir="$root" init -backend=false -input=false -lockfile=readonly
               tofu -chdir="$root" validate
@@ -63,20 +63,6 @@ jobs:
           nix eval .#nixosConfigurations.immich.config.services.immich.package.version --raw
           nix eval .#nixosConfigurations.webdav.config.services.webdav.settings --json > /dev/null
           nix eval .#nixosConfigurations.webdav.config.systemd.services.webdav.serviceConfig --json > /dev/null
-          nix eval .#nixosConfigurations.agent-vault.config.systemd.services.agent-vault.serviceConfig --json > /dev/null
-          nix eval '.#nixosConfigurations.pi.config.environment.etc."garden-agent/session.json".text' --raw > /dev/null
-          nix eval .#nixosConfigurations.pi.config.nix.settings --json > /dev/null
-          nix eval .#nixosConfigurations.pi.config.systemd.services.nix-daemon.serviceConfig --json > /dev/null
-      - name: Check Pi CA mount in a Nix sandbox
-        run: |
-          ca_path="$(nix eval --raw .#nixosConfigurations.pi.config.nix.settings.extra-sandbox-paths --apply builtins.head)"
-          nix build --no-link --option extra-sandbox-paths "$ca_path" --impure --expr '
-            let
-              garden = builtins.getFlake (toString ./.);
-              pkgs = garden.inputs.nixpkgs.legacyPackages.x86_64-linux;
-              ca = garden.nixosConfigurations.pi.config.security.pki.caBundle;
-            in pkgs.runCommand "garden-pi-ca-mount-check" { } "test -r ${ca}; touch $out"
-          '
       - name: Run focused native application checks
         run: |
           nix build --no-link \

@@ -1,6 +1,0 @@
-{
-  "repository": "ggml-org/llama.cpp",
-  "tag": "server-rocm-b11706",
-  "digest": "sha256:23785b47968c034e009fab853be8a5d4f6ad86a59540bc77d8fe1a6731653304",
-  "platform": "linux/amd64"
-}

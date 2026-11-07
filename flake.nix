@@ -24,8 +24,6 @@
         "identity"
         "immich"
         "webdav"
-        "agent-vault"
-        "pi"
       ];
       mkSystem =
         name: seed:
@@ -42,15 +40,6 @@
               environment.etc."garden-system".text = name + "\n";
             }
           ]
-          ++
-            lib.optionals
-              (builtins.elem name [
-                "agent-vault"
-                "pi"
-              ])
-              [
-                (./systems + "/${name}/network.nix")
-              ]
           ++ lib.optionals (!seed) [
             sops-nix.nixosModules.sops
             (./systems + "/${name}/configuration.nix")
