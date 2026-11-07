@@ -42,17 +42,24 @@ Never modify IncusOS networking as a side effect of a Talos plan.
 
 ## Prepare the first boot ISO
 
-Use a **pinned Talos v1.14.5** amd64 ISO from Sidero Labs Image Factory
-with the matching `siderolabs/amdgpu` extension selected. Keep its schematic,
-release identifier and verified checksum in an operator-owned private record,
-not in generated Talos secret material. The initial ISO and the installed image
-should agree on extension selection (use the matching factory installer if
-needed). Do not reuse an unverified third-party Incus VM image.
+Use the **exact pinned Talos v1.14.5 amd64 metal ISO** from the
+[factory schematic](../../cluster/talos/image-factory.yaml):
+`26a7fb977530a932ea54bbbff1a50973c13b7648599ee4cb6c1a9fed62c15ea7`.
+The schematic has `amdgpu`, `kata-containers` (future use) and
+`qemu-guest-agent`; Secure Boot is disabled. Talos must later install via
+the [matching installer patch](../../cluster/talos/installer.patch.yaml).
+Verify the image checksum/signature from the Image Factory before import.
 
-On the **workstation**, after downloading and verifying the official ISO:
+On the **workstation**, at the repository root:
 
 ```sh
-incus storage volume import measerve:local /ABSOLUTE/PATH/TO/metal-amd64.iso \
+mkdir -p .operations/talos
+chmod 700 .operations/talos
+curl --fail --location --output .operations/talos/metal-amd64.iso \
+  https://factory.talos.dev/image/26a7fb977530a932ea54bbbff1a50973c13b7648599ee4cb6c1a9fed62c15ea7/v1.14.5/metal-amd64.iso
+# Independently obtain and compare the official SHA256 checksum/signature here.
+# Do NOT import an unverified download.
+incus storage volume import measerve:local .operations/talos/metal-amd64.iso \
   garden-talos-v1.14.5 --type=iso --project default
 incus storage volume show measerve:local garden-talos-v1.14.5
 ```
@@ -96,6 +103,10 @@ set `start_vm = true` and apply a **new** reviewed plan. Initially leave
 `enable_gpu_passthrough = false` so a potential VFIO binding problem cannot
 block testing storage and networking. The GPU can be cold-attached later
 after the VM is shut down and the host GPU is no longer in use.
+For future Kata Containers, nested virtualization is already enabled by
+default on Incus VMs (unless explicitly disabled). Verify the `vmx`
+CPU capability and `/dev/kvm` in Talos before using a Kata RuntimeClass;
+do not change the first reviewed VM plan solely for this deferred feature.
 
 ## Installation and handoff
 
