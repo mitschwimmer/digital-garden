@@ -252,7 +252,7 @@ user volumes. The patch modifies the existing node configuration.
 ```sh
 talosctl --endpoints "$TALOS_IP" --nodes "$TALOS_IP" get volumestatuses
 talosctl --endpoints "$TALOS_IP" --nodes "$TALOS_IP" \
-  get volumemountstatuses -o yaml
+  get mountstatuses -o yaml
 kubectl get nodes -o wide
 kubectl -n kube-system get pods -o wide
 cilium status --wait
