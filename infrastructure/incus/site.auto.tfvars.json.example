@@ -1,7 +1,7 @@
 {
   "incus_remote": "measerve",
   "lan_parent": "enp129s0",
-  "lan_mac": "02:00:00:00:00:00",
+  "lan_mac": "REPLACE_WITH_RESERVED_02_MAC",
   "installer_iso": "garden-talos-v1.14.5",
   "start_vm": false,
   "installation_complete": false,
