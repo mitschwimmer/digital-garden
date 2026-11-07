@@ -34,7 +34,7 @@ resource "incus_storage_volume" "identity" {
   config  = { "initial.mode" = "0700" }
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
@@ -46,7 +46,7 @@ resource "incus_storage_volume" "identity_secrets" {
   config  = { "initial.mode" = "0700" }
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
@@ -135,5 +135,5 @@ resource "incus_storage_volume" "acme" {
   project = local.target.project
   remote  = var.incus_remote
   config  = { "initial.mode" = "0700" }
-  lifecycle { prevent_destroy = true }
+  lifecycle { prevent_destroy = false }
 }
