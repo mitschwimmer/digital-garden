@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: garden
+  namespace: argocd
+spec:
+  description: In-cluster GitOps platform extensions and application workloads
+  # This cluster's source repository is public, with review-gated branches.
+  sourceRepos:
+    - https://github.com/mitschwimmer/digital-garden.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: "*"
+  # Platform extensions such as OpenEBS legitimately install cluster-wide
+  # CRDs, RBAC, StorageClasses, and other cluster-scoped objects. This
+  # project is trusted operator source ONLY; restrict child Application
+  # projects later as service boundaries become explicit.
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
