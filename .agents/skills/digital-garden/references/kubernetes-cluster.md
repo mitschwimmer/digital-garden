@@ -101,6 +101,19 @@ Do **not** reinstall the working CNI. Keep Helm as Cilium's owner until
 a carefully reviewed Argo CD adoption; a blind uninstall can strand the
 cluster networking. Gateway API is not enabled by the initial Helm values.
 
+## Current volume provisioning blocker (2026-11-07)
+
+The operator's approved first `UserVolumeConfig` patch created
+`u-k8s-nvme` and `u-k8s-data`, but both entered `failed` with
+`error evaluating disk locator: no such attribute(s): system_disk`.
+The source has been corrected to remove this unbound CEL variable,
+while retaining exact by-id symlink identity, writable and size checks.
+Talos v1.14.5's disk locator evaluates only `disk`, rather than
+the `system_disk` variable. The new patch has not been applied,
+and no new mounts or OpenEBS resources have been observed. Follow
+`cluster/talos/README.md` to dry-run and apply the revised selector,
+then inspect individual VolumeStatus errors and mount sources.
+
 ## Next dependencies
 
 1. Verify node/Cilium remain healthy and secure off-host copies of
