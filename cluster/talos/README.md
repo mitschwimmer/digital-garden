@@ -196,6 +196,26 @@ matching disk per selector with expected size; neither may be the root
 device (`...incus_root`). The host's `data` ZFS pool is **not** the
 guest `k8s-data` block device; do not modify the host pool.
 
+### Read-only live inventory result (2026-11-07)
+
+The operator supplied a current Talos inventory from `192.168.1.49`.
+`garden-root` reported **Synced / Healthy**. The whole-disk records
+matched the prepared selectors:
+
+- Talos system: `/dev/sda`, 64 GiB, by-id `...incus_root`; has EFI,
+  META, STATE and EPHEMERAL partitions.
+- Bulk data: `/dev/sdb`, 1 TiB, by-id `...incus_k8s--data`; writable;
+  discovered-volume `name: ""` and no discovered partitions.
+- Fast tier: `/dev/sdc`, 128 GiB, by-id `...incus_k8s--nvme`; writable;
+  discovered-volume `name: ""` and no discovered partitions.
+- `talosctl get volumestatuses` reported only the existing Talos
+  system/directory volumes; neither new UserVolume is yet present.
+
+This supports proceeding to the **dry-run** below, not directly to disk
+initialization. Recheck the disks before any live apply. Talos disk
+discovery showing no recognized signatures does not itself prove there
+is no valuable raw or previously erased data.
+
 ### Dry-run and reviewed application
 
 After the read-only preflight and an up-to-date off-cluster recovery
