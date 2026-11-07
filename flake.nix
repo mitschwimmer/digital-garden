@@ -19,6 +19,7 @@
           opentofu
           sops
           talosctl
+          virt-viewer
         ];
       };
     };
