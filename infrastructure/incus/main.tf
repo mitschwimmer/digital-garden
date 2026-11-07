@@ -194,7 +194,7 @@ resource "incus_instance" "talos" {
     properties = {
       pool   = incus_storage_volume.nvme.pool
       source = incus_storage_volume.nvme.name
-      io.bus = "virtio-scsi"
+      "io.bus" = "virtio-scsi"
     }
   }
 
@@ -204,7 +204,7 @@ resource "incus_instance" "talos" {
     properties = {
       pool   = incus_storage_volume.data.pool
       source = incus_storage_volume.data.name
-      io.bus = "virtio-scsi"
+      "io.bus" = "virtio-scsi"
     }
   }
 
