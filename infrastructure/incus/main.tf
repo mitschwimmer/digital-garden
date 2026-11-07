@@ -222,16 +222,28 @@ resource "incus_instance" "talos" {
     }
   }
 
-  # AMD Radeon RX 9060 XT, dedicated IOMMU group 13 on inspected measerve host.
-  # Separate HDMI audio function 0000:04:00.1 (group 14) stays on the host.
+  # Radeon RX 9060 XT graphics function, host IOMMU group 13.
+  # The same card's HDMI/DP audio function (group 14) must be attached to
+  # this VM too: QEMU's VFIO GPU reset depends on owning both groups.
   dynamic "device" {
     for_each = var.enable_gpu_passthrough ? [true] : []
     content {
       name = "amdgpu"
       type = "gpu"
       properties = {
-        gputype   = "physical"
-        pci       = "0000:04:00.0"
+        gputype = "physical"
+        pci     = "0000:04:00.0"
+      }
+    }
+  }
+
+  dynamic "device" {
+    for_each = var.enable_gpu_passthrough ? [true] : []
+    content {
+      name = "amdgpu-audio"
+      type = "pci"
+      properties = {
+        address = "0000:04:00.1"
       }
     }
   }
