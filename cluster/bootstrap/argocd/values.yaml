@@ -1,0 +1,26 @@
+# Argo CD Core: pinned upstream Argo CD v3.6.1 via argo-helm chart 10.14.0.
+# The cluster administrator uses the Kubernetes API (kubectl/CRDs),
+# not the Argo CD web UI or Argo CD API service.
+#
+# Matches the pinned upstream chart's documented "Argo CD Core" mode.
+# No ingress, HTTPRoute, public service, SSO, or PersistentVolumeClaim.
+server:
+  enabled: false
+
+dex:
+  enabled: false
+
+notifications:
+  enabled: false
+
+# This is one Talos control-plane node, not an HA topology.
+redis-ha:
+  enabled: false
+
+# No Argo CD API server exists to authenticate a local admin user.
+configs:
+  cm:
+    admin.enabled: false
+
+# Defaults retain the application-controller, repo-server, Redis,
+# and ApplicationSet controller. They are required for GitOps/core mode.
