@@ -61,7 +61,7 @@ resource "incus_storage_volume" "caddy" {
   }
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
