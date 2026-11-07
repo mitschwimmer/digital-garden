@@ -52,8 +52,8 @@ needed). Do not reuse an unverified third-party Incus VM image.
 On the **workstation**, after downloading and verifying the official ISO:
 
 ```sh
-incus storage volume import local /ABSOLUTE/PATH/TO/metal-amd64.iso \
-  garden-talos-v1.14.5 --type=iso --project default --remote measerve
+incus storage volume import measerve:local /ABSOLUTE/PATH/TO/metal-amd64.iso \
+  garden-talos-v1.14.5 --type=iso --project default
 incus storage volume show measerve:local garden-talos-v1.14.5
 ```
 
