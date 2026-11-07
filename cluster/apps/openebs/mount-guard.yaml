@@ -23,6 +23,7 @@ spec:
     - name: openebs-hostpath-helper
       expression: >-
         request.namespace == "openebs"
+        && has(object.spec.volumes)
         && object.spec.volumes.exists(v,
           v.name == "data" && has(v.hostPath))
   mutations:
