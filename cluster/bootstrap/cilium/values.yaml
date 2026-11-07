@@ -1,0 +1,60 @@
+# Cilium v1.20.4, Talos v1.14.5, single-node cluster.
+# NOTE: Cilium 1.20.4 is e2e-tested through Kubernetes 1.36, while
+# this first Talos cluster generated Kubernetes 1.37.1. Validate networking
+# on the live node before onboarding any services; this pairing isn't
+# officially e2e-tested yet.
+#
+# This file is consumed by the one-time manual Helm bootstrap only.
+# Argo CD ownership requires a separately reviewed handoff.
+
+# Talos's KubeControllerManager assigns node PodCIDRs.
+ipam:
+  mode: kubernetes
+
+# Talos machine config already has kube-proxy disabled.
+kubeProxyReplacement: true
+
+# Talos KubePrism: local Kubernetes API endpoint on every node.
+k8sServiceHost: localhost
+k8sServicePort: 7445
+
+# Talos mounts the cgroupv2 filesystem on the host.
+cgroup:
+  autoMount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
+
+# Talos forwards Kubernetes DNS to host DNS by default. Without legacy
+# host routing, this can break DNS through Cilium.
+bpf:
+  hostLegacyRouting: true
+
+# Talos does not permit Kubernetes workloads to load kernel modules.
+# Reproduce Cilium's documented Talos-safe capability sets (no SYS_MODULE).
+securityContext:
+  capabilities:
+    ciliumAgent:
+      - CHOWN
+      - KILL
+      - NET_ADMIN
+      - NET_RAW
+      - IPC_LOCK
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    cleanCiliumState:
+      - NET_ADMIN
+      - SYS_ADMIN
+      - SYS_RESOURCE
+
+# The cluster has a single node / single failure domain.
+operator:
+  replicas: 1
+
+# First achieve a working CNI. Gateway API/Envoy configuration is later
+# GitOps-owned platform source, not part of the bootstrap Helm release.
+gatewayAPI:
+  enabled: false
