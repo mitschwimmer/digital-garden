@@ -4,6 +4,21 @@
 
 Use an authenticated workstation Incus client. Confirm the chosen remote resolves to `measerve` and inspect instances, pools, IncusOS LAN bridges and physical PCI inventory. Pools are host prerequisites, *not* OpenTofu-managed cluster resources. Do not use an IncusOS shell as a build or configuration workspace. Check that the post-retirement inventory is empty before the first VM plan.
 
+## This host and source
+
+The first deployable Incus VM source is
+[`infrastructure/incus/main.tf`](../../../../infrastructure/incus/main.tf);
+the operator procedure is
+[`infrastructure/incus/README.md`](../../../../infrastructure/incus/README.md).
+The intended guest is `garden-k8s`, initially stopped. The `local` ZFS
+pool is on the Samsung 9100 PRO NVMe; `data` is on mirrored 4 TB disks.
+Initial sizing is 8 vCPUs, 24 GiB RAM, and 64/128/1024 GiB for
+system/NVMe/data disks. The discrete RX 9060 XT (`1002:7590`) is at PCI
+`0000:04:00.0`, in IOMMU group 13; its audio function
+`0000:04:00.1` is separate and the Intel iGPU stays on the host.
+These facts are from a 2026-11-07 host inventory; **reinspect before
+changing**. A stable guest IP and LAN MAC are intentionally local inputs.
+
 ## Bootstrap order
 
 1. Build the workstation development shell and pin Incus provider, Talos, Kubernetes, Cilium and Gateway API CRDs. Inspect compatibility matrices before choosing versions.
