@@ -128,7 +128,11 @@ not proof. No storage provisioner should run on an unmounted filesystem.
 - Both custom volumes are pinned by separate Incus resource objects and
   may not be shrunk after creation.
 - The physical GPU is exclusive to the VM when passed through; no Incus
-  hotplug is assumed.
+  hotplug is assumed. Select it with only `pci = "0000:04:00.0"`:
+  Incus rejects mixing `pci` with `productid` or `vendorid` in a GPU device.
+  Cold-stop the VM first and keep `start_vm = false` while adding the device.
+  Re-plan after any failed apply and confirm the sole in-place change before
+  using a newly saved plan. Reboot the VM only in a separately reviewed plan.
 - A passing OpenTofu plan or applied VM is not a working Talos cluster.
 - Inspect `incus info measerve:garden-k8s`,
   `incus config show measerve:garden-k8s --expanded` and
