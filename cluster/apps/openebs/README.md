@@ -8,12 +8,53 @@ UserVolumes **ready and mounted** on the intended distinct guest disks:
 | `u-k8s-nvme` | `/dev/sdc` (128 GiB) | `/var/mnt/k8s-nvme` |
 | `u-k8s-data` | `/dev/sdb` (1 TiB) | `/var/mnt/k8s-data` |
 
-**Reboot persistence has not been confirmed.** Neither OpenEBS nor
-its StorageClasses have been deployed. The staged child Application
+**Reboot persistence is now verified** (operator output, 2026-11-07):
+both Talos volumes are still XFS on the original guest disks and mounts;
+the Kubernetes node is Ready; Cilium agent/operator/Envoy are OK; and
+`garden-root` remains Synced/Healthy. Neither OpenEBS nor its
+StorageClasses have been deployed. The staged child Application
 [`../root/openebs-application.yaml`](../root/openebs-application.yaml)
 is deliberately NOT included in root's `kustomization.yaml`. It has
 **no automatic sync policy** even if included by mistake. Do not add it
 to root or manually install the chart until the gate below is satisfied.
+
+## Read-only guard and chart validation
+
+Before expanding the AppProject or including the staged child in the
+root, run from the repository root in `nix develop`:
+
+```sh
+export KUBECONFIG="$PWD/.operations/talos/kubeconfig"
+
+# The native admission policy must be accepted by Kubernetes v1.37.
+kubectl apply --dry-run=server -f cluster/apps/openebs/mount-guard.yaml
+
+# Render all staged custom resources (guard + exactly two classes).
+kubectl kustomize cluster/apps/openebs
+
+# Confirm the independent pinned Helm chart and render controller/RBAC.
+helm repo add openebs-localpv https://openebs.github.io/dynamic-localpv-provisioner
+helm repo update openebs-localpv
+helm show chart openebs-localpv/localpv-provisioner --version 4.6.0
+mkdir -p .operations/openebs
+helm template openebs-localpv openebs-localpv/localpv-provisioner \
+  --version 4.6.0 --namespace openebs \
+  --values cluster/apps/openebs/values.yaml \
+  > .operations/openebs/rendered.yaml
+```
+
+**Do not `kubectl apply` the guard live yet, or activate the Argo
+child:** server-side dry-run checks policy registration/type checking,
+but cannot demonstrate Pod mutation or runtime mount checks without
+a live admission binding and a real helper Pod. After the guard is
+reconciled and before creating any real PVC, create a dry-run sample
+Pod in `openebs` whose `data` hostPath is one of the approved
+`/var/mnt/k8s-*/openebs` directories; verify its returned
+`spec.initContainers` includes `garden-mount-guard` with the
+expected `/data`, `/expected`, `/ephemeral` mounts. Confirm the
+actual helper Pod receives the same mutation during sacrificial PV
+provisioning. Any missing mutation or wrong mount source is an
+**absolute stop**. An admission dry-run alone does not establish this.
 
 ## Minimal components and ownership
 
@@ -41,18 +82,29 @@ One Incus VM remains a single failure domain.
 
 ## Hard prerequisites before activating
 
-1. Verify after an **operator-approved node reboot** that both Talos
-   `VolumeStatus` records are `ready`, the matching
-   `MountStatus` sources are still `/dev/sdc` and `/dev/sdb`
-   and filesystems `xfs`, and that Kubernetes/Cilium/Argo CD have
-   recovered. A reboot interrupts the only Kubernetes node.
-2. **Fail-closed provisioning is NOT solved by upstream OpenEBS.**
-   Its Hostpath helper creates directories using the configured
-   BasePath; when a mount disappears, writes may land on the parent
-   Talos `EPHEMERAL` filesystem. The custom classes are not sufficient
-   protection. Design and test an enforceable mount-source guard
-   on disposable infrastructure before enabling the child. Do not
-   run a missing-mount test against the current cluster.
+1. **Passed:** post-reboot Talos source/target verification,
+   Kubernetes node readiness, Cilium and Argo CD root health.
+2. **Mount-source guard staged; NOT yet validated or enabled.** Upstream
+   Hostpath helper Pods can create directories under BasePath even if
+   a mount is absent. The native v1.37 Kubernetes
+   [`mount-guard.yaml`](mount-guard.yaml) MutatingAdmissionPolicy
+   adds a short-lived initContainer to OpenEBS helper Pods that use
+   either approved BasePath. The initContainer checks that its
+   `/data` bind mount's filesystem-device ID matches the corresponding
+   Talos UserVolume's mountpoint *and differs from* the Talos
+   `/var/mnt` EPHEMERAL parent. A failure stops helper execution
+   before `mkdir -p`. Policy `failurePolicy: Fail` rejects a helper
+   Pod if admission evaluation fails. The guard adds no webhook or
+   long-running workload; it uses `busybox:1.37.0` in a one-shot
+   initContainer.
+   
+   **Before activation, prove** the policy is accepted by the live
+   Kubernetes v1.37 API, admission mutates a representative helper Pod,
+   and a sacrificial provisioning test writes to the intended disk.
+   Exercise a *simulated* missing-mount case in an isolated test (or
+   disposable node) without unmounting either live Talos volume.
+   This guard protects OpenEBS helper Pods, not arbitrary privileged
+   Pods that bypass OpenEBS or all possible existing PV consumers.
 3. Review namespace-scoped Pod Security: OpenEBS helper Pods require
    `privileged` in the `openebs` namespace only. The staged child
    Application uses `CreateNamespace=true` and
@@ -70,32 +122,25 @@ One Incus VM remains a single failure domain.
    after the PR merges; `bootstrap/talos-foundation` is transient.
    Review chart rendering and all side effects before activation.
 
-## Source-only template review on the workstation
+## Final activation sequence (not yet authorized)
 
-```sh
-nix develop
-helm repo add openebs-localpv https://openebs.github.io/dynamic-localpv-provisioner
-helm repo update openebs-localpv
-helm show chart openebs-localpv/localpv-provisioner --version 4.6.0
-kubectl kustomize cluster/apps/openebs
+1. Review the guard dry-run output and rendered Helm objects.
+2. Add the reviewed external Helm repo, `openebs` destination, and
+   the narrowly required cluster-scoped resource kinds to `garden`
+   AppProject; extend no other namespaces.
+3. Add `openebs-application.yaml` to the root Kustomization, then
+   verify the non-automated child Application exists. The admission
+   guard has sync wave `-2`; custom StorageClasses have wave `1`.
+4. Manually synchronize the child through the Argo CD Kubernetes API,
+   verifying admission policy/binding and provisioner are ready
+   **before any PVC is created**.
+5. Perform admission-mutation and guarded provisioning smoke tests.
+   Verify PV path, reclaim policy, selected disk, and real read/write
+   persistence. Treat failures as blockers, not reasons to bypass
+   the guard. Only then permit application workloads to claim storage.
 
-mkdir -p .operations/openebs
-helm template openebs-localpv openebs-localpv/localpv-provisioner \
-  --version 4.6.0 --namespace openebs \
-  --values cluster/apps/openebs/values.yaml \
-  > .operations/openebs/rendered.yaml
-```
-
-Inspect the rendered resources before creating the child Application.
-There should be no default `openebs-hostpath` StorageClass, no
-additional storage engines, no Loki/Alloy, and no public API or UI.
-The two custom StorageClasses are in the Kustomize output and are
-not directly installed by the Helm chart. Use `kubectl` and Argo CD
-`Application` CRDs for status; no OpenEBS admin UI is needed.
-
-The exact upstream chart version and application rendering still need
-to be verified on the workstation. Do not interpret source staging
-as a successful Helm render or a live deployment.
+No destructive migration, Cilium ownership change or default
+StorageClass is included in this stage.
 
 Official sources:
 - https://github.com/openebs/dynamic-localpv-provisioner/releases/tag/v4.6.0
