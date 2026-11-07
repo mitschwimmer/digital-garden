@@ -103,7 +103,11 @@ The cluster root Application, `garden-root`, is the **one** Kubernetes
 resource applied manually after Argo CD is healthy. The root points at
 `cluster/apps/root/`, initially containing only the `garden` AppProject.
 No child Application, OpenEBS controller, StorageClass or workload is
-introduced by this stage.
+introduced by this stage. The initial `garden` AppProject
+deliberately allows only this repository and the `argocd` namespace;
+it grants **no cluster-scoped resource privileges**. Expand the project
+only for a separately reviewed child Application and only after its
+dependencies (including data mounts) are checked.
 
 ```sh
 kubectl kustomize cluster/apps/root
