@@ -289,13 +289,15 @@ configuration and supplied these **live** Talos resource results:
 - Talos system `EPHEMERAL` remains `/dev/sda4`, ready and mounted
   at `/var`.
 
-This confirms real separate disk mounts **now**, but no reboot
-persistence or missing-mount fail-closed provisioning check has been
-reported. Do not introduce OpenEBS while either gate remains open;
-see `cluster/apps/openebs/README.md` for the **staged, not activated**
-GitOps manifests. When the operator schedules a reboot of the single
-control-plane node, reconfirm all volume sources and cluster health
-before progressing.
+The operator subsequently **rebooted** the single Talos node
+(2026-11-07). The two volumes remained ready, with the same XFS
+source/target paths on `/dev/sdb` and `/dev/sdc`; Kubernetes
+v1.37.1 returned Ready, Cilium components returned OK, and the
+`garden-root` Application was Synced/Healthy. Reboot persistence
+is therefore **accepted**. OpenEBS is **not deployed**: its
+missing-mount fail-closed admission guard is staged but requires
+Kubernetes API dry-run and behavior verification first.
+See `cluster/apps/openebs/README.md`.
 
 ### Verify before OpenEBS
 
