@@ -43,18 +43,20 @@ helm template openebs-localpv openebs-localpv/localpv-provisioner \
   > .operations/openebs/rendered.yaml
 ```
 
-**Do not `kubectl apply` the guard live yet, or activate the Argo
-child:** server-side dry-run checks policy registration/type checking,
-but cannot demonstrate Pod mutation or runtime mount checks without
-a live admission binding and a real helper Pod. After the guard is
-reconciled and before creating any real PVC, create a dry-run sample
-Pod in `openebs` whose `data` hostPath is one of the approved
-`/var/mnt/k8s-*/openebs` directories; verify its returned
-`spec.initContainers` includes `garden-mount-guard` with the
-expected `/data`, `/expected`, `/ephemeral` mounts. Confirm the
-actual helper Pod receives the same mutation during sacrificial PV
-provisioning. Any missing mutation or wrong mount source is an
-**absolute stop**. An admission dry-run alone does not establish this.
+The operator reports that the **previous** admission policy passed
+`kubectl apply --dry-run=server`. Since then its match condition was
+hardened to skip Pods without volumes and its BasePaths were simplified
+to the existing Talos mount roots. **Repeat the dry-run against this
+revision** before any live test.
+
+A policy dry-run only checks API acceptance; it does not prove Pod
+mutation. After successful chart rendering, follow the reversible
+[positive and negative guard tests](tests/README.md). They temporarily
+apply only the guard policy/binding (no chart, PVC, or StorageClass),
+then test dry-run Pod mutation and safe one-shot Pod execution.
+Remove all canary resources afterward. Do not activate the Argo child
+until the tests pass; verify the *actual* OpenEBS helper later during
+a sacrificial PVC provisioning test.
 
 ## Minimal components and ownership
 
@@ -68,8 +70,10 @@ child Application), not a separate Helm release.
 
 The Git Kustomization defines exactly two custom classes, `nvme` and
 `data`, both `WaitForFirstConsumer`, `Retain` and explicitly
-non-default. Their per-class BasePaths are
-`/var/mnt/k8s-nvme/openebs` and `/var/mnt/k8s-data/openebs`.
+non-default. Their per-class BasePaths are the already-mounted XFS roots,
+`/var/mnt/k8s-nvme` and `/var/mnt/k8s-data`. The pinned provisioner
+creates individual PV subdirectories beneath each BasePath, so no
+bootstrap directory creation is necessary.
 The chart's fallback `localpv.basePath` is deliberately `/dev/null`
 (a file, not a writable directory), so a class without a valid
 BasePath should fail rather than select the default OS-disk location.
@@ -94,8 +98,10 @@ One Incus VM remains a single failure domain.
    expected reference to EPHEMERAL and always fails. For approved
    paths, the initContainer checks that its `/data` bind mount's
    filesystem-device ID matches the corresponding Talos UserVolume
-   mountpoint *and differs from* the Talos `/var/mnt` EPHEMERAL parent. A failure stops helper execution
-   before `mkdir -p`. Policy `failurePolicy: Fail` rejects a helper
+   mountpoint *and differs from* the Talos `/var/mnt` EPHEMERAL
+   parent. A failure stops helper execution before `mkdir -p`.
+   The policy skips Pods without `spec.volumes` instead of denying
+   them due to a missing optional field. Policy `failurePolicy: Fail` rejects a helper
    Pod if admission evaluation fails. The guard adds no webhook or
    long-running workload; it uses `busybox:1.37.0` in a one-shot
    initContainer.
@@ -103,8 +109,8 @@ One Incus VM remains a single failure domain.
    **Before activation, prove** the policy is accepted by the live
    Kubernetes v1.37 API, admission mutates a representative helper Pod,
    and a sacrificial provisioning test writes to the intended disk.
-   Exercise a *simulated* missing-mount case in an isolated test (or
-   disposable node) without unmounting either live Talos volume.
+   Use the safe `tests/` fixtures to test the correct data mount and
+   the EPHEMERAL fallback (without unmounting either live Talos volume).
    This guard protects OpenEBS helper Pods, not arbitrary privileged
    Pods that bypass OpenEBS or all possible existing PV consumers.
 3. Review namespace-scoped Pod Security: OpenEBS helper Pods require
