@@ -3,18 +3,30 @@ kind: AppProject
 metadata:
   name: garden
   namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   description: In-cluster GitOps extensions and application workloads
-  # Only this repository is trusted. Add external Helm repositories
-  # explicitly when approving a specific child Application.
   sourceRepos:
     - https://github.com/mitschwimmer/digital-garden.git
-  # Initially permit only child Application objects in argocd.
-  # Before activating the staged OpenEBS child, extend sourceRepos,
-  # destinations and clusterResourceWhitelist for its reviewed Helm
-  # repository, cluster-scoped kinds and openebs namespace. Not yet approved.
+    - https://openebs.github.io/dynamic-localpv-provisioner
   destinations:
     - server: https://kubernetes.default.svc
       namespace: argocd
-  # No clusterResourceWhitelist yet: fail closed until a child
-  # platform extension requires reviewed cluster-scoped privileges.
+    - server: https://kubernetes.default.svc
+      namespace: openebs
+  # Allow only the reviewed OpenEBS Local PV Hostpath cluster-scoped kinds.
+  # Add further kinds only after inspecting their manifests.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: storage.k8s.io
+      kind: StorageClass
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: admissionregistration.k8s.io
+      kind: MutatingAdmissionPolicy
+    - group: admissionregistration.k8s.io
+      kind: MutatingAdmissionPolicyBinding
