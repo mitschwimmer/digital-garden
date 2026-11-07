@@ -1,0 +1,19 @@
+# Manual-sync only: hardware is visible, but Kubernetes GPU allocation
+# and actual ROCm computation are not yet accepted.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: amd-gpu-device-plugin
+  namespace: argocd
+spec:
+  project: garden
+  source:
+    repoURL: https://github.com/mitschwimmer/digital-garden.git
+    targetRevision: bootstrap/talos-foundation
+    path: cluster/apps/amd-gpu
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
