@@ -91,6 +91,54 @@ sacrificial PVC write/read checks are still pending. This canary establishes
 mount protection for the tested helper signature, not universal hostPath
 protection or existing PV consumer recovery.
 
+## Prepared GitOps activation branch (not deployed)
+
+The isolated `prepare/openebs-gitops-activation` branch stages two changes
+relative to `bootstrap/talos-foundation`:
+
+- `cluster/apps/root/project.yaml` allows only the existing garden Git
+  repository and pinned OpenEBS Helm repository, destination namespaces
+  `argocd` and `openebs`, and the reviewed cluster-scoped resource kinds.
+  The AppProject sync wave is `-1` so it precedes child Application creation.
+- `cluster/apps/root/kustomization.yaml` includes the already prepared
+  `openebs-application.yaml`. The child **has no automated sync**; the
+  root Application does auto-sync from `bootstrap/talos-foundation`, so
+  these source changes must not be merged into that watched branch until
+  preconditions are checked.
+
+**Before merging/activating** inspect the live cluster, because the operator
+has not yet reported actual test cleanup. From the workstation:
+
+```sh
+kubectl -n openebs get pods,deployments,daemonsets,jobs,pvc
+kubectl get storageclasses
+kubectl get mutatingadmissionpolicy garden-openebs-mount-guard --ignore-not-found
+kubectl get mutatingadmissionpolicybinding garden-openebs-mount-guard --ignore-not-found
+kubectl -n argocd get applications
+kubectl -n argocd get appproject garden -o yaml
+kubectl get namespace openebs --show-labels
+```
+
+Expect no canary Pods, no controller, no PVC, no StorageClass, and
+no manually owned guard objects after cleanup. If any remain, inspect
+their ownership; do not delete unexpected resources. Reconfirm both
+Talos mount sources and node readiness before allowing provisioning.
+Review `.operations/openebs/rendered.yaml` for all chart API groups/kinds,
+RBAC, and actual helper Pod naming/volume shape; add only documented
+missing permissions if a rendered resource genuinely needs them.
+Inspect chart and Kustomize output together for duplicate resources.
+
+After reviewing/merging the activation changes into the **watched** branch,
+the self-syncing `garden-root` can create `openebs-localpv` and update
+the `garden` AppProject. Confirm root reconciliation and that the child
+Application is present but **not synchronized**. Then explicitly approve
+and request the first **manual** child synchronization via Kubernetes
+Application API. Inspect health, admission mutation on the actual helper,
+PVC/PV disk paths, and disposable write/read tests before using persistent
+workloads. Avoid broad auto-prune, and never use Helm independently to
+deploy the same release. Leave GPU, Cilium ownership, and default
+StorageClass unchanged.
+
 ## Read-only guard and chart validation
 
 Before expanding the AppProject or including the staged child in the
