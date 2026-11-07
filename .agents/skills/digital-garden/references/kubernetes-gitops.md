@@ -2,24 +2,36 @@
 
 ## Bootstrap and ownership
 
-Install a **pinned, non-HA Argo CD bootstrap** after Kubernetes,
-Cilium and DNS are healthy; do **not** wait for OpenEBS. The normal
-Argo CD installation does not need a PersistentVolumeClaim: Kubernetes
-resources hold its configuration, and its Redis instance is a cache.
-Use local administrative access (port-forward or core CLI) until
-gateway, TLS and identity integration exist. Register the Git repository
-and a minimal root Application that explicitly reconciles child apps.
-Prefer Argo CD as owner of OpenEBS, not a one-off Helm release that must
-later be adopted. Talos must create/verify the two UserVolumes via
-its own machine configuration **outside Argo CD** before an OpenEBS
-Application is allowed to provision. Define namespace ownership, sync
-waves and dependencies for CRDs/controllers before custom resources.
-Keep the working bootstrap Cilium release Helm-owned until a separately
-reviewed takeover; avoid competing Helm/Argo CD controllers.
+Install pinned, non-HA **Argo CD Core v3.6.1** (argo-helm
+chart `10.14.0`) after Kubernetes, Cilium and DNS are healthy;
+do **not** wait for OpenEBS. Follow
+`cluster/bootstrap/argocd/README.md` for exact Helm and Kubernetes
+API commands. Use the upstream Core chart settings: disable
+`server`, `dex` and `notifications`. Never expose an Argo CD
+web UI/API server, route, ingress, OIDC client, or unnecessary admin
+dashboard: **the operator manages GitOps through `Application` and
+`ApplicationSet` CRDs via Kubernetes RBAC/`kubectl` only**.
+
+The initial Core installation does not need a PVC; Redis is a cache.
+Keep the Argo CD Core Helm release independent from the root Application,
+which initially manages only a reviewed `garden` AppProject, not child
+applications or Cilium. Add each platform extension as a child Application
+only after validating its prerequisites. Prefer Argo CD as the owner of
+OpenEBS, not a separate manual Helm release. Talos must first create and
+verify both UserVolumes through its own machine configuration, outside
+Argo CD. Define namespace ownership and ordered dependencies for
+CRDs/controllers before custom resources. Keep Cilium Helm-owned until
+a separately reviewed handoff, not a blind uninstall.
 
 Keep the desired-state layout small: `infrastructure/incus` for OpenTofu, `cluster/talos` and `cluster/bootstrap` for pre-GitOps sources, `cluster/apps` for Argo CD-managed platform and service resources. Source paths are a *target design*, not proof that they exist yet. Do not read the former NixOS `systems/*` HCL as current infrastructure.
 
 ## Platform apps
+
+Treat Kubernetes extensions (OpenEBS, Cilium, cert-manager, device plugins,
+observability operators) as **API-first, headless controllers**. Do not deploy
+their dashboards or public management endpoints unless a concrete requirement
+is reviewed. User-facing products such as Immich are different and may
+need published interfaces.
 
 - Install OpenEBS **Local PV Hostpath only**; no replicated OpenEBS engines. Configure exactly two explicitly named classes `nvme` and `data`, each selecting its Talos user-volume base directory. Both use `WaitForFirstConsumer` and `Retain`. Avoid automatic default-class assignment until decided. A missing mount is a stop condition, not a reason to provision on the system disk.
 - Install the AMD device plugin appropriate for the passed-through Radeon. Let Talos own the driver and ensure a real GPU pod completes a compute test before deploying inference workloads.
