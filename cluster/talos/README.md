@@ -126,13 +126,12 @@ asset using the published SHA-256. Before generation confirm
 6. Bootstrap the single control-plane's etcd **once**, using the saved
    `talosconfig`. Obtain a kubeconfig and verify API access and etcd
    health. Kubernetes pods will not become ready before Cilium is installed.
-7. Install a pinned Cilium Helm release with the documented Talos settings
-   (Cilium kube-proxy replacement, KubePrism at localhost:7445,
-   `cgroup.autoMount.enabled=false`, `cgroup.hostRoot=/sys/fs/cgroup`,
-   the capability restrictions required by Talos, and tested DNS routing).
-   Start with Cilium networking only; enable Cilium Gateway API after a
-   healthy baseline. For Cilium's Talos DNS path, review
-   `bpf.hostLegacyRouting` from the pinned chart documentation.
+7. Install Cilium using the [pinned and staged bootstrap procedure](
+   ../bootstrap/cilium/README.md) with its Talos-specific values and
+   mandatory compatibility/acceptance checks. Cilium v1.20.4 has not yet
+   been officially e2e-tested against the generated Kubernetes v1.37.1;
+   do not deploy garden services until the full connectivity and policy
+   gates pass. Enable Cilium Gateway API only in a later reviewed stage.
 8. Only after Cilium is healthy, use `talosctl get disks` and verified
    serials to create **two** v1.14 `UserVolumeConfig` resources, one
    on each extra block disk. In Talos v1.14 use `volumeType: disk`
