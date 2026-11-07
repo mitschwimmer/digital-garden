@@ -1,0 +1,9 @@
+# Applied during Talos machine config generation, BEFORE first bootstrap.
+# Kubernetes will be unavailable for pods until Cilium is installed.
+cluster:
+  allowSchedulingOnControlPlanes: true
+  network:
+    cni:
+      name: none
+  proxy:
+    disabled: true
