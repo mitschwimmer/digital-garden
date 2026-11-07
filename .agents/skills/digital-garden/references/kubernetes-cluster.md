@@ -101,18 +101,22 @@ Do **not** reinstall the working CNI. Keep Helm as Cilium's owner until
 a carefully reviewed Argo CD adoption; a blind uninstall can strand the
 cluster networking. Gateway API is not enabled by the initial Helm values.
 
-## Current volume provisioning blocker (2026-11-07)
+## Current Talos volumes and pending guard (2026-11-07)
 
-The operator's approved first `UserVolumeConfig` patch created
-`u-k8s-nvme` and `u-k8s-data`, but both entered `failed` with
-`error evaluating disk locator: no such attribute(s): system_disk`.
-The source has been corrected to remove this unbound CEL variable,
-while retaining exact by-id symlink identity, writable and size checks.
-Talos v1.14.5's disk locator evaluates only `disk`, rather than
-the `system_disk` variable. The new patch has not been applied,
-and no new mounts or OpenEBS resources have been observed. Follow
-`cluster/talos/README.md` to dry-run and apply the revised selector,
-then inspect individual VolumeStatus errors and mount sources.
+The first `UserVolumeConfig` patch failed because the whole-disk
+locator did not bind the `system_disk` CEL attribute. After correcting
+both selectors while retaining by-id and size constraints, the
+operator reports **both XFS volumes ready and mounted**:
+
+- `u-k8s-nvme`: source `/dev/sdc`, target `/var/mnt/k8s-nvme`
+- `u-k8s-data`: source `/dev/sdb`, target `/var/mnt/k8s-data`
+
+Reboot persistence has **not** been demonstrated. OpenEBS LocalPV
+Hostpath v4.6.0 and two StorageClasses are only **staged in source**,
+not connected to Argo root. Upstream OpenEBS Hostpath may create
+directories beneath BasePath even if the data disk is unmounted,
+so a verifiable fail-closed mount-source guard must be designed and
+tested before enabling. See `cluster/apps/openebs/README.md`.
 
 ## Next dependencies
 
