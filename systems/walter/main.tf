@@ -50,7 +50,7 @@ resource "incus_storage_volume" "data" {
   }
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
@@ -68,7 +68,7 @@ resource "incus_storage_volume" "secrets" {
   }
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
