@@ -124,7 +124,8 @@ One Incus VM remains a single failure domain.
 5. Only at activation time, extend the `garden` AppProject to allow
    the pinned Helm source repository, destination namespace `openebs`,
    and the minimum required cluster kinds (`Namespace`,
-   `StorageClass`, `ClusterRole`, `ClusterRoleBinding`).
+   `StorageClass`, `ClusterRole`, `ClusterRoleBinding`,
+   `MutatingAdmissionPolicy`, `MutatingAdmissionPolicyBinding`).
    Keep permissions explicit. Root currently permits only `argocd`.
 6. Verify the branch in both the parent and the staged child sources
    after the PR merges; `bootstrap/talos-foundation` is transient.
