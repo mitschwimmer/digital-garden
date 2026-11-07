@@ -1,28 +1,11 @@
-# Digital Garden
+# Digital Garden — Kubernetes rebuild
 
-Self-hosted services on IncusOS: isolated operation roots, NixOS system
-containers, Nix-configured Caddy, declaratively provisioned Kanidm, SOPS + age,
-and direct OCI applications. Published user applications require native OIDC.
-Reviewed access exceptions and their controls live in the owning service reference.
-Caddy performs no user authentication and has no mutable configuration API.
+This is the **post-retirement planning branch**, not a deployable Talos cluster yet.
 
-Start with [Work on Digital Garden](.agents/skills/digital-garden/SKILL.md).
-Humans and agents share this handbook. Each system owns its infrastructure state,
-seed, build operations, secrets and persistent volumes. Shared source and pins
-remain reusable. NixOS deployments use native Nix and Incus commands.
+The intended platform is a single-node Talos Linux Kubernetes VM on IncusOS host `measerve`: OpenTofu owns the VM, network, GPU passthrough and block volumes; Cilium provides CNI and Gateway API; Argo CD reconciles Kubernetes applications. Two local storage classes (`nvme` and `data`) use independently mounted Incus volumes, with the host's existing mirrored ZFS `data` pool retained. AMD Radeon RX 9060 XT support must be verified through an actual GPU workload.
 
-This layout targets a fresh installation after an operator-managed host reset.
-There is no migration from the old monolithic state or Authelia installation.
-Do not apply it over surviving old resources or copy old state into these roots.
+See the [digital-garden skill](.agents/skills/digital-garden/SKILL.md) and its Kubernetes-specific references for the intended operating model, rollout sequence and recovery controls.
 
-Use the [service lifecycle](.agents/skills/digital-garden/references/lifecycle.md)
-for setup, configuration, software updates, backup, restore and decommissioning.
-Inspect current systems and pins in source; keep service-specific requirements in
-one reference per service. Provision platform before dependent roots. Deploy edge
-before identity certificate bootstrap, and identity before dependent OIDC login.
-Use a Nix workstation and authenticated Incus client; builds never run on IncusOS.
-Inspect storage, network roles, AMD support, DNS and router rules first.
+**Transition warning:** `platform/`, `systems/`, `nix/modules/` and the older reference documents are *legacy NixOS-container generation source*. They have not been removed or translated, and must not be applied as if they were the Kubernetes desired state. The new OpenTofu/Talos/Argo source will be introduced after the old garden's retirement. Do not merge this branch to `main` until old resource retirement and source cleanup have been confirmed.
 
-CI checks operation helpers, provider schemas, module options and edge.
-Full secret-consuming closure builds and live acceptance are separate gates;
-a successful apply alone does not establish service health.
+Run the one-time legacy retirement only from the separate [`retirement/old-garden`](https://github.com/mitschwimmer/digital-garden/tree/retirement/old-garden) branch on the workstation with its original state. Neither deleting the old garden nor building the new cluster is an automatic GitOps action.
