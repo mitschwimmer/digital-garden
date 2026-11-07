@@ -10,8 +10,9 @@ spec:
   sourceRepos:
     - https://github.com/mitschwimmer/digital-garden.git
   # Initially permit only child Application objects in argocd.
-  # Before OpenEBS, extend destinations/clusterResourceWhitelist for
-  # its reviewed cluster-scoped resources and the openebs namespace.
+  # Before activating the staged OpenEBS child, extend sourceRepos,
+  # destinations and clusterResourceWhitelist for its reviewed Helm
+  # repository, cluster-scoped kinds and openebs namespace. Not yet approved.
   destinations:
     - server: https://kubernetes.default.svc
       namespace: argocd
