@@ -50,21 +50,30 @@ kubectl get mutatingadmissionpolicies,mutatingadmissionpolicybindings
 kubectl create --dry-run=server -o yaml \
   -f cluster/apps/openebs/tests/guard-data-probe.yaml
 kubectl create --dry-run=server -o yaml \
+  -f cluster/apps/openebs/tests/guard-nvme-probe.yaml
+kubectl create --dry-run=server -o yaml \
   -f cluster/apps/openebs/tests/guard-fallback-probe.yaml
 ```
 
-**Both** returned Pods must contain the injected
+**All three** returned Pods must contain the injected
 `spec.initContainers[name=garden-mount-guard]` with mounts at
-`/data`, `/expected`, and `/ephemeral`. The data probe's
-`garden-expected-volume` hostPath must be
-`/var/mnt/k8s-data`. The fallback probe's must be
+`/data`, `/expected`, and `/ephemeral`. The data probe's `garden-expected-volume` hostPath must be
+`/var/mnt/k8s-data`, the NVMe probe's must be
+`/var/mnt/k8s-nvme`, and the fallback probe's must be
 `/var/mnt`. If a Pod lacks injection, or any mutation errors
 occur, **stop and clean up**; do not use OpenEBS.
 
-Also check that nonmatching Pods can be created by dry-run. In
-particular, Pods in `openebs` without a `spec.volumes` field
-must NOT be rejected. The policy match condition checks
-`has(object.spec.volumes)` to avoid an unbound field error.
+Also check that a nonmatching Pod without a `spec.volumes`
+field passes dry-run, with **no** injected guard:
+
+```sh
+kubectl -n openebs run garden-guard-no-volumes --image=busybox:1.37.0 \
+  --restart=Never --dry-run=server -o yaml \
+  --command -- /bin/true
+```
+
+The policy match condition checks `has(object.spec.volumes)`
+to avoid an unbound field error on ordinary controller Pods.
 
 ## Exercise the guard with two disposable Pods
 
@@ -81,6 +90,16 @@ kubectl -n openebs wait \
   pod/garden-guard-data-probe --timeout=120s
 kubectl -n openebs logs garden-guard-data-probe -c garden-mount-guard
 kubectl -n openebs logs garden-guard-data-probe -c inert
+```
+
+Repeat the successful execution against the NVMe-backed disk:
+
+```sh
+kubectl create -f cluster/apps/openebs/tests/guard-nvme-probe.yaml
+kubectl -n openebs wait \
+  --for=jsonpath='{.status.phase}'=Succeeded \
+  pod/garden-guard-nvme-probe --timeout=120s
+kubectl -n openebs logs garden-guard-nvme-probe -c inert
 ```
 
 Negative: the Pod deliberately mounts the existing `/var/mnt`
@@ -105,7 +124,8 @@ the acceptance criterion. Do not install OpenEBS.
 
 ```sh
 kubectl -n openebs delete pod \
-  garden-guard-data-probe garden-guard-fallback-probe \
+  garden-guard-data-probe garden-guard-nvme-probe \
+  garden-guard-fallback-probe \
   --ignore-not-found
 kubectl delete -f cluster/apps/openebs/mount-guard.yaml
 ```
