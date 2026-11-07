@@ -20,8 +20,10 @@ on this dated milestone.
   operator all reported **OK/Ready**. CLI pinned to **v0.20.2**. The
   operator reports connectivity tests successful after a temporary
   namespace-scoped Pod Security Admission exception.
-- The Talos installer ISO was detached after installation. No application
-  services or Argo CD deployment have been confirmed. **Talos UserVolumes,
+- The Talos installer ISO was detached after installation. Argo CD Core's
+  `garden-root` reported **Synced / Healthy** and the `garden` AppProject
+  exists (operator output 2026-11-07); exact live Helm chart revision was
+  not reported. No end-user services have been deployed. **Talos UserVolumes,
   OpenEBS, GPU passthrough and Kata workloads are not yet accepted as
   deployed/working.**
 
@@ -104,11 +106,12 @@ cluster networking. Gateway API is not enabled by the initial Helm values.
 1. Verify node/Cilium remain healthy and secure off-host copies of
    Talos credentials, the working `talosconfig`, kubeconfig and etcd
    recovery material.
-2. **Bootstrap pinned Argo CD** into the working cluster, with no PV/PVC
-   requirement. Start with local administrative access, then a minimal
-   root Application. Keep Cilium's existing Helm release independent and
-   do not double-manage it. Argo CD is a control plane for add-ons,
-   not a prerequisite for Talos disk mounts.
+2. Argo CD Core's `garden-root` now reports **Synced / Healthy**.
+   Keep Cilium's existing Helm release independent. Next, verify two
+   identified, apparently unformatted block devices and perform a
+   **Talos machine-configuration dry-run only** before authorizing
+   filesystem initialization. Talos disk discovery of no signatures
+   does not itself prove there is no valuable data.
 3. Configure **two** explicit Talos UserVolumes on the existing extra
    disks, via Talos machine configuration *outside Argo CD*. Validate
    selectors, mounts, restart persistence and data-disk isolation.
