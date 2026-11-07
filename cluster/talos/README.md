@@ -155,9 +155,11 @@ It provisions **XFS filesystems** mounted under
 `/var/mnt/k8s-nvme` and `/var/mnt/k8s-data` respectively.
 
 **Destructive boundary:** first application of a whole-disk UserVolume
-can initialize/format the matched block device. This file is *staged
-source only*, not evidence of an applied live configuration. **Do not
-apply** unless the operator has inspected the live disk identity,
+can initialize/format the matched block device. The operator has now
+reported both volumes **ready and mounted as XFS** on the intended
+separate guest disks; source alone would not prove this. **Do not
+apply** on any new/rebuilt node unless the operator has inspected
+the live disk identity,
 existing partitions/filesystems and data/backup obligations, verified
 the two disks are intended for fresh initialization, and explicitly
 approved that disk-level change. Never write to the installed Talos
@@ -272,6 +274,28 @@ talosctl --endpoints "$TALOS_IP" --nodes "$TALOS_IP" \
 Never rerun `talosctl gen config`, bootstrap etcd a second time,
 or apply the original generated installation config merely to add
 user volumes. The patch modifies the existing node configuration.
+
+### Live storage acceptance (2026-11-07)
+
+The operator corrected the selectors, reapplied the Talos machine
+configuration and supplied these **live** Talos resource results:
+
+- `u-k8s-data`: `ready`, `disk`, `/dev/sdb` (1 TiB).
+  `MountStatus` source `/dev/sdb`, target `/var/mnt/k8s-data`,
+  filesystem `xfs`.
+- `u-k8s-nvme`: `ready`, `disk`, `/dev/sdc` (128 GiB).
+  `MountStatus` source `/dev/sdc`, target `/var/mnt/k8s-nvme`,
+  filesystem `xfs`.
+- Talos system `EPHEMERAL` remains `/dev/sda4`, ready and mounted
+  at `/var`.
+
+This confirms real separate disk mounts **now**, but no reboot
+persistence or missing-mount fail-closed provisioning check has been
+reported. Do not introduce OpenEBS while either gate remains open;
+see `cluster/apps/openebs/README.md` for the **staged, not activated**
+GitOps manifests. When the operator schedules a reboot of the single
+control-plane node, reconfirm all volume sources and cluster health
+before progressing.
 
 ### Verify before OpenEBS
 
