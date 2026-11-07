@@ -83,6 +83,21 @@ DaemonSets, logs and events. Don't install a second CNI or re-run
 `helm install` blindly. There must be one Helm release and one Cilium
 control plane at any time.
 
+## Operator acceptance record (2026-11-07)
+
+Talos v1.14.5 / Kubernetes v1.37.1 was reported **Ready**, with Cilium
+v1.20.4 agent, Envoy and operator healthy. The first CLI connectivity test
+could not create pods because the `cilium-test-1` namespace enforced
+Pod Security `baseline`. After the test namespace was labeled
+`pod-security.kubernetes.io/enforce=privileged`, test Deployments became
+ready. The operator subsequently reported the **full single-node
+connectivity test successful** with the scoped label option.
+
+This validates the observed initial network path; it does **not**
+make Kubernetes 1.37 a version in Cilium 1.20.4's officially e2e-tested
+matrix or verify future gateway/IPv6/reboot/recovery acceptance. Keep
+the Pod Security exception limited to temporary test namespaces.
+
 ## Acceptance
 
 ```sh
