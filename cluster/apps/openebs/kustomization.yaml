@@ -1,5 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
+  - mount-guard.yaml
   - nvme-storageclass.yaml
   - data-storageclass.yaml
