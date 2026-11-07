@@ -25,6 +25,19 @@ a separately reviewed handoff, not a blind uninstall.
 
 Keep the desired-state layout small: `infrastructure/incus` for OpenTofu, `cluster/talos` and `cluster/bootstrap` for pre-GitOps sources, `cluster/apps` for Argo CD-managed platform and service resources. Source paths are a *target design*, not proof that they exist yet. Do not read the former NixOS `systems/*` HCL as current infrastructure.
 
+## Storage gate (2026-11-07)
+
+Talos reports both dedicated XFS UserVolumes ready and mounted at
+`/var/mnt/k8s-nvme` and `/var/mnt/k8s-data`. The root Application
+remains minimal. Standalone OpenEBS LocalPV Hostpath v4.6.0 sources
+are **staged only** under `cluster/apps/openebs`, and its child
+Application is **not included** in `cluster/apps/root/kustomization.yaml`.
+No storage provisioning is activated. Before connecting it, verify
+Talos mounts across a separately approved reboot and implement/test
+a fail-closed guard against writes to the Talos system disk if a
+mount disappears. OpenEBS Hostpath's BasePath settings alone do not
+provide that guarantee. Follow `cluster/apps/openebs/README.md`.
+
 ## Platform apps
 
 Treat Kubernetes extensions (OpenEBS, Cilium, cert-manager, device plugins,
