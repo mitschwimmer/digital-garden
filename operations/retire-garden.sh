@@ -116,8 +116,27 @@ inventory() {
   done < <(incus storage list "${remote}:" --format=json | jq -r '.[].name')
 }
 
+audit_ai_project() {
+  notice 'ai project occupants (read-only)'
+  if ! incus project show "${remote}:ai" >/dev/null 2>&1; then
+    printf 'No ai project exists.\n'
+    return 0
+  fi
+  incus project info "${remote}:ai"
+  incus image list "${remote}:" --project ai
+  incus list "${remote}:" --project ai
+  incus profile list "${remote}:" --project ai
+  local pool
+  while IFS= read -r pool; do
+    [[ -n $pool ]] || continue
+    printf 'Volumes in %s for project ai:\n' "$pool"
+    incus storage volume list "${remote}:${pool}" --project ai
+  done < <(incus storage list "${remote}:" --format=json | jq -r '.[].name')
+}
+
 if [[ $mode == inspect ]]; then
   inventory
+  audit_ai_project
   for root in "${roots[@]}"; do
     notice "Managed state: $root"
     (cd "$repo/$root" && tofu state list) || die "Cannot read state for $root"
@@ -233,9 +252,20 @@ for root in "${roots[@]}"; do
   [[ $expected_sha == "$actual_sha" ]] || die "Plan checksum changed for $root."
   cat "$report/$slug.actions.tsv"
   printf 'Review the full plan at %s\n' "$report/$slug.plan.txt"
+  if [[ $root == platform ]] && incus project show "${remote}:ai" >/dev/null 2>&1; then
+    # OCI images are cached outside our OpenTofu-managed Walter resources.
+    # An Incus project cannot be removed while those images remain.
+    remaining_images=$(incus image list "${remote}:" --project ai --format=json | jq -e 'if type == "array" then length else error("Unexpected image-list format") end')
+    if (( remaining_images > 0 )); then
+      audit_ai_project
+      die 'The ai project still contains images not managed by OpenTofu. Review and delete only confirmed old-garden images, then run inspect + plan again. Never use incus project delete --force.'
+    fi
+  fi
   read -r -p "Type 'delete $root' to apply this saved plan: " response
   [[ $response == "delete $root" ]] || die "Stopped before deleting $root."
-  tofu -chdir="$repo/$root" apply -input=false "$plan"
+  if ! tofu -chdir="$repo/$root" apply -input=false "$plan"; then
+    die "Apply failed in $root; state may be partially changed. Run inspect, resolve the blocker, then generate fresh plans. Do not reuse this saved plan."
+  fi
   state=$(check_root "$root")
   [[ -z $(printf '%s\n' "$state" | grep -v '^data\.' | sed '/^$/d') ]] ||
     die "Managed state remains in $root; investigate before continuing."
