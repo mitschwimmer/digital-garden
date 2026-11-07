@@ -18,6 +18,48 @@ is deliberately NOT included in root's `kustomization.yaml`. It has
 **no automatic sync policy** even if included by mistake. Do not add it
 to root or manually install the chart until the gate below is satisfied.
 
+## Canary failure and source correction (2026-11-07)
+
+The operator confirmed the pinned Helm 4.6.0 chart renders successfully,
+Kustomize emits the two non-default StorageClasses, and a previous server-side
+admission dry-run accepted the policy. The policy and binding were already
+**live** in Kubernetes, although OpenEBS and its StorageClasses were not.
+The first three Pod admission canaries were **rejected** with:
+
+```text
+invalid ApplyConfiguration: may not mutate atomic arrays, maps or structs:
+.spec.initContainers[0].command, .spec.initContainers[0].args
+```
+
+The policy's ApplyConfiguration attempted to add an initContainer with
+atomic `command` and `args` fields. The staged source now retains the
+volume ApplyConfiguration mutation but uses a separate `JSONPatch` to add
+the complete initContainer. It handles Pods with and without an existing
+`initContainers` list. Reinvocation is set to `Never` to avoid duplicate
+appends. **This correction has only been committed to Git**; it has not
+been server-dry-run validated, applied to the live policy, or tested on
+canaries. Keep OpenEBS inactive pending those results.
+
+From the updated branch on the workstation, first review the exact diff,
+then check API acceptance without changing live state:
+
+```sh
+kubectl apply --dry-run=server -f cluster/apps/openebs/mount-guard.yaml
+```
+
+If accepted, compare live policy to source and deliberately update only the
+admission policy/binding with `kubectl apply -f
+cluster/apps/openebs/mount-guard.yaml`. This affects cluster-wide Pod
+admission (matching only the `openebs` namespace helper signature), so
+inspect for unexpected OpenEBS workloads before doing so. Repeat all three
+`kubectl create --dry-run=server -o yaml` canary checks and confirm the
+injected guard and correct expected mount paths; do not execute test Pods
+until their mutation works. The unguarded control Pod had no injected guard;
+its restricted Pod Security warnings are separate and do not prove guard
+functionality. Note that the namespace currently appears to enforce
+`restricted`, so privileged Hostpath probes may be denied or warned
+independently; review namespace-only PSA before actual canary execution.
+
 ## Read-only guard and chart validation
 
 Before expanding the AppProject or including the staged child in the
