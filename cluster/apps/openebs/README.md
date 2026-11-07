@@ -36,9 +36,9 @@ atomic `command` and `args` fields. The staged source now retains the
 volume ApplyConfiguration mutation but uses a separate `JSONPatch` to add
 the complete initContainer. It handles Pods with and without an existing
 `initContainers` list. Reinvocation is set to `Never` to avoid duplicate
-appends. **This correction has only been committed to Git**; it has not
-been server-dry-run validated, applied to the live policy, or tested on
-canaries. Keep OpenEBS inactive pending those results.
+appends. The correction was subsequently validated and applied, and the three
+canaries passed as recorded below. Keep OpenEBS inactive pending GitOps
+activation and a real helper provisioning test.
 
 From the updated branch on the workstation, first review the exact diff,
 then check API acceptance without changing live state:
@@ -56,9 +56,40 @@ inspect for unexpected OpenEBS workloads before doing so. Repeat all three
 injected guard and correct expected mount paths; do not execute test Pods
 until their mutation works. The unguarded control Pod had no injected guard;
 its restricted Pod Security warnings are separate and do not prove guard
-functionality. Note that the namespace currently appears to enforce
-`restricted`, so privileged Hostpath probes may be denied or warned
-independently; review namespace-only PSA before actual canary execution.
+functionality. The namespace enforces `privileged` for this Hostpath helper use case;
+independent `restricted:latest` Pod Security warnings do not block the tests.
+
+## Admission guard live acceptance (operator output, 2026-11-07)
+
+After the JSONPatch correction, the operator confirmed:
+
+- `kubectl apply --dry-run=server` accepted the policy and binding; the
+  corrected policy was subsequently applied to the live Kubernetes API.
+- All three `kubectl create --dry-run=server -o yaml` probes succeeded with
+  `garden-mount-guard` injected; expected hostPath references resolved to
+  the `k8s-data` and `k8s-nvme` Talos XFS mounts and `/var/mnt` for
+  the fallback. A nonmatching Pod had no injected guard.
+- Talos still reported both UserVolumes `ready`, mounted as XFS on
+  `/dev/sdb` and `/dev/sdc`; EPHEMERAL remained on `/dev/sda4`.
+- Both positive executable canaries ended `Completed` with zero restarts.
+- The fallback executable canary's `garden-mount-guard` initContainer
+  terminated `Error` (exit code 1). Its `inert` main container remained
+  `Waiting: PodInitializing` with no container ID, confirming fail-closed
+  behavior. The operator's initial log request raced Pod initialization;
+  the guard's exact diagnostic log line has not been independently copied.
+- The `openebs` namespace had `pod-security.kubernetes.io/enforce=privileged`.
+  `restricted:latest` warnings were emitted independently, without blocking
+  the canaries; inspect PSA warn/audit settings separately if relevant.
+
+**Next:** collect the fallback guard log, delete the three test Pods, and
+remove the temporary manually managed admission policy/binding as prescribed
+by `tests/README.md` before Argo takeover (while no OpenEBS controller or
+PVC exists). Do not delete the namespace if it contains other resources or
+was not created for these tests. OpenEBS remains **not activated**: GitOps
+AppProject permissions, chart deployment, real helper Pod injection and
+sacrificial PVC write/read checks are still pending. This canary establishes
+mount protection for the tested helper signature, not universal hostPath
+protection or existing PV consumer recovery.
 
 ## Read-only guard and chart validation
 
