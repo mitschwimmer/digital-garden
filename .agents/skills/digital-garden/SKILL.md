@@ -23,9 +23,14 @@ The initial ISO was detached after Talos installation.
 additional guest disks were reidentified with stable SCSI links and no
 detected partitions or filesystems, but **are not provisioned**.
 
-**Next stage:** dry-run two Talos UserVolumes outside Argo CD, then
-separately approve initialization and verify persistent mounts before
-Argo CD reconciles OpenEBS and the `nvme`/`data` StorageClasses. The GPU passthrough and Kata runtime are not
+**Current storage blocker:** the operator approved first provisioning
+of both additional guest disks, but Talos v1.14.5 marked both volumes
+`failed` due to an unbound `system_disk` CEL variable in the
+whole-disk locator. No mounts are present. The selectors are corrected
+in `cluster/talos/user-volumes.yaml`; read `cluster/talos/README.md`
+and dry-run the new patch before reapplying and checking individual
+`spec.errorMessage` fields. Do not deploy OpenEBS until both mounts
+are verified and persistent. The GPU passthrough and Kata runtime are not
 accepted as functional merely because Talos extensions were bundled.
 
 **Compatibility caveat:** Kubernetes v1.37.1 is beyond Cilium v1.20.4's
