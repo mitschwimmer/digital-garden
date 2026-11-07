@@ -4,17 +4,16 @@ metadata:
   name: garden
   namespace: argocd
 spec:
-  description: In-cluster GitOps platform extensions and application workloads
-  # This cluster's source repository is public, with review-gated branches.
+  description: In-cluster GitOps extensions and application workloads
+  # Only this repository is trusted. Add external Helm repositories
+  # explicitly when approving a specific child Application.
   sourceRepos:
     - https://github.com/mitschwimmer/digital-garden.git
+  # Initially permit only child Application objects in argocd.
+  # Before OpenEBS, extend destinations/clusterResourceWhitelist for
+  # its reviewed cluster-scoped resources and the openebs namespace.
   destinations:
     - server: https://kubernetes.default.svc
-      namespace: "*"
-  # Platform extensions such as OpenEBS legitimately install cluster-wide
-  # CRDs, RBAC, StorageClasses, and other cluster-scoped objects. This
-  # project is trusted operator source ONLY; restrict child Application
-  # projects later as service boundaries become explicit.
-  clusterResourceWhitelist:
-    - group: "*"
-      kind: "*"
+      namespace: argocd
+  # No clusterResourceWhitelist yet: fail closed until a child
+  # platform extension requires reviewed cluster-scoped privileges.
