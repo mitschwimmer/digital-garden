@@ -99,26 +99,41 @@ endpoint, and do not add an OIDC client just for this headless controller.
 
 ## Minimal GitOps root
 
-The cluster root Application, `garden-root`, is the **one** Kubernetes
-resource applied manually after Argo CD is healthy. The root points at
-`cluster/apps/root/`, initially containing only the `garden` AppProject.
-No child Application, OpenEBS controller, StorageClass or workload is
-introduced by this stage. The initial `garden` AppProject
-deliberately allows only this repository and the `argocd` namespace;
-it grants **no cluster-scoped resource privileges**. Expand the project
-only for a separately reviewed child Application and only after its
-dependencies (including data mounts) are checked.
+Argo CD Core can have **no `default` AppProject** after its Helm
+bootstrap: the `argocd-server` is disabled. Do not create a root
+Application referring to a nonexistent project; it will remain
+`InvalidSpecError` before fetching Git.
+
+Bootstrap the explicit `garden` AppProject through the Kubernetes API
+**first**, then the root Application referencing it. Once healthy, the root
+tracks `cluster/apps/root/` and takes over reconciliation of the *same*
+`garden` AppProject. This is a deliberate, one-time project seed, not
+a separate long-term resource owner.
+
+The initial `garden` AppProject allows only this repository and the
+`argocd` namespace, with **no cluster-scoped resource privileges**.
+No child Application, OpenEBS, StorageClass or workload is included.
+Expand these permissions only for separately reviewed child Applications.
 
 ```sh
 kubectl kustomize cluster/apps/root
+kubectl apply --dry-run=server -f cluster/apps/root/project.yaml
+kubectl apply -f cluster/apps/root/project.yaml
 kubectl apply -f cluster/bootstrap/argocd/root-application.yaml
 
-kubectl -n argocd get applications.argoproj.io
 kubectl -n argocd get appprojects.argoproj.io
+kubectl -n argocd get applications.argoproj.io -o wide
 kubectl -n argocd describe application garden-root
 kubectl -n argocd get application garden-root \
-  -o jsonpath='{.status.sync.status}{" "}{.status.health.status}{"\n"}'
+  -o jsonpath='{.spec.project}{" "}{.status.sync.status}{" "}{.status.health.status}{"\n"}'
 ```
+
+If an earlier root Application used `project: default`, it is safe to
+apply the revised root manifest again; verify `spec.project=garden`
+and the appearance of the `garden` AppProject. If later errors explicitly
+report Git authentication or fetch failures, diagnose repository access
+separately; don't treat the missing-project error as an authentication
+failure.
 
 **Branch lifecycle:** the initial Application tracks
 `bootstrap/talos-foundation`, which is currently the working PR #63
