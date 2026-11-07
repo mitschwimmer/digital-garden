@@ -54,7 +54,7 @@ spec:
                   image: "docker.io/library/busybox:1.37.0",
                   command: ["/bin/sh", "-ec"],
                   args: [
-                    "actual=$(stat -c %d /data); expected=$(stat -c %d /expected); ephemeral=$(stat -c %d /ephemeral); if [ \\"$actual\\" != \\"$expected\\" ] || [ \\"$actual\\" = \\"$ephemeral\\" ]; then echo 'OpenEBS Hostpath is not on the intended Talos data disk' >&2; exit 1; fi"
+                    'actual=$(stat -c %d /data); expected=$(stat -c %d /expected); ephemeral=$(stat -c %d /ephemeral); if [ "$actual" != "$expected" ] || [ "$actual" = "$ephemeral" ]; then echo OpenEBS_Hostpath_mount_not_verified >&2; exit 1; fi'
                   ],
                   securityContext: Object.spec.initContainers.securityContext{
                     runAsUser: 65534,
