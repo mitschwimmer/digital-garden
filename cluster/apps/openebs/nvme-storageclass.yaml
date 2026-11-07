@@ -6,6 +6,7 @@ kind: StorageClass
 metadata:
   name: nvme
   annotations:
+    argocd.argoproj.io/sync-wave: "1"
     openebs.io/cas-type: local
     cas.openebs.io/config: |
       - name: StorageType
