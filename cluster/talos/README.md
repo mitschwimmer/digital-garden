@@ -131,11 +131,12 @@ asset using the published SHA-256. Before generation confirm
    been officially e2e-tested against the generated Kubernetes v1.37.1;
    do not deploy garden services until the full connectivity and policy
    gates pass. Enable Cilium Gateway API only in a later reviewed stage.
-8. After the healthy Cilium bootstrap, **install Argo CD next**, using a
-   separately pinned bootstrap and a minimal root Application. Its initial
-   non-HA installation does not require PVs or OpenEBS; retain direct
-   admin access and don't hand Cilium to Argo CD without a controlled
-   transition. Have Argo CD own OpenEBS deployment later.
+8. After the healthy Cilium bootstrap, **install [Argo CD Core](
+   ../bootstrap/argocd/README.md) next**, with pinned Helm values and
+   a minimal Kubernetes-API-managed root Application. Core has no Argo
+   CD API server, UI, Dex, notifications or PV requirement. Use `kubectl`
+   against Application CRDs for administration. Don't hand Cilium to
+   Argo CD without a controlled transition. Argo CD owns OpenEBS later.
 9. Use `talosctl get disks` and verified serials to create **two**
    v1.14 `UserVolumeConfig` resources, one on each extra block disk.
    These are **Talos machine configuration**, not Argo CD resources.
