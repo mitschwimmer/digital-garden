@@ -23,14 +23,16 @@ The initial ISO was detached after Talos installation.
 additional guest disks were reidentified with stable SCSI links and no
 detected partitions or filesystems, but **are not provisioned**.
 
-**Current storage blocker:** the operator approved first provisioning
-of both additional guest disks, but Talos v1.14.5 marked both volumes
-`failed` due to an unbound `system_disk` CEL variable in the
-whole-disk locator. No mounts are present. The selectors are corrected
-in `cluster/talos/user-volumes.yaml`; read `cluster/talos/README.md`
-and dry-run the new patch before reapplying and checking individual
-`spec.errorMessage` fields. Do not deploy OpenEBS until both mounts
-are verified and persistent. The GPU passthrough and Kata runtime are not
+**Current storage milestone:** after removing the unbound
+`system_disk` CEL variable, the operator reports both Talos
+UserVolumes **ready and mounted as XFS**: `/dev/sdb` ->
+`/var/mnt/k8s-data`, and `/dev/sdc` ->
+`/var/mnt/k8s-nvme` (2026-11-07). Reboot persistence is **not**
+verified. Standalone OpenEBS Hostpath 4.6.0 GitOps source is staged,
+but not included in the root. Upstream does not check that its
+BasePath is on a mounted data disk: **a fail-closed missing-mount
+guard is required before activation**. See `cluster/apps/openebs/README.md`.
+Do not deploy OpenEBS yet. The GPU passthrough and Kata runtime are not
 accepted as functional merely because Talos extensions were bundled.
 
 **Compatibility caveat:** Kubernetes v1.37.1 is beyond Cilium v1.20.4's
