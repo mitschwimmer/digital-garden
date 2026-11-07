@@ -16,10 +16,16 @@ deploys automatically.
   for bootstrapping Cilium as the sole initial CNI, before Argo CD exists.
   **Cilium v1.20.4 has not been e2e-tested with the generated Kubernetes
   v1.37.1**; see its compatibility and acceptance gate.
-- **Next:** bootstrap Argo CD into the already healthy Cilium cluster, without
-  requiring storage. Talos will then configure the two UserVolumes at OS level;
-  **Argo CD will manage OpenEBS** and its `nvme`/`data` StorageClasses after
-  disk mounts are verified. Apps, backups and Velero follow separately.
+- `cluster/bootstrap/argocd/`: **Argo CD Core**, pinned v3.6.1/chart 10.14.0.
+  Its initial bootstrap Helm release has no Argo CD API server, web UI,
+  Dex, notifications or persistent volumes. Operate it through the
+  Kubernetes `Application` API only.
+- `cluster/apps/root/`: a minimal Argo CD root Application source and
+  in-cluster AppProject, initially with **no child applications**.
+- **Next:** install Argo CD Core into the healthy Cilium cluster, then
+  configure Talos UserVolumes outside Argo CD; **Argo CD will manage
+  OpenEBS** and its `nvme`/`data` StorageClasses only after mounts are
+  verified. Apps, backups and Velero follow separately.
 
 Host-managed ZFS pools `local` (Samsung NVMe) and `data` (mirrored HDDs),
 the IncusOS management network and unrelated host-managed resources are never
@@ -28,7 +34,8 @@ The instructions below also document the original bootstrap for recovery.
 
 Start with [Incus preflight](infrastructure/incus/README.md), then
 [Talos bootstrap](cluster/talos/README.md), followed by
-[Cilium bootstrap](cluster/bootstrap/cilium/README.md). Use
+[Cilium bootstrap](cluster/bootstrap/cilium/README.md), then
+[headless Argo CD bootstrap](cluster/bootstrap/argocd/README.md). Use
 [the digital-garden skill](.agents/skills/digital-garden/SKILL.md)
 for operational conventions and future Argo CD services.
 
