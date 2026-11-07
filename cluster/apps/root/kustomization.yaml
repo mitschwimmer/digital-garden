@@ -1,0 +1,7 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Argo CD's small root Application owns child Applications and projects.
+# Add a child Application here only after the underlying dependency is ready.
+# In particular, NO OpenEBS child before Talos UserVolumes are mounted.
+resources:
+  - project.yaml
