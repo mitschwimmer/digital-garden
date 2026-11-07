@@ -34,7 +34,7 @@ resource "incus_storage_volume" "immich" {
   config  = { "initial.mode" = "0700" }
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
@@ -46,7 +46,7 @@ resource "incus_storage_volume" "immich_secrets" {
   config  = { "initial.mode" = "0700" }
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
@@ -58,7 +58,7 @@ resource "incus_storage_volume" "database" {
   config  = { "initial.mode" = "0700" }
 
   lifecycle {
-    prevent_destroy = true
+    prevent_destroy = false
   }
 }
 
