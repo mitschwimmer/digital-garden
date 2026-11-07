@@ -88,11 +88,13 @@ One Incus VM remains a single failure domain.
    Hostpath helper Pods can create directories under BasePath even if
    a mount is absent. The native v1.37 Kubernetes
    [`mount-guard.yaml`](mount-guard.yaml) MutatingAdmissionPolicy
-   adds a short-lived initContainer to OpenEBS helper Pods that use
-   either approved BasePath. The initContainer checks that its
-   `/data` bind mount's filesystem-device ID matches the corresponding
-   Talos UserVolume's mountpoint *and differs from* the Talos
-   `/var/mnt` EPHEMERAL parent. A failure stops helper execution
+   adds a short-lived initContainer to OpenEBS helper Pods with
+   a `data` hostPath in the `openebs` namespace. It recognizes **only**
+   the two approved BasePaths; an unknown path deliberately maps the
+   expected reference to EPHEMERAL and always fails. For approved
+   paths, the initContainer checks that its `/data` bind mount's
+   filesystem-device ID matches the corresponding Talos UserVolume
+   mountpoint *and differs from* the Talos `/var/mnt` EPHEMERAL parent. A failure stops helper execution
    before `mkdir -p`. Policy `failurePolicy: Fail` rejects a helper
    Pod if admission evaluation fails. The guard adds no webhook or
    long-running workload; it uses `busybox:1.37.0` in a one-shot
