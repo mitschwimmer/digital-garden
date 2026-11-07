@@ -97,7 +97,8 @@ kubectl -n kube-system get pods -l k8s-app=kube-dns
 # Pin-matched Cilium CLI v0.20.2 is provided by nix develop.
 cilium version --client
 cilium status --wait
-cilium connectivity test
+# This is a one-node Kubernetes cluster; skip inter-node-only scenarios.
+cilium connectivity test --single-node
 ```
 
 Only after the node is `Ready` and CoreDNS is `Running` and ready, test a
@@ -111,6 +112,40 @@ kubectl exec cilium-smoke -- nslookup kubernetes.default.svc.cluster.local
 kubectl exec cilium-smoke -- wget -q -O - https://example.com/
 kubectl delete pod cilium-smoke
 ```
+
+### If test setup times out
+
+The Cilium CLI can fail *before any traffic checks* while waiting for its
+`cilium-test-1/client` Deployment. `replicas count is zero` reports the
+Deployment's observed `status.replicas` count, not a specific CNI diagnosis.
+**Do not** blindly increase the timeout, reinstall Cilium, or delete the
+test namespace before capturing its failure events:
+
+```sh
+kubectl get nodes -o wide
+cilium status
+kubectl -n cilium-test-1 get deployments,replicasets,pods -o wide
+kubectl -n cilium-test-1 describe deployment client
+kubectl -n cilium-test-1 get events --sort-by=.lastTimestamp
+kubectl describe node
+```
+
+Inspect the actual pod and ReplicaSet if created; a zero observed replica
+count can result from missing Pods, scheduling, insufficient resources,
+admission failures or slow controllers. The expected client replicas are
+different from inter-node-only deployments. The single-node switch is
+required for the future rerun, but **does not alone diagnose client=0**.
+
+Once the underlying issue has been understood and corrected, remove only
+the CLI's temporary namespace before a clean retry:
+
+```sh
+kubectl delete namespace cilium-test-1
+cilium connectivity test --single-node
+```
+
+Do not delete unrelated namespaces. If `cilium-test-1` does not exist,
+there is nothing to clean up.
 
 If the CLI connectivity test or any smoke check fails, inspect Cilium
 and CoreDNS instead of adding services. The full test includes network-policy
