@@ -1,11 +1,27 @@
-# Digital Garden — Kubernetes rebuild
+# Digital Garden — Talos Kubernetes rebuild
 
-This is the **post-retirement planning branch**, not a deployable Talos cluster yet.
+The former NixOS/Incus-container garden has been retired. This branch contains
+the **first source-only foundation** for a single-node Talos Kubernetes cluster
+on the existing IncusOS host `measerve`. Nothing is applied automatically.
 
-The intended platform is a single-node Talos Linux Kubernetes VM on IncusOS host `measerve`: OpenTofu owns the VM, network, GPU passthrough and block volumes; Cilium provides CNI and Gateway API; Argo CD reconciles Kubernetes applications. Two local storage classes (`nvme` and `data`) use independently mounted Incus volumes, with the host's existing mirrored ZFS `data` pool retained. AMD Radeon RX 9060 XT support must be verified through an actual GPU workload.
+## Owners
 
-See the [digital-garden skill](.agents/skills/digital-garden/SKILL.md) and its Kubernetes-specific references for the intended operating model, rollout sequence and recovery controls.
+- `infrastructure/incus/`: OpenTofu owns the VM, its attached block volumes,
+  guest LAN interface and optional physical AMD GPU passthrough.
+- `cluster/talos/`: pinned Talos bootstrap instructions and a Cilium machine
+  configuration patch. Talos-generated secrets and machine configs stay private.
+- The next milestone will add Cilium, OpenEBS and Argo CD deployment source;
+  applications and Velero are subsequent, separately reviewed steps.
 
-**Transition warning:** `platform/`, `systems/`, `nix/modules/` and the older reference documents are *legacy NixOS-container generation source*. They have not been removed or translated, and must not be applied as if they were the Kubernetes desired state. The new OpenTofu/Talos/Argo source will be introduced after the old garden's retirement. Do not merge this branch to `main` until old resource retirement and source cleanup have been confirmed.
+Host-managed ZFS pools `local` (Samsung NVMe) and `data` (mirrored HDDs),
+the IncusOS management network and unrelated host-managed resources are never
+owned by OpenTofu. The VM is initially **stopped**. The installer must be
+imported and its full boot path reviewed before starting the VM.
 
-Run the one-time legacy retirement only from the separate [`retirement/old-garden`](https://github.com/mitschwimmer/digital-garden/tree/retirement/old-garden) branch on the workstation with its original state. Neither deleting the old garden nor building the new cluster is an automatic GitOps action.
+Start with [Incus preflight](infrastructure/incus/README.md), then
+[Talos bootstrap](cluster/talos/README.md). Use
+[the digital-garden skill](.agents/skills/digital-garden/SKILL.md)
+for operational conventions and future Argo CD services.
+
+The old NixOS service source remains accessible in Git history and the
+separate `retirement/old-garden` branch. Do not apply its retired manifests.
