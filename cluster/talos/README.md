@@ -145,6 +145,111 @@ asset using the published SHA-256. Before generation confirm
 10. Allow an Argo CD-owned OpenEBS installation and its two StorageClasses
     only after those mounts are verified. Never let OpenEBS create
     directories on an absent mount's system-disk fallback path.
+## Dedicated Talos UserVolumes (next operational gate)
+
+The desired configuration for the two **separately attached Incus block
+volumes** is [user-volumes.yaml](user-volumes.yaml). It uses Talos v1.14
+`UserVolumeConfig` (`volumeType: disk`) with exact Incus SCSI by-id
+symlink matches, a non-system-disk check and expected-size guards.
+It provisions **XFS filesystems** mounted under
+`/var/mnt/k8s-nvme` and `/var/mnt/k8s-data` respectively.
+
+**Destructive boundary:** first application of a whole-disk UserVolume
+can initialize/format the matched block device. This file is *staged
+source only*, not evidence of an applied live configuration. **Do not
+apply** unless the operator has inspected the live disk identity,
+existing partitions/filesystems and data/backup obligations, verified
+the two disks are intended for fresh initialization, and explicitly
+approved that disk-level change. Never write to the installed Talos
+system disk, the host-managed ZFS pools, or any unverified block device.
+
+### Read-only preflight from the workstation
+
+From the repository root, inside `nix develop`, with the known-good
+Talos and Kubernetes credentials already present:
+
+```sh
+export TALOS_IP=192.168.1.49
+export TALOSCONFIG="$PWD/.operations/talos/talosconfig"
+export KUBECONFIG="$PWD/.operations/talos/kubeconfig"
+
+kubectl get nodes -o wide
+kubectl -n argocd get application garden-root \
+  -o jsonpath='{.status.sync.status}{" "}{.status.health.status}{"\n"}'
+talosctl --endpoints "$TALOS_IP" --nodes "$TALOS_IP" version
+talosctl --endpoints "$TALOS_IP" --nodes "$TALOS_IP" get disks -o yaml
+talosctl --endpoints "$TALOS_IP" --nodes "$TALOS_IP" get discoveredvolumes -o yaml
+talosctl --endpoints "$TALOS_IP" --nodes "$TALOS_IP" get volumestatuses
+```
+
+Compare the live `spec.dev_path`, `spec.symlinks`, `spec.size`,
+`spec.readonly`, any filesystem signatures/partitions and mounted
+volumes with the staged selectors:
+
+| Intended volume | Historical device | Required Incus SCSI link | Target mount |
+|---|---|---|---|
+| NVMe-backed 128 GiB | `/dev/sdc` | `...incus_k8s--nvme` | `/var/mnt/k8s-nvme` |
+| Data-backed 1 TiB | `/dev/sdb` | `...incus_k8s--data` | `/var/mnt/k8s-data` |
+
+The `/dev/sdX` paths are for cross-checking *only*. Require a single
+matching disk per selector with expected size; neither may be the root
+device (`...incus_root`). The host's `data` ZFS pool is **not** the
+guest `k8s-data` block device; do not modify the host pool.
+
+### Dry-run and reviewed application
+
+After the read-only preflight and an up-to-date off-cluster recovery
+point, preview the exact machine-configuration change. A dry-run
+validates the patch/merge, **not** that the selected disk is safe to
+format:
+
+```sh
+talosctl --endpoints "$TALOS_IP" --nodes "$TALOS_IP" \
+  patch machineconfig --dry-run \
+  --patch @cluster/talos/user-volumes.yaml
+```
+
+Review the diff for **only** the two new `UserVolumeConfig` documents;
+it must not remove existing configuration, reinstall Talos, or alter
+cluster/Cilium/etcd settings. Keep the complete, current
+multi-document machine configuration and keys backed up off-cluster.
+
+**Only following explicit authorization for initial provisioning on
+both identified guest disks**, apply from the workstation:
+
+```sh
+talosctl --endpoints "$TALOS_IP" --nodes "$TALOS_IP" \
+  patch machineconfig \
+  --patch @cluster/talos/user-volumes.yaml
+```
+
+Never rerun `talosctl gen config`, bootstrap etcd a second time,
+or apply the original generated installation config merely to add
+user volumes. The patch modifies the existing node configuration.
+
+### Verify before OpenEBS
+
+```sh
+talosctl --endpoints "$TALOS_IP" --nodes "$TALOS_IP" get volumestatuses
+talosctl --endpoints "$TALOS_IP" --nodes "$TALOS_IP" \
+  get volumemountstatuses -o yaml
+kubectl get nodes -o wide
+kubectl -n kube-system get pods -o wide
+cilium status --wait
+```
+
+Confirm both `u-k8s-nvme` and `u-k8s-data` are ready, mounted at
+the *actual* target paths, and backed by the intended distinct disks.
+After a separately approved node reboot, recheck persistence and
+cluster/Cilium health. The sole control-plane node will interrupt
+the cluster during a reboot.
+
+Only then may Argo CD add an OpenEBS Local PV Hostpath child Application.
+Its StorageClasses must use the verified mounts and **fail closed**
+if either mount is absent; it must never silently provision into a
+directory on the Talos system disk. No cluster change, OpenEBS
+installation or workload deployment is triggered by this source file.
+
 ### Kata Containers, later
 
 The factory image already includes `siderolabs/kata-containers`; this is
