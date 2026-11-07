@@ -15,7 +15,10 @@ spec:
       namespace: argocd
     - server: https://kubernetes.default.svc
       namespace: openebs
-  # Allow only the reviewed OpenEBS Local PV Hostpath cluster-scoped kinds.
+    - server: https://kubernetes.default.svc
+      namespace: kube-system
+  # Existing cluster-scoped grants are for OpenEBS. AMD GPU plugin only
+  # creates namespaced resources; no additional cluster-scoped grant needed.
   # Add further kinds only after inspecting their manifests.
   clusterResourceWhitelist:
     - group: ""
