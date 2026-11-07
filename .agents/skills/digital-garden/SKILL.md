@@ -18,9 +18,10 @@ connectivity suite** passed operator checks. The test suite needs a
 `cluster/bootstrap/cilium/README.md`.
 The initial ISO was detached after Talos installation.
 
-**Next stage:** Talos UserVolumes on the two additional disks, then OpenEBS
-Local PV Hostpath and its `nvme`/`data` classes, then Argo CD. Do not assume
-those later components exist. The GPU passthrough and Kata runtime are not
+**Next stage:** bootstrap pinned Argo CD on the existing healthy Cilium
+cluster, then configure Talos UserVolumes outside Argo CD, and let Argo CD
+reconcile OpenEBS Local PV Hostpath and the `nvme`/`data` StorageClasses.
+Do not assume any of those components exist yet. The GPU passthrough and Kata runtime are not
 accepted as functional merely because Talos extensions were bundled.
 
 **Compatibility caveat:** Kubernetes v1.37.1 is beyond Cilium v1.20.4's
@@ -40,7 +41,7 @@ production services. Don't remove/reinstall the working CNI for this reason.
 1. Use a Git branch and inspect affected source plus its owning reference. Prefer native upstream tools and pinned releases. Check version-sensitive APIs against the pinned code or official documentation.
 2. Separate ownership: **OpenTofu** manages the Incus VM, network attachments, GPU device and separate block volumes; **Talos** configures the node and disks; **Argo CD** reconciles cluster add-ons and applications. Do not make Argo CD manage its Incus host or let two controllers own the same release.
 3. Build and run host/client tooling on the workstation (`nix develop`); never install tooling on IncusOS. Inspect the authenticated Incus remote, the `measerve` inventory, prepared pools, LAN bridge, PCI IOMMU groups and device identities before writing hardware-specific inputs. Never guess PCI addresses or pool names.
-4. Keep the cluster bootstrap recoverable without Argo CD: Incus infrastructure -> Talos and Kubernetes -> Cilium and DNS -> Talos UserVolumes and local PV storage -> Argo CD -> Argo-managed platform -> applications. **Incus VM, Talos, Kubernetes and Cilium are live; storage and GitOps are not.** The Cilium bootstrap Helm release remains the sole owner until an explicitly reviewed handoff; never uninstall the active CNI as a handoff shortcut.
+4. Bootstrap order: Incus infrastructure -> Talos/Kubernetes -> Cilium/DNS -> Argo CD -> Talos UserVolumes (host-side, outside Argo CD) -> Argo-managed OpenEBS StorageClasses -> apps. Argo CD's initial deployment does **not** require a PVC, so do not make it depend on OpenEBS. **Incus VM, Talos, Kubernetes and Cilium are live; Argo CD and storage are not.** Keep bootstrap recoverable without Argo CD; Cilium's bootstrap Helm release remains the sole owner until a reviewed handoff, never uninstall the active CNI to hand it over.
 5. Treat data as durable only after tested restoration, not merely because ZFS is mirrored. The single VM is a single availability and Kubernetes control-plane failure domain. Keep machine keys, Talos cluster secrets, Argo admin recovery and SOPS key material outside the cluster.
 6. Keep all secrets out of Git plaintext, Nix store, OpenTofu variables/state, build outputs and logs. Use SOPS/age in Git and a pinned, tested Argo-compatible decryption workflow; document key custody and recovery separately.
 7. For public services retain native Kanidm OIDC unless a reviewed service contract documents an exception. Record IPv4/IPv6 exposure, callers, TLS trust, gateway timeouts and allow/deny policy. Test both authorized and unauthorized paths.
