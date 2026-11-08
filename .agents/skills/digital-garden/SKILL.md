@@ -7,41 +7,64 @@ description: Build, operate and recover mitschwimmer/digital-garden as a single-
 
 The target is **one Talos Linux VM on `measerve`**, not the former NixOS-container garden. The IncusOS host, its prepared pools and host networking are prerequisites, not disposable cluster resources. Kubernetes, Argo CD and services are introduced in stages; **do not assume a planned component is installed**. Inspect actual source, versions and live state.
 
-## Current deployment stage (operator-reported, 2026-11-07)
+## Current deployment stage (operator-reported, 2026-11-08)
 
-The existing `garden-k8s` VM has Talos **v1.14.5** on its dedicated
-64 GiB system disk, Kubernetes **v1.37.1** bootstrapped on one control-plane
-node (`192.168.1.49`), and Cilium **v1.20.4** installed via a bootstrap Helm
-release. The node, Cilium agent/operator/Envoy and the **single-node Cilium
-connectivity suite** passed operator checks. The test suite needs a
-`privileged` Pod Security *test-namespace-only* exception; see
-`cluster/bootstrap/cilium/README.md`.
-The initial ISO was detached after Talos installation.
+The **single-node Talos cluster is live** in the `garden-k8s` Incus VM
+on `measerve`, LAN `192.168.1.49`: Talos **v1.14.5**,
+Kubernetes **v1.37.1**, Cilium **v1.20.4** and Argo CD Core **v3.6.1**.
+The operator passed the single-node Cilium connectivity suite.
+Two Talos XFS UserVolumes survive reboot at `/var/mnt/k8s-nvme`
+and `/var/mnt/k8s-data`. The node is still a single failure domain.
 
-**Live milestone:** `garden-root` reported **Synced / Healthy** with the
-`garden` AppProject present (operator output, 2026-11-07). The two
-additional guest disks were reidentified with stable SCSI links and no
-detected partitions or filesystems, but **are not provisioned**.
+**GitOps ownership:** `garden-root` reconciles Argo CD AppProject,
+repository declarations, namespaces and *manual-sync* children from
+`bootstrap/talos-foundation`. The Cilium v1.20.4 installation has been
+adopted by the `cilium-platform` Argo Application after a reviewed
+Helm-to-Argo handoff. Its original bootstrap Helm release record
+remains; **never uninstall it**, and don't run competing `helm upgrade`
+operations. The Argo application preserves the pre-existing
+`cilium-ca` and Hubble certificate bytes with targeted
+`ignoreDifferences` plus `RespectIgnoreDifferences=true`.
 
-**Current storage milestone:** after removing the unbound
-`system_disk` CEL variable, the operator reports both Talos
-UserVolumes **ready and mounted as XFS**: `/dev/sdb` ->
-`/var/mnt/k8s-data`, and `/dev/sdc` ->
-`/var/mnt/k8s-nvme` (2026-11-07). Reboot persistence is **verified**
-(2026-11-07); Kubernetes node, Cilium and Argo root are healthy.
-Standalone OpenEBS Hostpath 4.6.0 GitOps source with a built-in
-Kubernetes v1.37 `MutatingAdmissionPolicy` mount-source guard
-is **staged but not included in root**. The guard is **not yet
-validated or activated**; upstream alone does not check its
-BasePath source. Dry-run the native policy and chart on the
-workstation, and verify admission and provisioning behavior before
-enabling storage. See `cluster/apps/openebs/README.md`. The GPU passthrough and Kata runtime are not
-accepted as functional merely because Talos extensions were bundled.
+**Storage:** OpenEBS Local PV Hostpath **v4.6.0** is live with
+`nvme` and `data` classes and a tested mount-source admission guard.
+Operator-tested disposable provisioning/write/read paths passed.
+`Retain` is not a backup; Kanidm database persistence after Pod
+replacement and off-host restore have **not** passed.
 
-**Compatibility caveat:** Kubernetes v1.37.1 is beyond Cilium v1.20.4's
-officially e2e-tested v1.33–1.36 range. The observed connectivity test is
-positive evidence, not a support guarantee. Reassess before exposing
-production services. Don't remove/reinstall the working CNI for this reason.
+**Public networking:** Cilium Gateway API (upstream CRDs
+**v1.6.3**, Argo-owned), cert-manager **v1.21.3**, Envoy hostNetwork,
+public router forwards TCP **80/443** to `192.168.1.49`.
+The operator confirmed separate unauthenticated HTTP and HTTPS smoke
+sites at `test.archaic.work` and `secure-test.archaic.work`,
+including Let's Encrypt HTTP-01 staging and production certificates.
+The production Kanidm hostname is **`auth.archaic.work`**: a newly
+initialized, Kaniop **v0.21.0**-managed Kanidm **v1.11.2** instance
+with its own **10Gi `nvme` PVC**, Let's Encrypt Certificate, and
+Cilium SNI TLS passthrough `TLSRoute`. The operator reports all
+new resources deployed without problems. The former
+`auth.archaic.work` server *outside* Kubernetes was deleted; this
+reuses **the name only, not its data or login credentials**.
+The disposable `idm.localhost` Kanidm remains separate.
+
+**Next session:** verify whether person `henner` was actually
+created and can authenticate at `auth.archaic.work`; prior guidance
+for `kanidm person create` and credential enrollment was provided
+but **completion was not reported**. Use an isolated
+`KANIDM_TOKEN_CACHE_PATH` to avoid stale sessions from the former
+external Kanidm. Then establish a Kanidm-consistent **off-host
+backup and tested restore** before trusting the new server for
+irreplaceable identities or OIDC clients. Cert renewal itself,
+Kanidm Pod-replacement persistence, backup/restore, and GPU/ROCm
+workload acceptance remain open. Read
+`cluster/apps/kanidm-primary/README.md` and
+`cluster/apps/web-smoke/README.md` for owning procedures.
+
+**Compatibility caveat:** Kubernetes v1.37.1 exceeds the officially
+tested ranges stated for pinned Cilium v1.20.4 and cert-manager
+v1.21.3. Passed functional checks do not make the combination
+officially supported; revisit during upgrades. Do not remove the
+healthy CNI just to change compatibility status.
 
 ## Route the task
 
@@ -55,7 +78,7 @@ production services. Don't remove/reinstall the working CNI for this reason.
 1. Use a Git branch and inspect affected source plus its owning reference. Prefer native upstream tools and pinned releases. Check version-sensitive APIs against the pinned code or official documentation.
 2. Separate ownership: **OpenTofu** manages the Incus VM, network attachments, GPU device and separate block volumes; **Talos** configures the node and disks; **Argo CD** reconciles cluster add-ons and applications. Do not make Argo CD manage its Incus host or let two controllers own the same release.
 3. Build and run host/client tooling on the workstation (`nix develop`); never install tooling on IncusOS. Inspect the authenticated Incus remote, the `measerve` inventory, prepared pools, LAN bridge, PCI IOMMU groups and device identities before writing hardware-specific inputs. Never guess PCI addresses or pool names.
-4. Bootstrap order: Incus infrastructure -> Talos/Kubernetes -> Cilium/DNS -> Argo CD -> Talos UserVolumes (host-side, outside Argo CD) -> Argo-managed OpenEBS StorageClasses -> apps. Argo CD's initial deployment does **not** require a PVC, so do not make it depend on OpenEBS. **Incus VM, Talos, Kubernetes, Cilium and Argo CD Core root reconciliation are live; storage is not.** Keep bootstrap recoverable without Argo CD; Cilium's bootstrap Helm release remains the sole owner until a reviewed handoff, never uninstall the active CNI to hand it over.
+4. Recovery/bootstrap order: Incus infrastructure -> Talos/Kubernetes -> Cilium/DNS -> Argo CD Core -> Talos UserVolumes (host-side, outside Argo) -> Argo-managed OpenEBS -> apps. **All these layers are live now.** Existing Argo child Applications are manual-sync, not auto-synced by the root. Keep recovery bootstrap independent of Argo: preserve the original Cilium Helm release record, but treat `cilium-platform` as its current desired-state owner and never uninstall Helm-managed Cilium workloads as part of the handoff.
 5. Treat data as durable only after tested restoration, not merely because ZFS is mirrored. The single VM is a single availability and Kubernetes control-plane failure domain. Keep machine keys, Talos cluster secrets, Argo admin recovery and SOPS key material outside the cluster.
 6. Keep all secrets out of Git plaintext, Nix store, OpenTofu variables/state, build outputs and logs. Use SOPS/age in Git and a pinned, tested Argo-compatible decryption workflow; document key custody and recovery separately.
 7. For public services retain native Kanidm OIDC unless a reviewed service contract documents an exception. Record IPv4/IPv6 exposure, callers, TLS trust, gateway timeouts and allow/deny policy. Test both authorized and unauthorized paths.
@@ -68,7 +91,7 @@ production services. Don't remove/reinstall the working CNI for this reason.
 - Compute: physical Incus PCI GPU passthrough of the **Radeon RX 9060 XT** to the Talos VM; version-matched Talos `amdgpu` extension, AMD Kubernetes device plugin and a real ROCm workload test. GPU compatibility is an acceptance gate, not an assumption.
 - Optional runtime: the Talos v1.14.5 Image Factory schematic includes `siderolabs/kata-containers` for future workloads, **not** as the default runtime. Validate nested virtualization inside the Incus VM (`vmx` and `/dev/kvm`) and extension-provided handler names before introducing an explicitly selected Kata `RuntimeClass`. Do not install a conflicting Kata runtime or presume passed-through GPU access inside Kata guests.
 - Cluster extensions: **Kubernetes API only by default**. Install Argo CD **Core**, with no Argo CD web UI/API server, Dex, notifications, ingress or OIDC client. Manage `Application` and `ApplicationSet` CRDs via `kubectl`. Apply the same no-UI rule to OpenEBS, monitoring operators, device plugins and other infrastructure extensions; public UIs are only for services that actually need a user interface.
-- GitOps: Argo CD (not Flux), with a small root Application, explicitly ordered dependencies and independently deployable services. Bootstrap instructions: `cluster/bootstrap/argocd/README.md`. The Argo CD Core installation remains Helm-owned; Argo CD manages only explicitly declared child Applications.
+- GitOps: Argo CD Core (not Flux), with a small root Application and manual-sync children. Argo CD Core's own bootstrap Helm installation remains independent; **Cilium's ongoing desired state is now Argo-managed**. No routine `kubectl apply` or `helm upgrade` for resources already owned by Argo CD. Current root/children target `bootstrap/talos-foundation`; merely merging that branch into `main` does **not** change the live Argo source revision. See `cluster/apps/root` and `cluster/bootstrap/argocd/README.md`.
 - Backup: Velero with off-`measerve` repository is planned; application-specific consistency/restore checks remain essential. Do not put irreplaceable state into service until its backup path exists and has been tested.
 
 ## Finish
