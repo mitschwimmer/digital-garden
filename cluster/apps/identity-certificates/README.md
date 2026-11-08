@@ -144,9 +144,13 @@ for renewals too; it cannot be a one-time firewall exception.
    Verify CAA restrictions when present. Never reuse `idm.localhost`.
 2. Establish how worldwide inbound **TCP/80** reaches the cluster's
    Envoy gateway. The VM currently has the private LAN address
-   `192.168.1.49`; the public IP, router forwarding, upstream firewall,
-   ISP policy, and CGNAT status are **not yet verified**. Do not assume
-   a public LoadBalancer exists. Test reachability **from outside the LAN**.
+   `192.168.1.49`. The operator reports **router TCP/80 and TCP/443
+   forwards to this address**, but an external connection has **not**
+   been validated, and public-IP, upstream firewall, ISP, and CGNAT
+   status remain unknown. Port 80 is sufficient for initial HTTP-01;
+   disable the TCP/443 forwarding rule until an intentional, reviewed
+   HTTPS Gateway exists. Do not assume a public LoadBalancer exists.
+   Test reachability **from outside the LAN** after the Gateway is live.
 3. Inspect the hostname's public **A and AAAA** records. If AAAA is
    published, its IPv6 destination must answer the same HTTP-01
    challenge; an incorrect IPv6 record can cause validation failure.
