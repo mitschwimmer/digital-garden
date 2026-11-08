@@ -14,8 +14,17 @@ spec:
       protocol: HTTP
       port: 80
       allowedRoutes:
+        # HTTP-01 solver HTTPRoutes for the new Kanidm Certificate must
+        # attach from identity, while existing smoke routes stay permitted.
         namespaces:
-          from: Same
+          from: Selector
+          selector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values:
+                  - web-smoke
+                  - identity
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
