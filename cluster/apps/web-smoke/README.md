@@ -83,8 +83,10 @@ kubectl -n kube-system get ds cilium cilium-envoy
 kubectl -n kube-system get deployment cilium-operator
 ```
 
-The changed `rollOutCiliumPods` value is intended to restart the agent
-as necessary for Gateway enablement. This is a **single-node CNI
+The changed `rollOutCiliumPods` value rolls the agent to load the
+Gateway feature, and the operator's `podAnnotations` change triggers
+the operator Deployment rollout via the same Argo sync. No imperative
+rollout restart is required. This is a **single-node CNI
 control-plane change**; don't synchronize if the Helm release still
 has unknown live overrides. Inspect Cilium pod events and Argo
 differences on failure. No second CNI is installed.
