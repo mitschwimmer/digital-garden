@@ -1,0 +1,41 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: garden
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  description: In-cluster GitOps extensions and application workloads
+  sourceRepos:
+    - https://github.com/mitschwimmer/digital-garden.git
+    - https://openebs.github.io/dynamic-localpv-provisioner
+    - ghcr.io/pando85/helm-charts
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+    - server: https://kubernetes.default.svc
+      namespace: openebs
+    - server: https://kubernetes.default.svc
+      namespace: kube-system
+    - server: https://kubernetes.default.svc
+      namespace: kaniop
+    - server: https://kubernetes.default.svc
+      namespace: identity
+  # The Kaniop chart adds CRDs and cluster-scoped operator RBAC.
+  # Keep the allowlist explicit, and do not enable broad wildcard grants.
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+    - group: storage.k8s.io
+      kind: StorageClass
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: admissionregistration.k8s.io
+      kind: MutatingAdmissionPolicy
+    - group: admissionregistration.k8s.io
+      kind: MutatingAdmissionPolicyBinding
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
