@@ -14,4 +14,10 @@ resources:
   - cert-manager-application.yaml
   - identity-certificates-application.yaml
   - web-smoke-namespace.yaml
+  - gateway-api-crds-application.yaml
+  - cilium-oci-repository.yaml
+  - cilium-platform-application.yaml
   - web-smoke-application.yaml
+  - web-smoke-acme-staging-application.yaml
+  - web-smoke-acme-production-application.yaml
+  - web-smoke-https-application.yaml
