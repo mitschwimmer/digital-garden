@@ -17,8 +17,14 @@ Two Talos XFS UserVolumes survive reboot at `/var/mnt/k8s-nvme`
 and `/var/mnt/k8s-data`. The node is still a single failure domain.
 
 **GitOps ownership:** `garden-root` reconciles Argo CD AppProject,
-repository declarations, namespaces and *manual-sync* children from
-`bootstrap/talos-foundation`. The Cilium v1.20.4 installation has been
+repository declarations, namespaces and *manual-sync* children.
+Their Git source declarations are now **`main`**, but the live
+`garden-root` must be changed exactly once using
+`argocd --core app set garden-root --revision main` and
+validated by its sync/health and child target revisions. Before
+that operator action, the live root may still track
+`bootstrap/talos-foundation`. See
+`cluster/bootstrap/argocd/README.md` for the migration and rollback. The Cilium v1.20.4 installation has been
 adopted by the `cilium-platform` Argo Application after a reviewed
 Helm-to-Argo handoff. Its original bootstrap Helm release record
 remains; **never uninstall it**, and don't run competing `helm upgrade`
@@ -91,7 +97,7 @@ healthy CNI just to change compatibility status.
 - Compute: physical Incus PCI GPU passthrough of the **Radeon RX 9060 XT** to the Talos VM; version-matched Talos `amdgpu` extension, AMD Kubernetes device plugin and a real ROCm workload test. GPU compatibility is an acceptance gate, not an assumption.
 - Optional runtime: the Talos v1.14.5 Image Factory schematic includes `siderolabs/kata-containers` for future workloads, **not** as the default runtime. Validate nested virtualization inside the Incus VM (`vmx` and `/dev/kvm`) and extension-provided handler names before introducing an explicitly selected Kata `RuntimeClass`. Do not install a conflicting Kata runtime or presume passed-through GPU access inside Kata guests.
 - Cluster extensions: **Kubernetes API only by default**. Install Argo CD **Core**, with no Argo CD web UI/API server, Dex, notifications, ingress or OIDC client. Manage `Application` and `ApplicationSet` CRDs via `kubectl`. Apply the same no-UI rule to OpenEBS, monitoring operators, device plugins and other infrastructure extensions; public UIs are only for services that actually need a user interface.
-- GitOps: Argo CD Core (not Flux), with a small root Application and manual-sync children. Argo CD Core's own bootstrap Helm installation remains independent; **Cilium's ongoing desired state is now Argo-managed**. No routine `kubectl apply` or `helm upgrade` for resources already owned by Argo CD. Current root/children target `bootstrap/talos-foundation`; merely merging that branch into `main` does **not** change the live Argo source revision. See `cluster/apps/root` and `cluster/bootstrap/argocd/README.md`.
+- GitOps: Argo CD Core (not Flux), with a small root Application and manual-sync children. Argo CD Core's bootstrap Helm release remains independent; **Cilium's desired state is now Argo-managed**. No routine `kubectl apply` or `helm upgrade` for Argo-owned resources. All source manifests target `main`; the live root needs the one-time Argo Core CLI source-revision switch, followed by checking child sources. See `cluster/apps/root` and `cluster/bootstrap/argocd/README.md`.
 - Backup: Velero with off-`measerve` repository is planned; application-specific consistency/restore checks remain essential. Do not put irreplaceable state into service until its backup path exists and has been tested.
 
 ## Finish

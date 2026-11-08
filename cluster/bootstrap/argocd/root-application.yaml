@@ -1,8 +1,8 @@
-# One-time Kubernetes API bootstrap; NOT managed by the Argo chart itself.
-# Bootstrap the 'garden' AppProject first with kubectl apply -f
-# cluster/apps/root/project.yaml; Core may not create the 'default' project.
-# Before installing, verify the desired source revision exists remotely.
-# After PR #63 merges, retarget this Application to platform/talos-argocd.
+# One-time Kubernetes API bootstrap. NOT managed by the Argo CD chart.
+# The live garden-root Application tracks main after the explicit revision
+# handoff, and automatically reconciles the manual-sync child declarations.
+# For recovery only, seed cluster/apps/root/project.yaml before this root
+# if Argo CD Core has not yet created the garden AppProject.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -12,7 +12,7 @@ spec:
   project: garden
   source:
     repoURL: https://github.com/mitschwimmer/digital-garden.git
-    targetRevision: bootstrap/talos-foundation
+    targetRevision: main
     path: cluster/apps/root
   destination:
     server: https://kubernetes.default.svc

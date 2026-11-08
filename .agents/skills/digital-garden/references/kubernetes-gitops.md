@@ -7,7 +7,10 @@ it has no public UI/API server, Dex or notifications. The initial
 Core installation remains a **separate bootstrap Helm release**.
 `garden-root` is live and reconciles the `garden` AppProject,
 namespaces, source repositories, and independent manual-sync
-Applications; the root tracks **`bootstrap/talos-foundation`**.
+Applications. Source manifests now target **`main`**, with the
+one-time live `garden-root` revision handoff performed through the
+Argo CD Core CLI; until verified, the live root may still be on the
+historic `bootstrap/talos-foundation` revision.
 
 Gateway API CRDs **v1.6.3** are Argo-owned via `gateway-api-crds`.
 The initially Helm-bootstrapped **Cilium v1.20.4** release has been
@@ -26,8 +29,11 @@ platform resources after bootstrap. Work in a Git branch, review and
 merge the desired state, then *explicitly* sync the relevant Argo CD
 child. Argo CD is not auto-syncing the children, and a Git merge
 is not a live deployment. Bootstrap-level Talos/Incus work
-remains outside Argo CD. A main-branch merge alone does not move
-`garden-root` or its children from `bootstrap/talos-foundation`.
+remains outside Argo CD. Moving the **live** root to `main`
+requires the one-time Argo CD Core CLI operation documented in
+`cluster/bootstrap/argocd/README.md`. The root's automated sync
+then updates the Git revision of child `Application` definitions,
+but child workloads retain manual sync and no prune.
 
 ## Storage and app acceptance
 

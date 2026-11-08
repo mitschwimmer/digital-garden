@@ -17,7 +17,7 @@ spec:
         valueFiles:
           - $garden/cluster/apps/openebs/values.yaml
     - repoURL: https://github.com/mitschwimmer/digital-garden.git
-      targetRevision: bootstrap/talos-foundation
+      targetRevision: main
       path: cluster/apps/openebs
       ref: garden
   destination:
