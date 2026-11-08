@@ -1,5 +1,108 @@
 # Argo CD Core bootstrap (Kubernetes API only)
 
+## Current GitOps source: main (2026-11-08)
+
+The `main` branch now contains the complete cluster configuration.
+The `garden-root` bootstrap manifest and the self-managed
+`cluster/apps/root/*-application.yaml` child declarations in Git
+all point to `main`. The **running** `garden-root` still points to
+the old `bootstrap/talos-foundation` revision until the operator
+performs a one-time, explicit migration below.
+
+Argo CD Core, Cilium, OpenEBS, cert-manager, the two public smoke
+sites, Kaniop and `auth.archaic.work` Kanidm are **already live**.
+Do not reinstall or manually reapply their manifests just to
+change Git branches. The original Cilium bootstrap Helm release
+record remains; Cilium is now managed through Argo CD.
+
+### One-time migration: bootstrap/talos-foundation to main
+
+The `main` branch already contains the prior deployment manifests.
+This migration changes **only Git revision selectors** in the
+self-managed Argo application definitions. It does not update
+Helm chart versions, workload specifications, persistent storage,
+auto-sync settings, or prune behavior.
+
+First merge the revision-switch PR into `main`. Then from
+the workstation in `nix develop`:
+
+```sh
+git switch main
+git pull --ff-only origin main
+export KUBECONFIG="$PWD/.operations/talos/kubeconfig"
+kubectl config set-context --current --namespace=argocd
+argocd login --core
+
+# The root is already live and synced against the old branch.
+kubectl -n argocd get application garden-root \
+  -o jsonpath='{.spec.source.targetRevision}{"\n"}'
+# Expected BEFORE migration: bootstrap/talos-foundation
+
+# Preflight: inspect what Argo plans to change at the new branch.
+argocd --core app diff garden-root --revision main
+# Expected: child Application Git targetRevision values change to main.
+# Unexpected delete/recreate, spec changes, prune or credential diffs:
+# stop and review; do not retarget yet.
+
+# One-time change to the existing root Application's source revision.
+# This is Argo CD's API, not a manual manifest install.
+argocd --core app set garden-root --revision main
+
+# Root auto-syncs AppProject/child Application *definitions* only.
+argocd --core app wait garden-root --sync --health --timeout 180
+kubectl -n argocd get application garden-root \
+  -o jsonpath='{.spec.source.targetRevision}{"\n"}'
+kubectl -n argocd get applications -o wide
+```
+
+The `main`-tracked root uses `automated.selfHeal=true` with
+`prune=false`; **all child Applications retain manual sync**.
+They will track the new revision when the root auto-reconciles their
+`Application` objects, but this should not cause application
+workloads to be redeployed. Expect a refreshed Git revision and
+possibly temporary OutOfSync status on children. Do not bulk-sync
+Cilium, Kanidm, or other children just to remove that status;
+compare source manifests before approving any real sync.
+
+Check the two multi-source children carefully: `cilium-platform`
+and `openebs-localpv` should retain their **pinned Helm chart
+versions** while their `$garden` secondary Git source switches to
+`main`:
+
+```sh
+kubectl -n argocd get application cilium-platform \
+  -o jsonpath='{.spec.sources[1].targetRevision}{"\n"}'
+kubectl -n argocd get application openebs-localpv \
+  -o jsonpath='{.spec.sources[1].targetRevision}{"\n"}'
+kubectl -n argocd get application kanidm-primary \
+  -o jsonpath='{.spec.source.targetRevision}{"\n"}'
+```
+
+Expected output is `main` in each case. Keep
+`bootstrap/talos-foundation` until the migration is verified;
+do not delete the live root Application or its historical Helm
+releases. If a child is still on the old revision, inspect
+`garden-root` sync/diff and the child spec; do **not** change it
+imperatively one by one.
+
+#### Recovery if root cannot render main
+
+If retargeting creates a Git or Kustomize error, the old branch
+is intentionally retained. Restore the root revision through the
+same Argo CD API:
+
+```sh
+argocd --core app set garden-root --revision bootstrap/talos-foundation
+argocd --core app wait garden-root --sync --health --timeout 180
+```
+
+Do not use prune or uninstall controllers. A root branch rollback
+restores old child Git revision declarations, **not** earlier
+versions of live application resources.
+
+---
+
+
 The Garden uses **Argo CD Core**: no Argo CD API server, web UI, Dex,
 notifications, ingress or HTTPRoute. Reconcile via Kubernetes
 `Application` and `ApplicationSet` CRDs with `kubectl`.
@@ -40,9 +143,11 @@ create an unmanaged `argocd-cm` ConfigMap or reinstall Argo CD.
 
 This is a single-node, non-HA deployment on the existing Kubernetes
 v1.37.1 cluster. Upstream confirms these Helm values implement Core mode.
-The bootstrap Helm release remains managed **only by Helm**, not by the
-root Application. The currently running Cilium 1.20.4 Helm release
-is **not** included in Argo CD's desired state.
+Argo CD Core's bootstrap Helm release remains separate from the
+root Application. Cilium's original Helm release metadata also remains
+for recovery, but its **current desired state is reconciled by the
+Argo CD `cilium-platform` Application**; never uninstall the
+original Helm release or issue competing Helm upgrades.
 
 Official source:
 - https://github.com/argoproj/argo-helm/tree/argo-cd-10.14.0/charts/argo-cd
@@ -162,27 +267,13 @@ report Git authentication or fetch failures, diagnose repository access
 separately; don't treat the missing-project error as an authentication
 failure.
 
-**Branch lifecycle:** the initial Application tracks
-`bootstrap/talos-foundation`, which is currently the working PR #63
-branch and contains `cluster/apps/root/`. This lets the operator inspect
-the root before merging the foundation branch. Only use this while the
-operator controls that branch; Argo CD can deploy cluster-scoped objects.
-
-**After** PR #63 is merged into `platform/talos-argocd` and that branch
-contains the complete root source, explicitly retarget the running
-Application through the Kubernetes API, then update the versioned
-bootstrap manifest to match in a follow-up source change:
-
-```sh
-kubectl -n argocd patch application garden-root --type merge \
-  -p '{"spec":{"source":{"targetRevision":"platform/talos-argocd"}}}'
-kubectl -n argocd get application garden-root \
-  -o jsonpath='{.spec.source.targetRevision}{"\n"}'
-```
-
-Do not switch to a branch that lacks the root path. Automatic root pruning
-is disabled deliberately; do not introduce deletion/prune behavior without
-a reviewed data and recovery plan.
+**Branch lifecycle:** The old
+`bootstrap/talos-foundation` branch was used during cluster
+bootstrap and was later merged into `main`. See the **one-time
+migration** procedure above to retarget the live
+`garden-root` and its manual-sync children without replacing
+their workloads. The versioned bootstrap manifest also points
+to `main`. Automatic root pruning remains disabled.
 
 ## Next: Talos disks, then GitOps OpenEBS
 
