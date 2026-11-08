@@ -12,6 +12,8 @@ spec:
     - https://openebs.github.io/dynamic-localpv-provisioner
     - ghcr.io/pando85/helm-charts
     - quay.io/jetstack/charts
+    - quay.io/cilium/charts
+    - https://github.com/kubernetes-sigs/gateway-api.git
   destinations:
     - server: https://kubernetes.default.svc
       namespace: argocd
@@ -35,6 +37,14 @@ spec:
       kind: Namespace
     - group: storage.k8s.io
       kind: StorageClass
+    - group: gateway.networking.k8s.io
+      kind: GatewayClass
+    - group: scheduling.k8s.io
+      kind: PriorityClass
+    - group: storage.k8s.io
+      kind: CSIDriver
+    - group: networking.k8s.io
+      kind: IngressClass
     - group: rbac.authorization.k8s.io
       kind: ClusterRole
     - group: rbac.authorization.k8s.io
