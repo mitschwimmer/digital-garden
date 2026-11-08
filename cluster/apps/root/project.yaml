@@ -10,6 +10,7 @@ spec:
   sourceRepos:
     - https://github.com/mitschwimmer/digital-garden.git
     - https://openebs.github.io/dynamic-localpv-provisioner
+    - ghcr.io/pando85/helm-charts
   destinations:
     - server: https://kubernetes.default.svc
       namespace: argocd
@@ -17,9 +18,12 @@ spec:
       namespace: openebs
     - server: https://kubernetes.default.svc
       namespace: kube-system
-  # Existing cluster-scoped grants are for OpenEBS. AMD GPU plugin only
-  # creates namespaced resources; no additional cluster-scoped grant needed.
-  # Add further kinds only after inspecting their manifests.
+    - server: https://kubernetes.default.svc
+      namespace: kaniop
+    - server: https://kubernetes.default.svc
+      namespace: identity
+  # The Kaniop chart adds CRDs and cluster-scoped operator RBAC.
+  # Keep the allowlist explicit, and do not enable broad wildcard grants.
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
@@ -33,3 +37,9 @@ spec:
       kind: MutatingAdmissionPolicy
     - group: admissionregistration.k8s.io
       kind: MutatingAdmissionPolicyBinding
+    - group: admissionregistration.k8s.io
+      kind: ValidatingAdmissionPolicy
+    - group: admissionregistration.k8s.io
+      kind: ValidatingAdmissionPolicyBinding
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition

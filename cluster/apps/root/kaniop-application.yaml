@@ -1,0 +1,35 @@
+# STAGED: manual sync only. Operator installs cluster-scoped CRDs and RBAC.
+# Install and verify Kaniop before syncing the Kanidm test instance.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kaniop
+  namespace: argocd
+spec:
+  project: garden
+  source:
+    repoURL: ghcr.io/pando85/helm-charts
+    chart: kaniop
+    targetRevision: 0.21.0
+    helm:
+      releaseName: kaniop
+      valuesObject:
+        replicas: 1
+        webhook:
+          enabled: false
+        crdApply:
+          enabled: true
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kaniop
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
