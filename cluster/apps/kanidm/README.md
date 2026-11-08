@@ -124,6 +124,76 @@ manual recovery commands that invalidate the operator's stored
 credentials. Browser-based authentication, WebAuthn, OIDC, external
 TLS/DNS and public exposure remain **out of scope**.
 
+## 4. Authentication and database persistence (test only)
+
+HTTPS with the locally issued CA has been validated by the operator.
+That does **not** yet establish that authentication or persisted user
+records work. Before running this phase confirm the Kanidm CR reports
+one Ready replica, its 2Gi `nvme` PVC is Bound, and the node remains
+stable.
+
+The pinned workstation `nix develop` now supplies the Kanidm
+**1.11.x** CLI (`pkgs.kanidm_1_11`, currently 1.11.2 with the locked
+nixpkgs). Keep `kubectl port-forward service/kanidm-test 8443:8443
+-n identity` running in another terminal. Verify that `idm.localhost`
+resolves to 127.0.0.1 locally, and use the previously exported public
+CA certificate:
+
+```sh
+kanidm --version
+getent ahostsv4 idm.localhost
+kubectl -n identity get secret kanidm-test-admin-passwords -o json \
+  | jq -r '.data | keys[]'
+kanidm login -H https://idm.localhost:8443 \
+  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin
+kanidm self whoami -H https://idm.localhost:8443 \
+  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin
+```
+
+Retrieve the `idm_admin` password **privately** from the generated
+Kubernetes Secret and type it into the interactive login prompt.
+Do not paste it, print it in shared transcripts, put it into shell
+arguments, or run `kanidmd recover-account`, which could invalidate
+the operator-managed password. The key-listing command displays only
+key names, not their secret values. `admin` is for system setup;
+`idm_admin` is the account used for person administration.
+
+After a successful login, write and read one explicitly disposable
+person record in this isolated test database:
+
+```sh
+kanidm person create garden_acceptance "Garden Acceptance" \
+  -H https://idm.localhost:8443 \
+  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin
+kanidm person get garden_acceptance \
+  -H https://idm.localhost:8443 \
+  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin
+```
+
+To test **database persistence across a new Pod lifecycle**, first
+inspect the exact StatefulSet name and ensure no node instability or
+existing pod failures. A controlled rollout interrupts this single
+test replica briefly; do not proceed if the cluster is unstable.
+Substitute the inspected StatefulSet name, not the Kanidm CR name:
+
+```sh
+kubectl -n identity get statefulset
+kubectl -n identity rollout restart statefulset/<observed-statefulset-name>
+kubectl -n identity rollout status \
+  statefulset/<observed-statefulset-name> --timeout=300s
+kubectl -n identity get pods,pvc
+# Re-establish the port-forward if the connection closed, then repeat:
+kanidm person get garden_acceptance \
+  -H https://idm.localhost:8443 \
+  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin
+```
+
+This verifies persistence through a Pod replacement using the same PVC;
+it does **not** constitute an off-host backup, restore, or single-node
+failure-recovery test. Preserve the PVC and PV; reclaim policy is
+`Retain`. If an operation fails, inspect Kaniop/Kanidm logs and events
+before taking any recovery action.
+
 ## Failure and future work
 
 If the instance fails to start, check Kaniop controller and Kanidm pod
