@@ -37,6 +37,8 @@
       devShells.${system}.default = pkgs.mkShell {
         packages = (with pkgs; [
           age
+          # Kanidm 1.11.2 client matches the Kaniop-managed test server.
+          kanidm_1_11
           git
           incus
           jq

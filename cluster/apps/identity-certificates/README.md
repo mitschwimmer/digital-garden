@@ -120,6 +120,44 @@ Secret's `tls.key` or copy it to Git. **Only then**, after checking
 OpenEBS `nvme`/mount guard, sync `kanidm-test` and verify HTTPS using
 the public CA, as documented in `../kanidm/README.md`.
 
+## Preparing publicly trusted ACME certificates (not deployed yet)
+
+The disposable `idm.localhost` Kanidm instance stays on its
+namespace-scoped private CA; ACME public authorities such as Let's
+Encrypt cannot issue for that reserved local hostname. The real
+identity instance needs a **new, permanent DNS hostname and database**;
+do not rename or repurpose the `idm.localhost` identity database.
+
+Before adding any cluster resources, choose and review:
+
+1. A real FQDN under a domain the operator controls, and its
+   authoritative DNS provider (which API can publish TXT records).
+2. A Let's Encrypt account contact email, acceptable CAA policy,
+   and an access mechanism for narrowly scoped DNS-01 credentials.
+3. A SOPS/age flow with off-cluster key custody to store the DNS API
+   credential encrypted in Git; **never** commit a plaintext token.
+4. A separate staging `Issuer` or `ClusterIssuer` and a disposable
+   `Certificate` for the real FQDN, with a dedicated TLS Secret.
+   Staging certificates are not publicly trusted. Check actual DNS
+   propagation, ACME challenge state, and issuance before moving to
+   the production ACME endpoint.
+5. An independent production issuer, certificate rotation observation,
+   internal DNS/ingress and TLS trust boundary, and off-site tested
+   backup/restore before enrolling real identities.
+
+Use cert-manager **DNS-01**, not HTTP-01, for initial issuance:
+it validates TXT ownership without opening HTTP ports or enabling the
+Cilium Gateway API. Restrict the solver to the intended DNS zone and
+minimize write permissions. Keep new resources in their own manually
+synced Argo CD child, without auto-prune. Do not overwrite
+`identity/kanidm-test-tls` or alter the existing CA/issuer chain.
+
+Reference: https://cert-manager.io/docs/configuration/acme/dns01/
+and https://cert-manager.io/docs/configuration/acme/.
+The cluster's cert-manager / Kubernetes 1.37 compatibility caveat
+continues to apply; successful test CA issuance is not a warranty of
+public ACME compatibility.
+
 ## What this proves—and what it does not
 
 Reaching Ready on both Certificates proves cert-manager's issuer chain,
