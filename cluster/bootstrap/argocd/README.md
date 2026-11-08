@@ -16,9 +16,26 @@ The development shell includes the matching Argo CD CLI. Use `--core` so
 it talks directly to the Kubernetes API: this installation has no Argo CD
 API server. From the repository root, enter `nix develop`, set
 `KUBECONFIG="$PWD/.operations/talos/kubeconfig"` and verify the client with
-`argocd version --client`. A manual child Application sync uses
-`argocd --core app sync <application-name>`; do not enable automatic sync
-or pruning to compensate for a missing CLI.
+`argocd version --client`. **Core mode requires the Kubernetes
+context's current namespace to be `argocd`** (upstream Core-mode setup).
+Before using the CLI, verify the chart-provisioned ConfigMap exists and
+select the namespace on the workstation's current kubeconfig context:
+
+```sh
+kubectl -n argocd get configmap argocd-cm
+kubectl config set-context --current --namespace=argocd
+argocd login --core
+```
+
+This changes the kubeconfig's default namespace for later `kubectl`
+commands, not a Kubernetes resource. To inspect applications without the
+CLI, use `kubectl -n argocd get applications`. A manual child Application
+sync uses `argocd --core app sync <application-name>`; do not enable
+automatic sync or pruning to compensate for a missing CLI. If Core mode
+still reports `configmap "argocd-cm" not found` even when the ConfigMap
+exists in `argocd`, inspect `kubectl config current-context`, the
+`KUBECONFIG` environment variable and the Helm release first. Do not
+create an unmanaged `argocd-cm` ConfigMap or reinstall Argo CD.
 
 
 This is a single-node, non-HA deployment on the existing Kubernetes
