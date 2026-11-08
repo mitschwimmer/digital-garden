@@ -59,6 +59,11 @@ rollOutCiliumPods: true
 
 operator:
   replicas: 1
+  # Pod-template annotation forces the operator to restart under Argo CD
+  # after enabling Gateway API; no imperative kubectl rollout restart.
+  podAnnotations:
+    garden-gateway-api-reload: "v1.6.3"
+
 
 # Argo-managed staged Gateway API: host-network Envoy on the Talos VM
 # for router TCP/80 and TCP/443. Gateway/HTTPRoute objects are separate
