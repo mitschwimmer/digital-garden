@@ -1,0 +1,14 @@
+# Credential-free OCI Helm chart source. data avoids SSA stringData drift.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repository-cert-manager-oci
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+data:
+  name: Y2VydC1tYW5hZ2VyLW9jaQ==
+  type: aGVsbQ==
+  url: cXVheS5pby9qZXRzdGFjay9jaGFydHM=
+  enableOCI: dHJ1ZQ==

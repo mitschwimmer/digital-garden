@@ -1,0 +1,104 @@
+# An intentionally public, unauthenticated, stateless HTTP smoke page.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-smoke-html
+  namespace: web-smoke
+data:
+  index.html: |
+    <!doctype html>
+    <html lang="en">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1">
+        <title>Digital Garden - HTTP smoke test</title>
+        <style>
+          body { font: 1.15rem system-ui, sans-serif; max-width: 44rem;
+                 margin: 12vh auto; padding: 0 1.5rem; line-height: 1.6; }
+          h1 { font-size: 2rem; }
+        </style>
+      </head>
+      <body>
+        <h1>Digital Garden is reachable</h1>
+        <p>This is a public HTTP connectivity test through Cilium Gateway API.</p>
+        <p>No authentication, database, or application secrets are involved.</p>
+      </body>
+    </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-smoke
+  namespace: web-smoke
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: web-smoke
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: web-smoke
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        runAsGroup: 101
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nginx
+          # Official unprivileged NGINX: listens on 8080 as uid 101.
+          image: nginxinc/nginx-unprivileged:1.31.7-alpine3.24
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          volumeMounts:
+            - name: html
+              mountPath: /usr/share/nginx/html
+              readOnly: true
+      volumes:
+        - name: html
+          configMap:
+            name: web-smoke-html
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-smoke
+  namespace: web-smoke
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: web-smoke
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+      protocol: TCP

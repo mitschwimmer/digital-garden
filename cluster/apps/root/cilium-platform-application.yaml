@@ -1,0 +1,51 @@
+# HANDOFF: first sync adopts the existing bootstrap Helm release's live
+# resources. Never sync until gateway-api-crds is ready and the rendered
+# diff against the live Cilium v1.20.4 Helm install has been reviewed.
+# After acceptance, Argo is sole change owner; no more helm upgrades.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cilium-platform
+  namespace: argocd
+spec:
+  project: garden
+  sources:
+    - repoURL: quay.io/cilium/charts
+      chart: cilium
+      targetRevision: 1.20.4
+      helm:
+        releaseName: cilium
+        valueFiles:
+          - $garden/cluster/bootstrap/cilium/values.yaml
+    - repoURL: https://github.com/mitschwimmer/digital-garden.git
+      targetRevision: bootstrap/talos-foundation
+      ref: garden
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  # Cilium Helm auto-generates cryptographic material whenever templates
+  # are rendered outside the original Helm install. Never rotate the
+  # existing Cilium CA or Hubble server cert as a side-effect of adoption.
+  # Scope the exception to the two pre-existing kube-system Secrets.
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      namespace: kube-system
+      name: cilium-ca
+      jsonPointers:
+        - /data/ca.crt
+        - /data/ca.key
+    - group: ""
+      kind: Secret
+      namespace: kube-system
+      name: hubble-server-certs
+      jsonPointers:
+        - /data/ca.crt
+        - /data/tls.crt
+        - /data/tls.key
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
+      # ignoreDifferences alone only hides the diff; this also preserves
+      # the existing live Secret bytes during the very first Cilium sync.
+      - RespectIgnoreDifferences=true

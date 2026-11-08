@@ -1,0 +1,20 @@
+# MANUAL SYNC ONLY. This creates NEW permanent identity state on nvme.
+# Confirm auth.archaic.work is the permanent identity domain before first sync.
+# Do not sync until the separate Certificate and Secret are Ready.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kanidm-primary
+  namespace: argocd
+spec:
+  project: garden
+  source:
+    repoURL: https://github.com/mitschwimmer/digital-garden.git
+    targetRevision: bootstrap/talos-foundation
+    path: cluster/apps/kanidm-primary
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: identity
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true

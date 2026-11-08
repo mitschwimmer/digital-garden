@@ -1,0 +1,32 @@
+# Let's Encrypt staging (untrusted cert) tests the full HTTP-01 path.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt-staging
+  namespace: web-smoke
+spec:
+  acme:
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-staging-account
+    solvers:
+      - http01:
+          gatewayHTTPRoute:
+            serviceType: ClusterIP
+            parentRefs:
+              - name: web-smoke
+                namespace: web-smoke
+                sectionName: http
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: web-smoke-staging
+  namespace: web-smoke
+spec:
+  secretName: web-smoke-staging-tls
+  dnsNames:
+    - secure-test.archaic.work
+  issuerRef:
+    kind: Issuer
+    name: letsencrypt-staging

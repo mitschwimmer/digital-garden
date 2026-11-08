@@ -1,0 +1,19 @@
+# MANUAL SYNC ONLY. Public, unauthenticated HTTP smoke test.
+# Requires Gateway API CRDs and Cilium hostNetwork Gateway API first.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: web-smoke
+  namespace: argocd
+spec:
+  project: garden
+  source:
+    repoURL: https://github.com/mitschwimmer/digital-garden.git
+    targetRevision: bootstrap/talos-foundation
+    path: cluster/apps/web-smoke
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: web-smoke
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true

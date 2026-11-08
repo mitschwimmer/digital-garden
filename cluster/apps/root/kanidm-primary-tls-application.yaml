@@ -1,0 +1,19 @@
+# MANUAL SYNC ONLY. Confirm domain/DNS before initial Certificate request.
+# Requires the web-smoke HTTP Gateway to allow identity namespace solver routes.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kanidm-primary-tls
+  namespace: argocd
+spec:
+  project: garden
+  source:
+    repoURL: https://github.com/mitschwimmer/digital-garden.git
+    targetRevision: bootstrap/talos-foundation
+    path: cluster/apps/kanidm-primary-tls
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: identity
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true

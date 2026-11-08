@@ -1,0 +1,14 @@
+# Credential-free OCI Helm chart source for staged Argo ownership of Cilium.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: repository-cilium-oci
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+data:
+  name: Y2lsaXVtLW9jaQ==
+  type: aGVsbQ==
+  url: cXVheS5pby9jaWxpdW0vY2hhcnRz
+  enableOCI: dHJ1ZQ==

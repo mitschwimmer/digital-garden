@@ -1,0 +1,9 @@
+# Public, non-secret Talos v1.14.5 Image Factory schematic.
+# Schematic ID: 26a7fb977530a932ea54bbbff1a50973c13b7648599ee4cb6c1a9fed62c15ea7
+# Target: metal / amd64 / Secure Boot disabled.
+customization:
+  systemExtensions:
+    officialExtensions:
+      - siderolabs/amdgpu
+      - siderolabs/kata-containers
+      - siderolabs/qemu-guest-agent

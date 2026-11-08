@@ -1,0 +1,14 @@
+# Leaf key never enters Git; cert-manager stores it in the identity Secret.
+# This certificate is served directly by Kanidm via TLS passthrough.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kanidm-primary-tls
+  namespace: identity
+spec:
+  secretName: kanidm-primary-tls
+  dnsNames:
+    - auth.archaic.work
+  issuerRef:
+    kind: Issuer
+    name: letsencrypt-kanidm-primary

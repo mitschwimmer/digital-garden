@@ -1,0 +1,33 @@
+# Let's Encrypt production: only synchronize after staging succeeded.
+# ACME contact email is optional; none is hardcoded for this test.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt-production
+  namespace: web-smoke
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-production-account
+    solvers:
+      - http01:
+          gatewayHTTPRoute:
+            serviceType: ClusterIP
+            parentRefs:
+              - name: web-smoke
+                namespace: web-smoke
+                sectionName: http
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: web-smoke-production
+  namespace: web-smoke
+spec:
+  secretName: web-smoke-production-tls
+  dnsNames:
+    - secure-test.archaic.work
+  issuerRef:
+    kind: Issuer
+    name: letsencrypt-production

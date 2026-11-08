@@ -1,0 +1,19 @@
+# MANUAL SYNC ONLY. Public TLSRoute only after Kanidm and its TLS Secret
+# are healthy and the distinct idm TLS listener is Accepted.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kanidm-primary-route
+  namespace: argocd
+spec:
+  project: garden
+  source:
+    repoURL: https://github.com/mitschwimmer/digital-garden.git
+    targetRevision: bootstrap/talos-foundation
+    path: cluster/apps/kanidm-primary-route
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: identity
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true

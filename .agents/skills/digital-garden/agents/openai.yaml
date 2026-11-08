@@ -1,4 +1,4 @@
 interface:
   display_name: "Digital Garden"
-  short_description: "Compose and maintain self-hosted digital services"
-  default_prompt: "Use $digital-garden to route the task to relevant source and reference sections, then validate the changed layers."
+  short_description: "Operate Talos, Argo CD and services on IncusOS"
+  default_prompt: "Use $digital-garden to inspect the current cluster stage and owning source, make a reviewed change and validate it against the relevant procedure."

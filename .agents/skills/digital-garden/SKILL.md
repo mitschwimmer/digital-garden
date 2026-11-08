@@ -1,82 +1,99 @@
 ---
 name: digital-garden
-description: Develop, review and operate mitschwimmer/digital-garden, self-hosted services on IncusOS with OpenTofu, NixOS, Caddy, Kanidm, SOPS and direct OCI. Use for service setup, configuration changes, software updates, backup, restore, decommissioning, access and diagnostics in this repository.
+description: Build, operate and recover mitschwimmer/digital-garden as a single-node Talos Kubernetes cluster on IncusOS host measerve. Use for OpenTofu VM and disk changes, Talos and Cilium networking, Argo CD GitOps, OpenEBS local storage, AMD Radeon GPU passthrough, gateway and OIDC setup, service deployment, updates, secrets, backup and disaster recovery.
 ---
 
-# Work on Digital Garden
+# Work on Digital Garden (Kubernetes generation)
 
-Use this shared human/agent handbook. Paths are relative to the repository root.
-Start with the requested result and affected source. Load only the relevant
-lifecycle stage, technical procedure and service-specific details; links are
-navigation, not a reading checklist. Source-only work requires no live bootstrap,
-backup or deployment.
+The target is **one Talos Linux VM on `measerve`**, not the former NixOS-container garden. The IncusOS host, its prepared pools and host networking are prerequisites, not disposable cluster resources. Kubernetes, Argo CD and services are introduced in stages; **do not assume a planned component is installed**. Inspect actual source, versions and live state.
 
-## Scope the work
+## Current deployment stage (operator-reported, 2026-11-08)
 
-Use a branch for source changes. Inspect the affected source and its owning
-reference; check changed version-sensitive interfaces against official docs or
-pinned upstream source. Read [architecture](references/architecture.md) for
-ownership and inventory discovery, and [composition](references/composition.md)
-when adding a service or changing its contract.
+The **single-node Talos cluster is live** in the `garden-k8s` Incus VM
+on `measerve`, LAN `192.168.1.49`: Talos **v1.14.5**,
+Kubernetes **v1.37.1**, Cilium **v1.20.4** and Argo CD Core **v3.6.1**.
+The operator passed the single-node Cilium connectivity suite.
+Two Talos XFS UserVolumes survive reboot at `/var/mnt/k8s-nvme`
+and `/var/mnt/k8s-data`. The node is still a single failure domain.
 
-Use [the service lifecycle](references/lifecycle.md) for **setup, update config,
-update software components, backup, restore and decommissioning**. Find a service's
-reference by its system name under `references/`; edge uses `ingress.md` and
-identity uses `identity.md`. Inspect source if a reference does not yet exist.
-Do not maintain a second service inventory in this file.
+**GitOps ownership:** `garden-root` reconciles Argo CD AppProject,
+repository declarations, namespaces and *manual-sync* children from
+`bootstrap/talos-foundation`. The Cilium v1.20.4 installation has been
+adopted by the `cilium-platform` Argo Application after a reviewed
+Helm-to-Argo handoff. Its original bootstrap Helm release record
+remains; **never uninstall it**, and don't run competing `helm upgrade`
+operations. The Argo application preserves the pre-existing
+`cilium-ca` and Hubble certificate bytes with targeted
+`ignoreDifferences` plus `RespectIgnoreDifferences=true`.
 
-For live operations, inspect current inventory/state and keys/data to preserve;
-confirm the requested live change is authorized. Read
-[platform inputs](references/platform.md) before targeting a host. Run commands
-in `nix develop`; build on the workstation, never IncusOS.
-Select one operation root per operation; never copy mutable state, inputs or
-plans between roots. Review destructive replacement separately.
+**Storage:** OpenEBS Local PV Hostpath **v4.6.0** is live with
+`nvme` and `data` classes and a tested mount-source admission guard.
+Operator-tested disposable provisioning/write/read paths passed.
+`Retain` is not a backup; Kanidm database persistence after Pod
+replacement and off-host restore have **not** passed.
 
-## Load technical procedures as needed
+**Public networking:** Cilium Gateway API (upstream CRDs
+**v1.6.3**, Argo-owned), cert-manager **v1.21.3**, Envoy hostNetwork,
+public router forwards TCP **80/443** to `192.168.1.49`.
+The operator confirmed separate unauthenticated HTTP and HTTPS smoke
+sites at `test.archaic.work` and `secure-test.archaic.work`,
+including Let's Encrypt HTTP-01 staging and production certificates.
+The production Kanidm hostname is **`auth.archaic.work`**: a newly
+initialized, Kaniop **v0.21.0**-managed Kanidm **v1.11.2** instance
+with its own **10Gi `nvme` PVC**, Let's Encrypt Certificate, and
+Cilium SNI TLS passthrough `TLSRoute`. The operator reports all
+new resources deployed without problems. The former
+`auth.archaic.work` server *outside* Kubernetes was deleted; this
+reuses **the name only, not its data or login credentials**.
+The disposable `idm.localhost` Kanidm remains separate.
 
-| Concern | Owning reference |
-|---|---|
-| Runtime and isolation | [Placement](references/app-placement.md) |
-| Projects, volumes and mount identities | [Projects](references/projects.md) |
-| Incus plan/apply | [Infrastructure](references/infrastructure.md) |
-| NixOS creation and boot | [Seeds](references/nixos-guests.md), [readiness](references/readiness.md) |
-| NixOS rollout and closure rollback | [Deployment](references/deployment.md) |
-| Pins, packages and compatibility | [System updates](references/system-updates.md) |
-| HTTPS and OIDC integration | [Ingress](references/ingress.md), [identity](references/identity.md) |
-| People, roles and enrollment | [Users](references/users.md) |
-| Encryption, delivery and rotation | [Secrets](references/secrets.md) |
-| Checkpoints and data restoration | [Recovery](references/recovery.md) |
-| Resource and data removal | [Retirement](references/retirement.md) |
-| Checks for any change | [Validation](references/validation.md) |
+**Next session:** verify whether person `henner` was actually
+created and can authenticate at `auth.archaic.work`; prior guidance
+for `kanidm person create` and credential enrollment was provided
+but **completion was not reported**. Use an isolated
+`KANIDM_TOKEN_CACHE_PATH` to avoid stale sessions from the former
+external Kanidm. Then establish a Kanidm-consistent **off-host
+backup and tested restore** before trusting the new server for
+irreplaceable identities or OIDC clients. Cert renewal itself,
+Kanidm Pod-replacement persistence, backup/restore, and GPU/ROCm
+workload acceptance remain open. Read
+`cluster/apps/kanidm-primary/README.md` and
+`cluster/apps/web-smoke/README.md` for owning procedures.
 
-For diagnostics, read the affected service's acceptance/diagnostics section; use
-readiness for boot failures, deployment for closure rollback, and recovery for
-data restoration. Read the [identity ADR](references/adr_identity_provider.md)
-only for provider-design decisions.
+**Compatibility caveat:** Kubernetes v1.37.1 exceeds the officially
+tested ranges stated for pinned Cilium v1.20.4 and cert-manager
+v1.21.3. Passed functional checks do not make the combination
+officially supported; revisit during upgrades. Do not remove the
+healthy CNI just to change compatibility status.
 
-## Keep ownership explicit
+## Route the task
 
-OpenTofu owns Incus resources and OCI lifecycle; NixOS owns guest services;
-SOPS/age and sops-nix own managed-secret encryption/delivery; applications own
-mutable state on protected volumes. Keep plaintext out of Git, the Nix store,
-OpenTofu inputs/state and logs. Preserve seed identity, keys and retained data.
+- Read [cluster](references/kubernetes-cluster.md) for current deployment state, Incus VM, Talos bootstrap, Cilium, physical GPU, disk/mount design or upgrades. Use `cluster/talos/README.md` and `cluster/bootstrap/cilium/README.md` for exact, version-pinned commands.
+- Read [gitops](references/kubernetes-gitops.md) for Argo CD bootstrap, application ordering, secrets, ingress, workloads and software updates.
+- Read [recovery](references/kubernetes-recovery.md) for persistence, backup, restore, destructive changes and decommissioning.
+- Before operating the old garden, use the **retirement branch and its old handbook**. This skill is for the *post-retirement* architecture. Old `systems/*` HCL, NixOS seed definitions and service references carried forward in a transition branch are historical, **not deployable desired state**. Replace them before cluster installation.
 
-Keep Caddy Nix-configured, without admin API, saved-config resume or auth proxy.
-Keep Kanidm directory/clients in `services.kanidm.provision`. Require native OIDC
-for published user apps unless a service reference explicitly documents a reviewed
-exception and its compensating controls. Declare trusted callers and IPv4/IPv6
-exposure. Prefer native HCL/Nix/upstream tools. Justify helpers/control planes by
-their unmet requirement and maintenance cost; do not hide programs in Nix strings.
-Pin dependencies and give upstream patches explicit removal conditions.
-Prefer defaults and concise commands; specify options only when they change
-required behavior.
+## Working rules
+
+1. Use a Git branch and inspect affected source plus its owning reference. Prefer native upstream tools and pinned releases. Check version-sensitive APIs against the pinned code or official documentation.
+2. Separate ownership: **OpenTofu** manages the Incus VM, network attachments, GPU device and separate block volumes; **Talos** configures the node and disks; **Argo CD** reconciles cluster add-ons and applications. Do not make Argo CD manage its Incus host or let two controllers own the same release.
+3. Build and run host/client tooling on the workstation (`nix develop`); never install tooling on IncusOS. Inspect the authenticated Incus remote, the `measerve` inventory, prepared pools, LAN bridge, PCI IOMMU groups and device identities before writing hardware-specific inputs. Never guess PCI addresses or pool names.
+4. Recovery/bootstrap order: Incus infrastructure -> Talos/Kubernetes -> Cilium/DNS -> Argo CD Core -> Talos UserVolumes (host-side, outside Argo) -> Argo-managed OpenEBS -> apps. **All these layers are live now.** Existing Argo child Applications are manual-sync, not auto-synced by the root. Keep recovery bootstrap independent of Argo: preserve the original Cilium Helm release record, but treat `cilium-platform` as its current desired-state owner and never uninstall Helm-managed Cilium workloads as part of the handoff.
+5. Treat data as durable only after tested restoration, not merely because ZFS is mirrored. The single VM is a single availability and Kubernetes control-plane failure domain. Keep machine keys, Talos cluster secrets, Argo admin recovery and SOPS key material outside the cluster.
+6. Keep all secrets out of Git plaintext, Nix store, OpenTofu variables/state, build outputs and logs. Use SOPS/age in Git and a pinned, tested Argo-compatible decryption workflow; document key custody and recovery separately.
+7. For public services retain native Kanidm OIDC unless a reviewed service contract documents an exception. Record IPv4/IPv6 exposure, callers, TLS trust, gateway timeouts and allow/deny policy. Test both authorized and unauthorized paths.
+8. Validate the changed layer before applying. For live operations, inspect saved OpenTofu plans, `talosctl` health and Kubernetes resources/events; use Argo CD sync/health only **after Argo CD is installed**. For the single-node Cilium acceptance test use `cilium connectivity test --single-node --namespace-labels pod-security.kubernetes.io/enforce=privileged`, never relax global Pod Security. A green GitOps sync is not proof that an app works. Stop dependent changes on failures.
+
+## Fixed target decisions (until revised explicitly)
+
+- Networking: Cilium CNI and Cilium Gateway API with Envoy; no separate Envoy Gateway controller or permanent Caddy edge.
+- Storage: a Talos system disk and **two independently attached Incus custom block volumes**, mapped to `nvme` and `data`. `data` is an existing mirrored-ZFS pool on the *single host*. Use Talos UserVolumes and OpenEBS Local PV Hostpath; `WaitForFirstConsumer`, `Retain`, no default StorageClass until intentionally chosen. Validate mounts before allowing provisioning.
+- Compute: physical Incus PCI GPU passthrough of the **Radeon RX 9060 XT** to the Talos VM; version-matched Talos `amdgpu` extension, AMD Kubernetes device plugin and a real ROCm workload test. GPU compatibility is an acceptance gate, not an assumption.
+- Optional runtime: the Talos v1.14.5 Image Factory schematic includes `siderolabs/kata-containers` for future workloads, **not** as the default runtime. Validate nested virtualization inside the Incus VM (`vmx` and `/dev/kvm`) and extension-provided handler names before introducing an explicitly selected Kata `RuntimeClass`. Do not install a conflicting Kata runtime or presume passed-through GPU access inside Kata guests.
+- Cluster extensions: **Kubernetes API only by default**. Install Argo CD **Core**, with no Argo CD web UI/API server, Dex, notifications, ingress or OIDC client. Manage `Application` and `ApplicationSet` CRDs via `kubectl`. Apply the same no-UI rule to OpenEBS, monitoring operators, device plugins and other infrastructure extensions; public UIs are only for services that actually need a user interface.
+- GitOps: Argo CD Core (not Flux), with a small root Application and manual-sync children. Argo CD Core's own bootstrap Helm installation remains independent; **Cilium's ongoing desired state is now Argo-managed**. No routine `kubectl apply` or `helm upgrade` for resources already owned by Argo CD. Current root/children target `bootstrap/talos-foundation`; merely merging that branch into `main` does **not** change the live Argo source revision. See `cluster/apps/root` and `cluster/bootstrap/argocd/README.md`.
+- Backup: Velero with off-`measerve` repository is planned; application-specific consistency/restore checks remain essential. Do not put irreplaceable state into service until its backup path exists and has been tested.
 
 ## Finish
 
-Select checks by changed layer from validation; stop dependent operations on
-failure. Report passed and unavailable checks, separating source/build/plan
-results from live acceptance. Record live results privately with revision, date
-and environment. Maintain each procedure once: shared rules in technical/lifecycle
-references, service-specific interfaces and exceptions in the owning service
-reference, inventory in source. Update shared guidance only when a shared concept
-changes. A green CI or successful deployment does not prove health.
+Update the *owning* source and one reference for a new reusable procedure or service contract. Run relevant formatting, schema/template lint and, when available, isolated cluster tests. Report what was built, what was inspected live and what remains untested. Keep destructive operations separated from normal provisioning with an explicit resource inventory and operator approval.

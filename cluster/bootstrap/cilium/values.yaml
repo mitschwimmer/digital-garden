@@ -1,0 +1,86 @@
+# Cilium v1.20.4, Talos v1.14.5, single-node cluster.
+# NOTE: Cilium 1.20.4 is e2e-tested through Kubernetes 1.36, while
+# this first Talos cluster generated Kubernetes 1.37.1. Validate networking
+# on the live node before onboarding any services; this pairing isn't
+# officially e2e-tested yet.
+#
+# Initially consumed by the bootstrap Helm release; the staged
+# cilium-platform Argo CD Application now uses this same file through
+# its multi-source Helm chart renderer. Review the adoption diff before
+# the first synchronization; do not run a competing Helm upgrade.
+
+# Talos's KubeControllerManager assigns node PodCIDRs.
+ipam:
+  mode: kubernetes
+
+# Talos machine config already has kube-proxy disabled.
+kubeProxyReplacement: true
+
+# Talos KubePrism: local Kubernetes API endpoint on every node.
+k8sServiceHost: localhost
+k8sServicePort: 7445
+
+# Talos mounts the cgroupv2 filesystem on the host.
+cgroup:
+  autoMount:
+    enabled: false
+  hostRoot: /sys/fs/cgroup
+
+# Talos forwards Kubernetes DNS to host DNS by default. Without legacy
+# host routing, this can break DNS through Cilium.
+bpf:
+  hostLegacyRouting: true
+
+# Talos does not permit Kubernetes workloads to load kernel modules.
+# Reproduce Cilium's documented Talos-safe capability sets (no SYS_MODULE).
+securityContext:
+  capabilities:
+    ciliumAgent:
+      - CHOWN
+      - KILL
+      - NET_ADMIN
+      - NET_RAW
+      - IPC_LOCK
+      - SYS_ADMIN
+      - SYS_RESOURCE
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    cleanCiliumState:
+      - NET_ADMIN
+      - SYS_ADMIN
+      - SYS_RESOURCE
+
+# The cluster has a single node / single failure domain.
+# Restart the agent when Helm-generated Cilium configuration changes.
+# The first sync is a reviewed ownership handoff from bootstrap Helm.
+rollOutCiliumPods: true
+
+operator:
+  replicas: 1
+  # Pod-template annotation forces the operator to restart under Argo CD
+  # after enabling Gateway API; no imperative kubectl rollout restart.
+  podAnnotations:
+    garden-gateway-api-reload: "v1.6.3"
+
+
+# Argo-managed staged Gateway API: host-network Envoy on the Talos VM
+# for router TCP/80 and TCP/443. Gateway/HTTPRoute objects are separate
+# Argo CD Applications, with HTTPS gated on production certificate Ready.
+gatewayAPI:
+  enabled: true
+  hostNetwork:
+    enabled: true
+
+# The standalone Cilium Envoy DaemonSet binds Gateway listener ports 80 and 443.
+# Retain the chart's existing NET_ADMIN and SYS_ADMIN capabilities.
+envoy:
+  enabled: true
+  securityContext:
+    capabilities:
+      keepCapNetBindService: true
+      envoy:
+        - NET_ADMIN
+        - SYS_ADMIN
+        - NET_BIND_SERVICE

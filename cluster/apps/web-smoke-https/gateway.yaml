@@ -1,0 +1,59 @@
+# Distinct HTTPS hostNetwork listener and backend from the HTTP Gateway.
+# Sync only after cert-manager issued web-smoke-production-tls.
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: web-smoke-https
+  namespace: web-smoke
+spec:
+  gatewayClassName: cilium
+  listeners:
+    - name: https
+      hostname: secure-test.archaic.work
+      protocol: HTTPS
+      port: 443
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: web-smoke-production-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+    # Independent exact SNI host on the same Envoy 443 listener port.
+    # Cilium forwards the encrypted stream directly to Kanidm: no
+    # Gateway-managed certificate or TLS decryption for this hostname.
+    - name: kanidm
+      hostname: auth.archaic.work
+      protocol: TLS
+      port: 443
+      tls:
+        mode: Passthrough
+      allowedRoutes:
+        kinds:
+          - kind: TLSRoute
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: identity
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: web-smoke-https
+  namespace: web-smoke
+spec:
+  parentRefs:
+    - name: web-smoke-https
+      sectionName: https
+  hostnames:
+    - secure-test.archaic.work
+  rules:
+    - matches:
+        - path:
+            type: PathPrefix
+            value: /
+      backendRefs:
+        - name: web-smoke-secure
+          port: 8080

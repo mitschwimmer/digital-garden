@@ -1,0 +1,10 @@
+# Test-only bootstrap, scoped strictly to the identity namespace.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: kanidm-test-selfsigned
+  namespace: identity
+  annotations:
+    argocd.argoproj.io/sync-wave: "-2"
+spec:
+  selfSigned: {}

@@ -1,0 +1,22 @@
+# Managed TLS Secret consumed by Kaniop's Kanidm.spec.tlsSecretName.
+# No Gateway, public DNS, external CA, ACME account or external endpoint.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kanidm-test-tls
+  namespace: identity
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  secretName: kanidm-test-tls
+  duration: 168h
+  renewBefore: 48h
+  dnsNames:
+    - idm.localhost
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  issuerRef:
+    name: kanidm-test-ca
+    kind: Issuer
+    group: cert-manager.io

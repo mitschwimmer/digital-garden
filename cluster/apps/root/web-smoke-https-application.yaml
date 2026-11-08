@@ -1,0 +1,19 @@
+# MANUAL SYNC ONLY after web-smoke-production-tls Certificate is Ready.
+# HTTPS listener uses a real Let's Encrypt production Secret.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: web-smoke-https
+  namespace: argocd
+spec:
+  project: garden
+  source:
+    repoURL: https://github.com/mitschwimmer/digital-garden.git
+    targetRevision: bootstrap/talos-foundation
+    path: cluster/apps/web-smoke-https
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: web-smoke
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true

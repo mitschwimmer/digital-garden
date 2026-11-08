@@ -1,18 +1,17 @@
-# Local inventory and operator configuration
-inventory*.txt
-*.auto.tfvars
+# Local OpenTofu state and workstation-specific hardware inputs
 *.tfstate*
 *.tfplan
 .terraform/
-.env
-*.agekey
-result
+*.auto.tfvars
 *.auto.tfvars.json
 *.tfvars.json.tmp
-result-*
-*.auto.tfvars.tmp
 
-__pycache__/
-secrets/*.tmp
-
+# Keep Talos credentials, keys, images and operator inventory out of Git
 .operations/
+*.agekey
+*.iso
+.env
+result
+result-*
+inventory*.txt
+__pycache__/

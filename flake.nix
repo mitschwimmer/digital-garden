@@ -1,110 +1,53 @@
 {
-  description = "Digital Garden isolated IncusOS systems";
-  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
-  # Keep Immich on the rolling NixOS branch until the stable package supports it.
-  inputs.nixpkgs-immich.url = "github:NixOS/nixpkgs/nixos-unstable";
-  inputs.sops-nix = {
-    url = "github:Mic92/sops-nix";
-    inputs.nixpkgs.follows = "nixpkgs";
-  };
+  description = "Digital Garden: Talos Kubernetes on IncusOS";
 
-  outputs =
-    {
-      nixpkgs,
-      nixpkgs-immich,
-      sops-nix,
-      ...
-    }:
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
+
+  outputs = { nixpkgs, ... }:
     let
       system = "x86_64-linux";
-      lib = nixpkgs.lib;
       pkgs = import nixpkgs { inherit system; };
-      names = [
-        "edge"
-        "identity"
-        "immich"
-        "webdav"
-      ];
-      mkSystem =
-        name: seed:
-        let
-          guestNixpkgs = if name == "immich" then nixpkgs-immich else nixpkgs;
-        in
-        guestNixpkgs.lib.nixosSystem {
-          inherit system;
-          modules = [
-            "${guestNixpkgs}/nixos/modules/virtualisation/lxc-container.nix"
-            ./nix/modules/container.nix
-            {
-              networking.hostName = name;
-              environment.etc."garden-system".text = name + "\n";
-            }
-          ]
-          ++ lib.optionals (!seed) [
-            sops-nix.nixosModules.sops
-            (./systems + "/${name}/configuration.nix")
-          ];
-        };
-      guests = lib.genAttrs names (name: mkSystem name false);
-      seeds = lib.genAttrs names (name: mkSystem name true);
-      webdavRoute =
-        cidrs:
-        (guests.edge.extendModules {
-          modules = [ { garden.webdavLanCidrs = lib.mkForce cidrs; } ];
-        }).config.services.caddy.virtualHosts."webdav.archaic.work".extraConfig;
-    in
-    {
-      nixosConfigurations = guests;
-      packages.${system} = lib.genAttrs (map (name: "${name}-image") names) (
-        image:
-        let
-          name = lib.removeSuffix "-image" image;
-          seed = seeds.${name};
-        in
-        pkgs.runCommand "digital-garden-${name}-image" { } ''
-          mkdir -p "$out"
-          cp ${seed.config.system.build.metadata}/tarball/*.tar.xz "$out/metadata.tar.xz"
-          cp ${seed.config.system.build.tarball}/tarball/*.tar.xz "$out/rootfs.tar.xz"
-          printf '%s\n' '${name}' > "$out/garden-system"
-        ''
-      );
-      checks.${system} = {
-        caddy-config = pkgs.runCommand "check-caddy-config" { } ''
-          export HOME="$TMPDIR"
-          export XDG_DATA_HOME="$TMPDIR/data"
-          export XDG_CONFIG_HOME="$TMPDIR/config"
-          ${pkgs.caddy}/bin/caddy validate --config ${guests.edge.config.services.caddy.configFile} --adapter caddyfile
-          touch "$out"
-        '';
-        webdav-ingress = pkgs.runCommand "check-webdav-ingress" { } ''
-          ${pkgs.python3}/bin/python ${./tests/check_webdav_ingress.py} \
-            ${pkgs.caddy}/bin/caddy \
-            ${pkgs.writeText "webdav-deny-route" (webdavRoute [ ])} \
-            ${pkgs.writeText "webdav-lan-route" (webdavRoute [ "127.0.0.2/32" ])}
-          touch "$out"
-        '';
-        webdav-accounts = pkgs.runCommand "check-webdav-accounts" { } ''
-          ${pkgs.python3}/bin/python ${./tests/check_webdav_accounts.py} \
-            ${pkgs.webdav}/bin/webdav \
-            ${pkgs.writeText "webdav-settings.json" (
-              builtins.toJSON guests.webdav.config.services.webdav.settings
-            )}
-          touch "$out"
-        '';
-      };
+      # Keep the workstation CLI on the same release as the Talos node.
+      # SHA-256 verified against the upstream GitHub v1.14.5 release asset.
+      talosctlPinned = pkgs.runCommand "talosctl-1.14.5" { } ''
+        install -Dm755 ${pkgs.fetchurl {
+          url = "https://github.com/siderolabs/talos/releases/download/v1.14.5/talosctl-linux-amd64";
+          sha256 = "ff432b68986709e6b69c563a08a2ced4232d5196b0dccd6d2e783e9d714d7d7d";
+        }} "$out/bin/talosctl"
+      '';
+      # Cilium CLI v0.20.2 for post-bootstrap status and policy connectivity tests.
+      # Release tarball digest from cilium/cilium-cli official GitHub release.
+      ciliumCliPinned = pkgs.runCommand "cilium-cli-0.20.2" { } ''
+        mkdir -p "$out/bin"
+        tar -xzf ${pkgs.fetchurl {
+          url = "https://github.com/cilium/cilium-cli/releases/download/v0.20.2/cilium-linux-amd64.tar.gz";
+          sha256 = "b7224a62bfed0e84f1a84567d274fefc5017df76a936e067c42012bb7fc30856";
+        }} -C "$out/bin" cilium
+        chmod 755 "$out/bin/cilium"
+      '';
+      # Argo CD Core CLI v3.6.1 matches the bootstrapped Argo CD release.
+      # SHA-256 from the official GitHub v3.6.1 release asset digest.
+      argocdCliPinned = pkgs.runCommand "argocd-cli-3.6.1" { } ''
+        install -Dm755 ${pkgs.fetchurl {
+          url = "https://github.com/argoproj/argo-cd/releases/download/v3.6.1/argocd-linux-amd64";
+          sha256 = "46d2fc941071f0a0c36326a67a431d34b1479e1a24737f7b367abc93968beadc";
+        }} "$out/bin/argocd"
+      '';
+    in {
       devShells.${system}.default = pkgs.mkShell {
-        packages = with pkgs; [
-          opentofu
-          incus
+        packages = (with pkgs; [
           age
-          sops
-          openssl
-          jq
-          nixfmt
-          python3
-          gh
+          # Kanidm 1.11.2 client matches the Kaniop-managed test server.
           kanidm_1_11
-        ];
+          git
+          incus
+          jq
+          kubectl
+          kubernetes-helm
+          opentofu
+          sops
+          virt-viewer
+        ]) ++ [ talosctlPinned ciliumCliPinned argocdCliPinned ];
       };
     };
 }
