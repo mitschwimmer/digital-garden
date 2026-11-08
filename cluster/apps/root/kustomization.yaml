@@ -10,3 +10,6 @@ resources:
   - amd-gpu-application.yaml
   - kaniop-application.yaml
   - kanidm-test-application.yaml
+  - cert-manager-oci-repository.yaml
+  - cert-manager-application.yaml
+  - identity-certificates-application.yaml

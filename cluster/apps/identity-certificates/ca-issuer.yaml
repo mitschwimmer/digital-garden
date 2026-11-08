@@ -1,0 +1,11 @@
+# Namespaced CA issuer to sign only test identities in identity namespace.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: kanidm-test-ca
+  namespace: identity
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  ca:
+    secretName: kanidm-test-ca

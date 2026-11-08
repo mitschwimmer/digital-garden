@@ -55,33 +55,27 @@ kubectl get crd kanidms.kaniop.rs
 Do not sync the Kanidm child until the Kaniop Deployment and the
 `kanidms.kaniop.rs` CRD are ready.
 
-## 2. Create ephemeral TLS material (never commit it)
+## 2. Wait for cert-manager to issue the TLS certificate
 
-Kanidm needs a TLS certificate whose SAN matches its fixed domain. The
-origin includes `8443` for local port-forward testing. There is no
-public DNS, ingress, cert-manager or publicly trusted certificate yet.
+No manual certificate or private key generation is needed. The independent
+`cert-manager` and `identity-test-tls` Argo CD children are deliberately
+**manual-sync only**. Follow [the TLS runbook](../identity-certificates/README.md)
+to confirm cert-manager v1.21.3's compatibility on Kubernetes v1.37.1
+(official support only covers v1.33–v1.36), then issue a disposable CA and
+a leaf certificate for `idm.localhost`.
 
-From the **repository root** on the workstation:
+Do not sync this Kanidm child until both Certificates are Ready and the
+`identity/kanidm-test-tls` Kubernetes Secret exists:
 
 ```sh
-mkdir -p .operations/kanidm-test
-chmod 700 .operations/kanidm-test
-openssl req -x509 -newkey ec -pkeyopt ec_paramgen_curve:P-256 \
-  -nodes -days 14 \
-  -keyout .operations/kanidm-test/tls.key \
-  -out .operations/kanidm-test/tls.crt \
-  -subj /CN=idm.localhost \
-  -addext 'subjectAltName=DNS:idm.localhost'
-chmod 600 .operations/kanidm-test/tls.key
-
-kubectl -n identity create secret tls kanidm-test-tls \
-  --cert=.operations/kanidm-test/tls.crt \
-  --key=.operations/kanidm-test/tls.key
+kubectl -n identity get issuers,certificates
+kubectl -n identity wait --for=condition=Ready certificate/kanidm-test-ca --timeout=180s
+kubectl -n identity wait --for=condition=Ready certificate/kanidm-test-tls --timeout=180s
+kubectl -n identity get secret kanidm-test-tls
 ```
 
-Store the key in the ignored `.operations` directory, never in Git.
-For test certificate renewal, replace the existing Secret deliberately;
-Kaniop detects TLS Secret changes and rolls the StatefulSet.
+Only the public CA certificate is exported to the workstation for the
+later HTTPS verification. No CA private keys or passwords belong in Git.
 
 ## 3. Manual Kanidm sync and acceptance
 
@@ -107,12 +101,13 @@ of disabling certificate checks:
 
 ```sh
 curl --fail --show-error \
-  --cacert .operations/kanidm-test/tls.crt \
+  --cacert .operations/kanidm-test/ca.crt \
   --resolve idm.localhost:8443:127.0.0.1 \
   https://idm.localhost:8443/
 ```
 
-Check the `Kanidm` CR readiness and that the single PVC is Bound to
+Check the `Kanidm` CR readiness, the cert-manager Certificates' Ready
+conditions, and that the single PVC is Bound to
 an OpenEBS local PV on `nvme`. Kaniop bootstraps built-in admin
 credentials into the `kanidm-test-admin-passwords` Kubernetes Secret;
 do **not** print those credentials in shared terminal logs or issue

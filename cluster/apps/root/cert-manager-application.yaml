@@ -1,0 +1,30 @@
+# MANUAL SYNC ONLY. cert-manager v1.21.3 is not yet upstream-supported
+# on this Kubernetes v1.37.1 cluster (upstream support: 1.33-1.36).
+# Inspect rendered cluster-wide RBAC, webhook configurations and CRDs first.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+spec:
+  project: garden
+  source:
+    repoURL: quay.io/jetstack/charts
+    chart: cert-manager
+    targetRevision: v1.21.3
+    helm:
+      releaseName: cert-manager
+      valuesObject:
+        crds:
+          enabled: true
+          keep: true
+        # No Cilium Gateway API integration or ACME issuer at this stage.
+        # Cilium bootstrap still has gatewayAPI.enabled=false.
+        # Gateway-aware certificate reconciliation needs later review.
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
