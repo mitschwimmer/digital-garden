@@ -31,6 +31,11 @@ and after the `garden-root` Application is Synced/Healthy:
 ```sh
 export KUBECONFIG="$PWD/.operations/talos/kubeconfig"
 export TALOSCONFIG="$PWD/.operations/talos/talosconfig"
+kubectl -n argocd get configmap argocd-cm
+# Core CLI discovers argocd-cm using the kubeconfig context's namespace.
+# This changes the workstation's default kubectl namespace to argocd.
+kubectl config set-context --current --namespace=argocd
+argocd login --core
 kubectl -n argocd get applications kaniop kanidm-test
 kubectl get ns identity
 kubectl get storageclass nvme
