@@ -3,8 +3,17 @@
 This is a deliberately non-production identity instance managed by
 [Kaniop v0.21.0](https://github.com/pando85/kaniop/releases/tag/v0.21.0).
 The operator is managed by Argo CD, and a single Kanidm server is pinned to
-`kanidm/server:1.12.0`. The test domain `idm.localhost` is **immutable** in
+`kanidm/server:1.11.2`. The test domain `idm.localhost` is **immutable** in
 Kanidm; do **not** reuse this database for a future real identity domain.
+
+Version acceptance (observed 2026-11-08): Kaniop v0.21.0 embeds
+Kanidm client SDK **v1.11.2** and rejected the initial `1.12.0` server
+pin with `VersionIncompatible` / `UpgradeBlocked`. The CR remained
+uninitialized (`0` replicas, no generated admin Secret). We therefore
+pin the server to the published Kanidm **1.11.2** security-patch release.
+Do **not** set `spec.disableUpgradeChecks: true` to work around this
+contract. Inspect compatibility with the operator before any later
+Kanidm upgrade; never downgrade an initialized identity database.
 
 The root Application registers the `kaniop` and `kanidm-test` child
 Applications, but neither has automated sync or pruning. It creates the
