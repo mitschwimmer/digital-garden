@@ -1,7 +1,6 @@
-# STAGED ONLY: deliberately not listed in cluster/apps/root/kustomization.yaml.
-# NEVER activate before Talos mounts survive reboot AND a fail-closed
-# missing-mount provisioning protection is independently tested.
-# The child has NO automated sync; an explicit, reviewed sync is required.
+# LIVE (operator reported 2026-11-08): OpenEBS Local PV Hostpath 4.6.0.
+# Keep Talos mounts and fail-closed mount-source guard verified before
+# any storage change. Child remains MANUAL SYNC ONLY; no auto-prune.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
