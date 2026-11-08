@@ -1,0 +1,25 @@
+# Disposable, untrusted, locally generated CA. Never reuse for production.
+# Private key lives ONLY in identity/kanidm-test-ca (Kubernetes Secret).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: kanidm-test-ca
+  namespace: identity
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  secretName: kanidm-test-ca
+  isCA: true
+  commonName: "Digital Garden Disposable Test CA"
+  duration: 8760h
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+  usages:
+    - cert sign
+    - crl sign
+  issuerRef:
+    name: kanidm-test-selfsigned
+    kind: Issuer
+    group: cert-manager.io
