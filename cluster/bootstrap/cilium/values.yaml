@@ -54,7 +54,22 @@ securityContext:
 operator:
   replicas: 1
 
-# First achieve a working CNI. Gateway API/Envoy configuration is later
-# GitOps-owned platform source, not part of the bootstrap Helm release.
+# Helm still exclusively owns Cilium (including Gateway API). Host network
+# exposes Envoy directly on the Talos VM, 192.168.1.49, for router TCP/80.
+# Gateway and HTTPRoute objects are separately Argo CD-managed.
 gatewayAPI:
-  enabled: false
+  enabled: true
+  hostNetwork:
+    enabled: true
+
+# The standalone Cilium Envoy DaemonSet binds Gateway listener port 80.
+# Retain the chart's existing NET_ADMIN and SYS_ADMIN capabilities.
+envoy:
+  enabled: true
+  securityContext:
+    capabilities:
+      keepCapNetBindService: true
+      envoy:
+        - NET_ADMIN
+        - SYS_ADMIN
+        - NET_BIND_SERVICE
