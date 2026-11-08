@@ -57,7 +57,8 @@ or designate it production-ready before a verified backup/restore path.
 Run from the repository root in `nix develop`:
 
 ```sh
-git pull --ff-only origin bootstrap/talos-foundation
+git switch main
+git pull --ff-only origin main
 export KUBECONFIG="$PWD/.operations/talos/kubeconfig"
 kubectl config set-context --current --namespace=argocd
 argocd login --core
