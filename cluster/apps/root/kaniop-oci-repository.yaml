@@ -1,4 +1,5 @@
-# Public, credential-free OCI Helm repository. Argo CD requires enableOCI.
+# Public, credential-free OCI Helm repository. No tokens are stored here.
+# Use data rather than stringData because root uses server-side apply.
 apiVersion: v1
 kind: Secret
 metadata:
@@ -7,8 +8,8 @@ metadata:
   labels:
     argocd.argoproj.io/secret-type: repository
 type: Opaque
-stringData:
-  name: kaniop-oci
-  type: helm
-  url: ghcr.io/pando85/helm-charts
-  enableOCI: "true"
+data:
+  name: a2FuaW9wLW9jaQ==
+  type: aGVsbQ==
+  url: Z2hjci5pby9wYW5kbzg1L2hlbG0tY2hhcnRz
+  enableOCI: dHJ1ZQ==
