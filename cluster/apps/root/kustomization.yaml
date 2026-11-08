@@ -1,10 +1,12 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-# The root auto-syncs AppProjects and child Application objects.
-# Each child has NO automated sync, so installation requires manual approval.
-# OpenEBS already passed provisioning acceptance; AMD GPU plugin is staged
-# for device registration and a separate compute acceptance test.
+# The root auto-syncs AppProjects, repository declarations, namespaces
+# and child Application objects. Every child is manual-sync only.
 resources:
   - project.yaml
+  - identity-namespace.yaml
+  - kaniop-oci-repository.yaml
   - openebs-application.yaml
   - amd-gpu-application.yaml
+  - kaniop-application.yaml
+  - kanidm-test-application.yaml
