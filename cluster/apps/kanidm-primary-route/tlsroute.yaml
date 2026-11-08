@@ -11,7 +11,7 @@ spec:
       namespace: web-smoke
       sectionName: kanidm
   hostnames:
-    - idm.archaic.work
+    - auth.archaic.work
   rules:
     - backendRefs:
         - name: kanidm-primary
