@@ -21,6 +21,9 @@ spec:
       namespace: openebs
     - server: https://kubernetes.default.svc
       namespace: kube-system
+    # Cilium Gateway's secret-sync Roles/RoleBindings live here.
+    - server: https://kubernetes.default.svc
+      namespace: cilium-secrets
     - server: https://kubernetes.default.svc
       namespace: kaniop
     - server: https://kubernetes.default.svc
