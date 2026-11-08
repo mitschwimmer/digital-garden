@@ -142,13 +142,30 @@ CA certificate:
 ```sh
 kanidm --version
 getent ahostsv4 idm.localhost
+# Keep this test's tokens separate from any existing Kanidm instance:
+export KANIDM_TOKEN_CACHE_PATH="$PWD/.operations/kanidm-test/tokens"
 kubectl -n identity get secret kanidm-test-admin-passwords -o json \
   | jq -r '.data | keys[]'
 kanidm login -H https://idm.localhost:8443 \
-  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin
+  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin@idm.localhost
 kanidm self whoami -H https://idm.localhost:8443 \
-  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin
+  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin@idm.localhost
 ```
+
+Always use the full principal `idm_admin@idm.localhost` for this test
+and keep `KANIDM_TOKEN_CACHE_PATH` exported in the same terminal.
+Kanidm 1.11 can otherwise fall back to a cached `idm_admin@other-domain`
+token, reporting an expired session followed by `Http(404,
+NoMatchingEntries)` when it tries to authenticate the wrong principal.
+Using a separate cache protects credentials and sessions for any other
+Kanidm instance. Require an explicit `Login Success for
+idm_admin@idm.localhost` before treating login as accepted.
+
+The client may warn that the CA file under the operator-owned
+`.operations` directory is not owned by root. This is a local trust
+file tampering warning, **not** the cause of the wrong-user login.
+For longer-term use, install the *public* CA file at a root-owned
+trust path; do not disable certificate verification.
 
 Retrieve the `idm_admin` password **privately** from the generated
 Kubernetes Secret and type it into the interactive login prompt.
@@ -164,10 +181,10 @@ person record in this isolated test database:
 ```sh
 kanidm person create garden_acceptance "Garden Acceptance" \
   -H https://idm.localhost:8443 \
-  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin
+  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin@idm.localhost
 kanidm person get garden_acceptance \
   -H https://idm.localhost:8443 \
-  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin
+  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin@idm.localhost
 ```
 
 To test **database persistence across a new Pod lifecycle**, first
@@ -185,7 +202,7 @@ kubectl -n identity get pods,pvc
 # Re-establish the port-forward if the connection closed, then repeat:
 kanidm person get garden_acceptance \
   -H https://idm.localhost:8443 \
-  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin
+  -C "$PWD/.operations/kanidm-test/ca.crt" -D idm_admin@idm.localhost
 ```
 
 This verifies persistence through a Pod replacement using the same PVC;
