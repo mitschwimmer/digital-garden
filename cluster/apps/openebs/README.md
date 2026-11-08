@@ -1,22 +1,28 @@
-# Staged OpenEBS Local PV Hostpath (not activated)
+# OpenEBS Local PV Hostpath — live (2026-11-08)
 
-**Status, 2026-11-07:** The operator reports both Talos XFS
-UserVolumes **ready and mounted** on the intended distinct guest disks:
+**Current operator-reported state:** `openebs-localpv` has been
+synced through Argo CD, chart **v4.6.0**. The `nvme` and `data`
+StorageClasses are live with `WaitForFirstConsumer` and `Retain`.
+Talos XFS mounts `/var/mnt/k8s-nvme` and `/var/mnt/k8s-data`
+survived a node reboot. The dedicated native mount-source guard
+was tested with successful positive canaries and a failing
+missing-mount canary. Initial sacrificial PVC provisioning,
+write/read and cross-Pod access were reported successful, including
+the 2Gi disposable Kanidm test volume.
 
-| Volume | Source | Actual target |
-|---|---|---|
-| `u-k8s-nvme` | `/dev/sdc` (128 GiB) | `/var/mnt/k8s-nvme` |
-| `u-k8s-data` | `/dev/sdb` (1 TiB) | `/var/mnt/k8s-data` |
+**Limitations:** These tests do not establish off-host backups,
+Kanidm database persistence after Pod replacement, or restore
+safety. Keep `Retain` protection and mount checks; never assume
+a mirrored host ZFS pool constitutes an independent backup.
 
-**Reboot persistence is now verified** (operator output, 2026-11-07):
-both Talos volumes are still XFS on the original guest disks and mounts;
-the Kubernetes node is Ready; Cilium agent/operator/Envoy are OK; and
-`garden-root` remains Synced/Healthy. Neither OpenEBS nor its
-StorageClasses have been deployed. The staged child Application
-[`../root/openebs-application.yaml`](../root/openebs-application.yaml)
-is deliberately NOT included in root's `kustomization.yaml`. It has
-**no automatic sync policy** even if included by mistake. Do not add it
-to root or manually install the chart until the gate below is satisfied.
+The remaining sections preserve the **2026-11-07 preparation,
+canary and activation history** for debugging and reproducibility.
+References below saying the chart was "not activated" or the
+root lacked the child describe **that earlier point in time**,
+not the current live state. The current root Kustomization includes
+`openebs-application.yaml`, and child sync remains manual.
+
+## Historical preparation and canary findings (2026-11-07)
 
 ## Canary failure and source correction (2026-11-07)
 

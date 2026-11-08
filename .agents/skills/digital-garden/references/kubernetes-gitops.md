@@ -1,45 +1,68 @@
 # Argo CD and applications
 
-## Bootstrap and ownership
+## Live ownership and bootstrap (2026-11-08)
 
-Install pinned, non-HA **Argo CD Core v3.6.1** (argo-helm
-chart `10.14.0`) after Kubernetes, Cilium and DNS are healthy;
-do **not** wait for OpenEBS. Follow
-`cluster/bootstrap/argocd/README.md` for exact Helm and Kubernetes
-API commands. Use the upstream Core chart settings: disable
-`server`, `dex` and `notifications`. Never expose an Argo CD
-web UI/API server, route, ingress, OIDC client, or unnecessary admin
-dashboard: **the operator manages GitOps through `Application` and
-`ApplicationSet` CRDs via Kubernetes RBAC/`kubectl` only**.
+**Argo CD Core v3.6.1** (bootstrap chart `10.14.0`) runs headless;
+it has no public UI/API server, Dex or notifications. The initial
+Core installation remains a **separate bootstrap Helm release**.
+`garden-root` is live and reconciles the `garden` AppProject,
+namespaces, source repositories, and independent manual-sync
+Applications; the root tracks **`bootstrap/talos-foundation`**.
 
-The initial Core installation does not need a PVC; Redis is a cache.
-Keep the Argo CD Core Helm release independent from the root Application,
-which initially manages only a reviewed `garden` AppProject, not child
-applications or Cilium. Add each platform extension as a child Application
-only after validating its prerequisites. Prefer Argo CD as the owner of
-OpenEBS, not a separate manual Helm release. Talos must first create and
-verify both UserVolumes through its own machine configuration, outside
-Argo CD. Define namespace ownership and ordered dependencies for
-CRDs/controllers before custom resources. Keep Cilium Helm-owned until
-a separately reviewed handoff, not a blind uninstall.
+Gateway API CRDs **v1.6.3** are Argo-owned via `gateway-api-crds`.
+The initially Helm-bootstrapped **Cilium v1.20.4** release has been
+adopted into Argo CD's `cilium-platform` Application. Its historic
+Helm release record remains and must **not** be uninstalled. The Argo
+chart reads `cluster/bootstrap/cilium/values.yaml`, preserving the
+Talos-safe CNI configuration while enabling Gateway hostNetwork and
+Envoy's `NET_BIND_SERVICE`. The `garden` AppProject explicitly
+allows `cilium-secrets`, where Gateway secret synchronization has
+Roles/RoleBindings. `cilium-platform` preserves the non-idempotent
+`kube-system/cilium-ca` and `hubble-server-certs` key/certificate
+data through `ignoreDifferences` and `RespectIgnoreDifferences=true`.
 
-Keep the desired-state layout small: `infrastructure/incus` for OpenTofu, `cluster/talos` and `cluster/bootstrap` for pre-GitOps sources, `cluster/apps` for Argo CD-managed platform and service resources. Source paths are a *target design*, not proof that they exist yet. Do not read the former NixOS `systems/*` HCL as current infrastructure.
+**No direct `kubectl apply` or `helm upgrade`** for Argo-owned
+platform resources after bootstrap. Work in a Git branch, review and
+merge the desired state, then *explicitly* sync the relevant Argo CD
+child. Argo CD is not auto-syncing the children, and a Git merge
+is not a live deployment. Bootstrap-level Talos/Incus work
+remains outside Argo CD. A main-branch merge alone does not move
+`garden-root` or its children from `bootstrap/talos-foundation`.
 
-## Storage gate (2026-11-07)
+## Storage and app acceptance
 
-Talos reports both dedicated XFS UserVolumes ready and mounted at
-`/var/mnt/k8s-nvme` and `/var/mnt/k8s-data`, and these mounts
-persisted across the 2026-11-07 node reboot. Kubernetes, Cilium and
-Argo root recovered healthy. Standalone OpenEBS LocalPV Hostpath v4.6.0
-sources with two nondefault StorageClasses and a native Kubernetes
-`MutatingAdmissionPolicy` mount-source guard are **staged only**
-under `cluster/apps/openebs`; the child Application is **not
-included** in `cluster/apps/root/kustomization.yaml`.
-No storage provisioning is activated. The admission policy still
-needs Kubernetes server-side dry-run, admission-mutation testing and
-an isolated missing-mount check. OpenEBS Hostpath's BasePath settings
-alone do not guarantee data-disk backing. Follow
-`cluster/apps/openebs/README.md`.
+The operator reports both Talos XFS UserVolumes mounted at
+`/var/mnt/k8s-nvme` and `/var/mnt/k8s-data` after reboot.
+OpenEBS Local PV Hostpath **v4.6.0** is live through the
+`openebs-localpv` Application. The two `nvme` and `data`
+StorageClasses use `WaitForFirstConsumer` and `Retain`, and
+the native mount-source guard was tested including fail-closed
+canaries. Operator reports initial disposable provisioning,
+write/read and cross-Pod data access passed. This does not
+demonstrate database persistence through Pod replacement or
+off-host recovery. Some older status descriptions under
+`cluster/apps/openebs/README.md` document the historical
+pre-activation checks.
+
+The root includes Kaniop **v0.21.0**, a disposable Kanidm
+`identity/kanidm-test` (`idm.localhost`), cert-manager
+**v1.21.3**, Cilium Gateways, ACME issuers and a new
+`identity/kanidm-primary` **Kanidm v1.11.2** instance at
+`auth.archaic.work`. This is a fresh database and 10Gi
+`nvme` PVC, not a migration from the deleted external
+Kanidm server at the same hostname. The operator reports the
+new resources deployed and routing healthy, but has **not**
+confirmed completion of the proposed personal `henner`
+account or authentication steps. Verify with Kanidm CLI before
+marking person enrollment passed.
+
+Public tests: HTTP `test.archaic.work` on TCP/80 and HTTPS
+`secure-test.archaic.work` on TCP/443, both unauthenticated.
+Let's Encrypt staging and production HTTP-01 issuance passed.
+The primary Kanidm is published by an SNI TLS passthrough
+`TLSRoute` on port 443, while the secure smoke site continues
+TLS termination at Envoy. Keep port 80 public for renewal.
+Do not claim renewal has been observed until checked.
 
 ## Platform apps
 
@@ -51,12 +74,12 @@ need published interfaces.
 
 - Install OpenEBS **Local PV Hostpath only**; no replicated OpenEBS engines. Configure exactly two explicitly named classes `nvme` and `data`, each selecting its Talos user-volume base directory. Both use `WaitForFirstConsumer` and `Retain`. Avoid automatic default-class assignment until decided. A missing mount is a stop condition, not a reason to provision on the system disk.
 - Install the AMD device plugin appropriate for the passed-through Radeon. Let Talos own the driver and ensure a real GPU pod completes a compute test before deploying inference workloads.
-- Manage Cilium Gateway and HTTPRoutes with Gateway API; terminate public TLS with cert-manager-managed Secrets. Preserve trustworthy forwarded headers, appropriate backend TLS, long-lived stream timeouts and explicit WebDAV LAN denial from public clients. Verify each control before public exposure.
+- Manage Cilium Gateway, HTTPRoutes and TLSRoutes with Gateway API. The smoke site terminates public TLS at Envoy; Kanidm uses SNI TLS passthrough to its own cert-manager-managed Secret. Preserve trustworthy forwarded headers, appropriate backend TLS, long-lived stream timeouts and explicit WebDAV LAN denial from public clients. Verify each control before public exposure.
 - Use SOPS/age for encrypted secrets. Argo CD does not decrypt SOPS by default; select, pin and test a plugin/controller workflow, scope its credentials and keep recovery keys off-cluster.
 
 ## Services and acceptance
 
-Introduce services independently (proposed: test app, Kanidm, GPU inference, Walter, Immich, WebDAV). This is a fresh installation: do **not** assume migration of previous state or identities. Give each service one owner/reference documenting image/version pin, callers, native OIDC contract or exception, data StorageClass, exposed endpoints, secrets, health probes, startup conditions, restore procedure and denial tests.
+Services already introduced independently: disposable and permanent-domain Kanidm, public HTTP/HTTPS smoke sites. Later candidates include GPU inference, Walter, Immich and WebDAV. Do **not** assume migration of former identities or application data. Give each service one owner/reference documenting image/version pin, callers, native OIDC contract or exception, data StorageClass, exposed endpoints, secrets, health probes, startup conditions, restore procedure and denial tests.
 
 Prefer standard Kubernetes resources, documented upstream charts and explicit StorageClasses. Prevent two simultaneous writers to a singleton data volume; RWO alone does not guarantee one pod. Check Argo CD sync **and** application readiness, real writes/reads, ingress policy and reboot persistence. Avoid auto-prune for data-bearing resources without reviewed safeguards.
 

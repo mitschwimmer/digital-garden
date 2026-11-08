@@ -1,35 +1,38 @@
 # Kubernetes cluster and IncusOS boundaries
 
-## Current observed stage (2026-11-07)
+## Current observed stage (2026-11-08)
 
-The operator installed and booted the one-node Talos control plane and
-reported a **successful full single-node Cilium connectivity test**.
-Before changing anything live, query the actual state rather than relying
-on this dated milestone.
+The operator reports a healthy **single-node** Talos cluster.
+Before acting, inspect live state rather than relying on this dated
+status. Its hardware identity and baseline deployment are:
 
-- IncusOS host: `measerve`; Incus VM: `garden-k8s`; Talos LAN IPv4:
-  `192.168.1.49` (the host's management address is `192.168.1.137`).
-- Talos **v1.14.5** on system disk, with Image Factory schematic
-  `26a7fb977530a932ea54bbbff1a50973c13b7648599ee4cb6c1a9fed62c15ea7`;
-  generated `talosctl` client matches v1.14.5. Talos image contains
-  `amdgpu`, `kata-containers`, and `qemu-guest-agent` extensions.
-- Kubernetes **v1.37.1** (single control-plane node), initialized with
-  `talosctl bootstrap`; `kubectl get nodes` reported **Ready**.
-- Cilium **v1.20.4** installed from pinned Helm chart in
-  `cluster/bootstrap/cilium/values.yaml`; Cilium agent, Envoy and
-  operator all reported **OK/Ready**. CLI pinned to **v0.20.2**. The
-  operator reports connectivity tests successful after a temporary
-  namespace-scoped Pod Security Admission exception.
-- The Talos installer ISO was detached after installation. Argo CD Core's
-  `garden-root` reported **Synced / Healthy** and the `garden` AppProject
-  exists (operator output 2026-11-07); exact live Helm chart revision was
-  not reported. No end-user services have been deployed. **Talos UserVolumes,
-  OpenEBS, GPU passthrough and Kata workloads are not yet accepted as
-  deployed/working.**
+- IncusOS host `measerve`; VM `garden-k8s` at IPv4
+  `192.168.1.49` (host management `192.168.1.137`).
+- Talos **v1.14.5**, Kubernetes **v1.37.1**, one Ready
+  control-plane node; standalone Cilium connectivity suite passed.
+- Cilium agent/operator/Envoy **v1.20.4**, Gateway API enabled
+  in hostNetwork mode via Argo CD's `cilium-platform`; the
+  former bootstrap Helm release record is retained.
+- Argo CD Core **v3.6.1**, `garden-root` live, child
+  Applications manual-sync. Argo-managed Gateway API CRDs
+  **v1.6.3** and cert-manager **v1.21.3**.
+- XFS Talos UserVolumes `u-k8s-nvme` (128Gi) and
+  `u-k8s-data` (1Ti), mounted after reboot.
+- OpenEBS Local PV Hostpath **v4.6.0**, `nvme` and `data`
+  StorageClasses, working mount-source guard and initial
+  disposable provisioning tests, as reported by the operator.
+- TCP 80/443 forwarded to this node. Operator-tested public
+  HTTP and HTTPS smoke websites and ACME HTTP-01 issuance;
+  `auth.archaic.work` uses Cilium TLS passthrough to a
+  newly deployed Kaniop-managed Kanidm.
+- GPU hardware passthrough, device allocation and real ROCm
+  workload acceptance remain separate checks; no claim made.
+  Neither Kanidm off-host restore nor new-person sign-in is confirmed.
 
-**Compatibility gate:** Cilium v1.20.4 was e2e-tested through Kubernetes
-v1.36, not v1.37. The successful test is encouraging, but cannot replace a
-supported-version decision or operational smoke/restore tests.
+**Compatibility caveat:** Cilium v1.20.4 and cert-manager v1.21.3
+were tested upstream against older Kubernetes versions than
+v1.37.1. Observed functionality does not guarantee compatibility
+for upgrades or recovery.
 
 ## Ownership, source and verification
 
@@ -43,9 +46,9 @@ The old NixOS `systems/*` and container-era services are historical and
 must not be deployed.
 
 OpenTofu owns the Incus VM and block devices; Talos owns the operating
-system and mounts; Helm owns the initial Cilium release; future Argo CD
-owns only explicitly handed-off cluster add-ons and apps. Do not have
-Argo CD and a separate Helm workflow reconcile the same Cilium resources.
+system and mounts; the initial Helm release record for Cilium remains for bootstrap
+history, but Argo CD's `cilium-platform` now owns its desired state.
+Do not run competing Helm changes or uninstall the old release.
 
 The host's prepared `local` (Samsung 9100 PRO NVMe) and mirrored `data`
 (HDDs) ZFS pools are not OpenTofu-managed. Do not delete or rebuild them
@@ -97,56 +100,41 @@ cilium connectivity test --single-node \
 ```
 
 Clean up ephemeral test namespaces via the Cilium CLI after acceptance.
-Do **not** reinstall the working CNI. Keep Helm as Cilium's owner until
-a carefully reviewed Argo CD adoption; a blind uninstall can strand the
-cluster networking. Gateway API is not enabled by the initial Helm values.
+Do **not** reinstall the working CNI. Cilium's reviewed Argo adoption and Gateway API enablement passed on
+2026-11-08. The bootstrap Helm release must not be uninstalled:
+doing so can remove the live CNI. Inspect Argo's
+`cilium-platform` status before subsequent changes.
 
-## Current Talos volumes and pending guard (2026-11-07)
+## UserVolumes, OpenEBS and next dependencies (2026-11-08)
 
-The first `UserVolumeConfig` patch failed because the whole-disk
-locator did not bind the `system_disk` CEL attribute. After correcting
-both selectors while retaining by-id and size constraints, the
-operator reports **both XFS volumes ready and mounted**:
+- `u-k8s-nvme`: guest `/dev/sdc` mounted at
+  `/var/mnt/k8s-nvme`; `u-k8s-data`: `/dev/sdb` at
+  `/var/mnt/k8s-data`. Both are XFS and passed the
+  operator-reported Talos reboot persistence test.
+  The system disk remains separate on `/dev/sda`.
+- OpenEBS Local PV Hostpath v4.6.0, the `nvme` and `data`
+  StorageClasses and the native mount-source guard are live.
+  Guard-positive and guard-fail-closed admission canaries,
+  followed by disposable first provisioning/write/read,
+  reportedly passed. Guard scope is specific to the
+  configured helper; it is not a general data-backup policy.
+- The next identity acceptance is to verify personal account
+  `henner` on the new `auth.archaic.work` Kanidm. The
+  registration commands were provided, but outcome **not reported**.
+  Use a dedicated token cache so credentials from the
+  deleted external `auth.archaic.work` server are not reused.
+- Create a Kanidm-consistent off-host backup and **verify
+  restoration** into a disposable environment before relying
+  on identity data. Cert-manager renewal and new Kanidm Pod
+  replacement remain untested.
+- Later validate Radeon RX 9060 XT GPU visibility, device
+  plugin allocation and a real ROCm workload before calling
+  passthrough complete. Kata opt-in requires nested KVM checks.
 
-- `u-k8s-nvme`: source `/dev/sdc`, target `/var/mnt/k8s-nvme`
-- `u-k8s-data`: source `/dev/sdb`, target `/var/mnt/k8s-data`
-
-The operator rebooted the Talos node, and both XFS mounts persisted
-on their original block devices. Kubernetes v1.37.1 returned Ready,
-Cilium components OK, and Argo CD root Synced/Healthy. OpenEBS
-LocalPV Hostpath v4.6.0, two StorageClasses and a Kubernetes v1.37
-native `MutatingAdmissionPolicy` helper mount guard are **staged
-in source only**, not connected to the root. The guard is still
-untested and must pass API/admission and isolated missing-mount
-checks. See `cluster/apps/openebs/README.md`.
-
-## Next dependencies
-
-1. Verify node/Cilium remain healthy and secure off-host copies of
-   Talos credentials, the working `talosconfig`, kubeconfig and etcd
-   recovery material.
-2. Argo CD Core's `garden-root` now reports **Synced / Healthy**.
-   Keep Cilium's existing Helm release independent. Next, verify two
-   identified, apparently unformatted block devices and perform a
-   **Talos machine-configuration dry-run only** before authorizing
-   filesystem initialization. Talos disk discovery of no signatures
-   does not itself prove there is no valuable data.
-3. Configure **two** explicit Talos UserVolumes on the existing extra
-   disks, via Talos machine configuration *outside Argo CD*. Validate
-   selectors, mounts, restart persistence and data-disk isolation.
-4. Let **Argo CD** deploy OpenEBS Local PV Hostpath and manage the two
-   `nvme` and `data` StorageClasses (`WaitForFirstConsumer`, `Retain`,
-   neither default). Do not enable provisioning until both actual mounts
-   are verified; fail closed if a mount is missing.
-5. Later cold-attach the Radeon physical GPU and verify Talos driver,
-   advertised `amd.com/gpu`, and a real GPU compute workload. Do not
-   infer functioning GPU from extensions alone. Kata is future opt-in,
-   requires nested KVM and a reviewed RuntimeClass; keep it off by default.
-
-The Radeon RX 9060 XT (`1002:7590`) was originally at
-`0000:04:00.0`, IOMMU group 13, with audio function
-`0000:04:00.1` in group 14. Reinspect host PCI/IOMMU identity before
-passthrough. Intel iGPU stays available to IncusOS.
+The Radeon RX 9060 XT (`1002:7590`) was formerly reported at
+`0000:04:00.0` (audio `0000:04:00.1`). Reinspect host PCI and
+IOMMU identity before changing passthrough; never assume
+the device addresses remain stable.
 
 ## Operational checks
 
