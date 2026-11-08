@@ -124,11 +124,26 @@ manual recovery commands that invalidate the operator's stored
 credentials. Browser-based authentication, WebAuthn, OIDC, external
 TLS/DNS and public exposure remain **out of scope**.
 
+## Test acceptance status (operator, 2026-11-08)
+
+The operator confirmed that Kanidm started successfully, its
+administrator Secret was generated, HTTPS verified against the private
+CA, and `idm_admin@idm.localhost` login plus `self whoami` succeeded
+after isolating the local Kanidm CLI token cache. The first NVMe
+provision/write/read and cross-Pod read smoke tests also succeeded.
+
+**Explicitly deferred:** creating a person record, verifying the
+Kanidm database survives a Pod replacement, testing backups/restores,
+and demonstrating node reboot reliability. These were **not** passed;
+the operator accepts them as postponed. Keep the instance test-only.
+The following procedure is preserved as optional future validation.
+
 ## 4. Authentication and database persistence (test only)
 
-HTTPS with the locally issued CA has been validated by the operator.
-That does **not** yet establish that authentication or persisted user
-records work. Before running this phase confirm the Kanidm CR reports
+HTTPS with the locally issued CA and an authenticated CLI login have
+been validated by the operator. This does **not** establish that a
+newly written record survives a Pod replacement. Before running the
+optional persistence phase confirm the Kanidm CR reports
 one Ready replica, its 2Gi `nvme` PVC is Bound, and the node remains
 stable.
 
