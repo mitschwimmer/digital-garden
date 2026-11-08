@@ -17,57 +17,88 @@ record remains; Cilium is now managed through Argo CD.
 
 ### One-time migration: bootstrap/talos-foundation to main
 
-The `main` branch already contains the prior deployment manifests.
-This migration changes **only Git revision selectors** in the
-self-managed Argo application definitions. It does not update
-Helm chart versions, workload specifications, persistent storage,
-auto-sync settings, or prune behavior.
+The `main` branch already contains the previous live deployment.
+This migration changes **only the Git source-revision selectors** in
+Argo `Application` definitions; Helm versions, workload resources,
+persistent data, manual child sync policies and prune settings
+remain unchanged.
 
-First merge the revision-switch PR into `main`. Then from
-the workstation in `nix develop`:
+After merging the revision-switch PR into `main`, from the
+workstation in `nix develop`:
 
 ```sh
 git switch main
 git pull --ff-only origin main
 export KUBECONFIG="$PWD/.operations/talos/kubeconfig"
+
+# Inspect the existing root and controller without mutating resources.
+kubectl -n argocd get application garden-root \
+  -o jsonpath='{.spec.source.targetRevision}{"\n"}'
+kubectl -n argocd get pods
+kubectl -n argocd get configmap argocd-cm
+
+# Validate that the newly merged root definitions render locally.
+kubectl kustomize cluster/apps/root > /tmp/garden-root-main.yaml
+# With the old ref fetched, compare desired manifests in Git:
+git diff origin/bootstrap/talos-foundation origin/main -- cluster/apps/root
+```
+
+Review the `git diff`: the intended differences under
+`cluster/apps/root` are **only** child Application
+`targetRevision` changes to `main`. Local Kustomize and Git
+diffs do **not** replace live Argo comparison, but are a safe
+independent preflight if the CLI is unable to initialize.
+
+**Core CLI caveat:** `argocd --core app diff garden-root --revision main`
+can hang while initializing its settings informers. If interrupted
+with Ctrl+C it may report
+`timed out waiting for settings cache to sync`; the message
+alone is **not proof of a bad repository revision or an unhealthy
+running controller**. Do not repeatedly retry it or restart Cilium,
+Argo or Redis as a workaround. Verify Kubernetes API availability,
+Argo controller health, and the locally reviewed change first.
+
+The usual one-time change is:
+
+```sh
 kubectl config set-context --current --namespace=argocd
 argocd login --core
-
-# The root is already live and synced against the old branch.
-kubectl -n argocd get application garden-root \
-  -o jsonpath='{.spec.source.targetRevision}{"\n"}'
-# Expected BEFORE migration: bootstrap/talos-foundation
-
-# Preflight: inspect what Argo plans to change at the new branch.
-argocd --core app diff garden-root --revision main
-# Expected: child Application Git targetRevision values change to main.
-# Unexpected delete/recreate, spec changes, prune or credential diffs:
-# stop and review; do not retarget yet.
-
-# One-time change to the existing root Application's source revision.
-# This is Argo CD's API, not a manual manifest install.
 argocd --core app set garden-root --revision main
+```
 
-# Root auto-syncs AppProject/child Application *definitions* only.
-argocd --core app wait garden-root --sync --health --timeout 180
+If **Core CLI commands** are also blocked by the same settings-cache
+issue, use Kubernetes' native patch against the **existing root
+Application only** instead:
+
+```sh
+kubectl -n argocd patch applications.argoproj.io garden-root \
+  --type=merge \
+  -p '{"spec":{"source":{"targetRevision":"main"}}}'
+```
+
+This one-time bootstrap ownership operation is **not** a manual
+workload manifest installation. Do not patch child Applications or
+apply Helm charts manually. The root's `automated.selfHeal=true`
+and `prune=false` let Argo reconcile child Application
+**definitions**, while **all child workloads remain manual-sync**.
+
+Verify that Argo processed the new revision; the root may show
+its previous `status.sync.revision` briefly until reconciliation:
+
+```sh
 kubectl -n argocd get application garden-root \
-  -o jsonpath='{.spec.source.targetRevision}{"\n"}'
+  -o jsonpath='{.spec.source.targetRevision}{"\t"}{.status.sync.revision}{"\t"}{.status.sync.status}{"\t"}{.status.health.status}{"\n"}'
+git rev-parse origin/main
 kubectl -n argocd get applications -o wide
 ```
 
-The `main`-tracked root uses `automated.selfHeal=true` with
-`prune=false`; **all child Applications retain manual sync**.
-They will track the new revision when the root auto-reconciles their
-`Application` objects, but this should not cause application
-workloads to be redeployed. Expect a refreshed Git revision and
-possibly temporary OutOfSync status on children. Do not bulk-sync
-Cilium, Kanidm, or other children just to remove that status;
-compare source manifests before approving any real sync.
+Require root `spec.source.targetRevision=main`, reported
+`status.sync.status=Synced`, `status.health.status=Healthy`,
+and `status.sync.revision` matching the merged `main` commit.
+If the status revision still points to the former branch's SHA,
+the root has **not** finished processing the switch.
 
-Check the two multi-source children carefully: `cilium-platform`
-and `openebs-localpv` should retain their **pinned Helm chart
-versions** while their `$garden` secondary Git source switches to
-`main`:
+Check the two multi-source children and one single-source child:
 
 ```sh
 kubectl -n argocd get application cilium-platform \
@@ -78,12 +109,22 @@ kubectl -n argocd get application kanidm-primary \
   -o jsonpath='{.spec.source.targetRevision}{"\n"}'
 ```
 
-Expected output is `main` in each case. Keep
-`bootstrap/talos-foundation` until the migration is verified;
-do not delete the live root Application or its historical Helm
-releases. If a child is still on the old revision, inspect
-`garden-root` sync/diff and the child spec; do **not** change it
-imperatively one by one.
+All three must output `main`. Check that Cilium stays
+`1.20.4` and OpenEBS stays `4.6.0` as Helm chart
+sources. Some children may temporarily show `OutOfSync`
+after their target revision changes; **do not bulk-sync**
+Cilium, storage, certificates or identity workloads merely to
+clear that status. No prune or workload replacement is part
+of this branch migration.
+
+Keep the old branch until the migration is verified. If the
+root does not reconcile, inspect the actual error from:
+
+```sh
+kubectl -n argocd describe application garden-root
+kubectl -n argocd logs statefulset/argocd-application-controller --tail=100
+kubectl -n argocd logs deployment/argocd-repo-server --tail=100
+```
 
 #### Recovery if root cannot render main
 
@@ -92,8 +133,11 @@ is intentionally retained. Restore the root revision through the
 same Argo CD API:
 
 ```sh
-argocd --core app set garden-root --revision bootstrap/talos-foundation
-argocd --core app wait garden-root --sync --health --timeout 180
+kubectl -n argocd patch applications.argoproj.io garden-root \
+  --type=merge \
+  -p '{"spec":{"source":{"targetRevision":"bootstrap/talos-foundation"}}}'
+# Observe and confirm root reconciliation rather than forcing child syncs:
+kubectl -n argocd get application garden-root -o wide
 ```
 
 Do not use prune or uninstall controllers. A root branch rollback
