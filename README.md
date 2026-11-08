@@ -47,11 +47,15 @@ operator **has not reported whether they succeeded**.
   smoke tests, and Kanidm resources. Child syncs are manual;
   a Git commit or merge **does not automatically sync them**.
 
-**Branch note:** The root Application and its declared children
-still target `bootstrap/talos-foundation`. Merging that branch
-into `main` records a stable repository baseline but **does not
-automatically switch GitOps to follow `main`**. Make a separate,
-reviewed change when switching the watched revision.
+**GitOps revision migration:** The root bootstrap manifest and all
+Argo CD child Application sources in `main` now target **`main`**.
+To change the **running** `garden-root` from its old
+`bootstrap/talos-foundation` source, perform the one-time
+`argocd --core app set garden-root --revision main` transition
+documented in [Argo CD bootstrap and migration](cluster/bootstrap/argocd/README.md).
+Until that command succeeds, Git alone does not retarget the
+running Argo CD controller. Child Applications remain manual-sync
+with pruning disabled.
 
 ## Next session
 
