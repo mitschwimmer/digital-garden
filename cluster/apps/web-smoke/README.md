@@ -59,6 +59,25 @@ after successful adoption. **Do not run another Helm upgrade or
 uninstall Cilium.** Retain the historic Helm release record for audit
 until separately retired without deleting live workloads.
 
+The desired Gateway integration adds namespaced secret-sync
+`Role`/`RoleBinding` resources in `cilium-secrets`. The Garden
+AppProject **explicitly permits** that namespace as a destination;
+otherwise the sync is rejected as an invalid task before any apply.
+Do not open a wildcard namespace destination.
+
+Cilium's chart marks the existing `kube-system/cilium-ca` and
+`kube-system/hubble-server-certs` as non-idempotent Helm-generated
+Secrets. The first Argo diff can show different certificate bytes
+because Helm rendering generates new keys/certificates. The
+`cilium-platform` Application therefore ignores only these two
+Secrets' certificate/key data and sets `RespectIgnoreDifferences=true`
+so Argo does not replace the **pre-existing live credentials during
+sync**. The latter option matters: ignoring diffs alone does not
+prevent updates. Review that the Secret data differences disappear
+from the diff before syncing. This handling assumes both Secrets
+already exist; do not delete or recreate them. If future Cilium
+templates add other non-idempotent Secrets, inspect each explicitly.
+
 Before first sync, inspect the current chart/release, live values and
 Argo diff carefully to catch drift (notably Cilium API endpoint,
 capabilities, PodCIDR/IPAM, cgroup settings, operator replicas):
@@ -69,6 +88,8 @@ cilium status --wait
 helm -n kube-system list
 helm -n kube-system get values cilium
 argocd --core app diff cilium-platform
+# Confirm the live CA and Hubble Secrets exist; do not print their bytes:
+kubectl -n kube-system get secret cilium-ca hubble-server-certs
 ```
 
 Only when the proposed changes amount to the expected Gateway API
