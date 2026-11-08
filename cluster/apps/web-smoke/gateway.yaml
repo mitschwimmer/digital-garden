@@ -1,5 +1,6 @@
 # Cilium hostNetwork Gateway: public port 80 on the Talos node.
-# Dedicated port-80 listener serves the HTTP test and cert-manager's\n# temporary HTTP-01 routes for secure-test.archaic.work.
+# Dedicated port-80 listener serves the HTTP test and cert-manager's
+# temporary HTTP-01 routes for secure-test.archaic.work.
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
