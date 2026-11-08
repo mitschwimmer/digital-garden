@@ -13,3 +13,5 @@ resources:
   - cert-manager-oci-repository.yaml
   - cert-manager-application.yaml
   - identity-certificates-application.yaml
+  - web-smoke-namespace.yaml
+  - web-smoke-application.yaml
