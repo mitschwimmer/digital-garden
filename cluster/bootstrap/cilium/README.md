@@ -201,102 +201,35 @@ and only then retire Helm release bookkeeping. The new controller must not
 fight the old owner. Until then, Helm is the sole owner and Cilium upgrades
 are separate, reviewed operations.
 
-## Public HTTP Gateway smoke test (manual, 2026-11-08)
+## Public HTTP and HTTPS Gateway via Argo CD (2026-11-08)
 
-First prove that a browser can reach the unauthenticated static page at
-`http://test.archaic.work/`. The router forwards public TCP 80 (and
-eventually 443) to the Talos VM `192.168.1.49`. The existing Cilium
-v1.20.4 bootstrap Helm release remains **the only Cilium owner**.
-No public Kanidm route, auth middleware, cert-manager ACME solver or
-HTTPS Gateway listener is introduced at this stage.
+The Cilium installation was originally bootstrapped through a **one-time**
+Helm release. Now that Argo CD is running, all desired-state changes,
+including the Gateway API CRDs and the pinned Cilium Helm chart, are
+handled through **Argo CD**. No manual `kubectl apply` or `helm upgrade`
+is part of the new workflow.
 
-The intended data path is **router -> Talos node:80 -> Cilium hostNetwork
-Envoy -> Gateway/HTTPRoute -> web-smoke Service/Pod**. Cilium's pinned
-Gateway API controller requires the Gateway API CRDs before enabling
-the Gateway functionality. The official Cilium v1.20.4 documentation
-uses Gateway API **v1.6.3** and documents hostNetwork and
-`NET_BIND_SERVICE` for a privileged listener.
+The explicit transition from bootstrap Helm ownership to Argo CD is
+documented in [the two-site Gateway runbook](../../apps/web-smoke/README.md).
+The new `gateway-api-crds` Application pins Gateway API v1.6.3
+upstream CRDs, `cilium-platform` renders the exact pinned Cilium
+v1.20.4 chart using **this** values file, and a separate `web-smoke`
+Application manages HTTP Gateway/API workloads. This is a controlled
+handoff **of the same installation**, not a new Cilium release.
 
-### Install Gateway API CRDs
+The desired Cilium values enable Gateway API in hostNetwork mode and
+give Envoy permission to bind **80/443**, matching the router forwards
+to Talos `192.168.1.49`; they preserve the original Talos-safe agent
+capabilities and the KubePrism API endpoint. The operator must first
+compare the pinned Git values with the actual live Helm values and
+review `argocd --core app diff cilium-platform` before accepting the
+handoff. A mistaken CNI change can disrupt the entire one-node cluster.
 
-From the repository root, `nix develop`, with the live kubeconfig:
+After the first verified Argo CD sync, treat Argo as the sole
+configuration owner. The historical Helm release metadata can remain
+for audit; **never uninstall the original Helm release** to try to
+remove it, as that would delete the working CNI. Do not invoke further
+Helm release changes against that release.
 
-```sh
-export KUBECONFIG="$PWD/.operations/talos/kubeconfig"
-kubectl get nodes
-cilium status --wait
-helm -n kube-system list
-helm -n kube-system get values cilium
-kubectl get gatewayclass --ignore-not-found
-```
-
-Confirm the release is still `cilium` chart **1.20.4** and that
-the installed values are compatible with this repository's existing
-Talos/KubePrism and capability settings. Apply the **pinned upstream**
-Gateway API CRD bundle (includes Cilium's required standard and
-experimental CRDs):
-
-```sh
-kubectl apply --server-side \
-  -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.6.3/experimental-install.yaml
-
-kubectl get crd gatewayclasses.gateway.networking.k8s.io \
-  gateways.gateway.networking.k8s.io \
-  httproutes.gateway.networking.k8s.io
-```
-
-This is a platform-level CRD installation, not an Argo CD-managed
-override of the Helm-owned Cilium CNI.
-
-### Enable the existing Cilium Helm release
-
-Review the new `cluster/bootstrap/cilium/values.yaml`: it retains
-Talos-safe Cilium capability sets, enables `gatewayAPI.enabled`,
-`gatewayAPI.hostNetwork.enabled`, and grants standalone Envoy
-`NET_BIND_SERVICE` *alongside* its default `NET_ADMIN` and `SYS_ADMIN`.
-Use the **same pinned chart version and existing release**:
-
-```sh
-mkdir -p .operations/talos
-helm template cilium oci://quay.io/cilium/charts/cilium \
-  --version 1.20.4 --namespace kube-system \
-  --values cluster/bootstrap/cilium/values.yaml \
-  > .operations/talos/cilium-gateway-rendered.yaml
-
-# Inspect the generated Cilium/Envoy DaemonSet, operator, ConfigMaps
-# and RBAC before applying. Keep live values for comparison:
-helm -n kube-system get values cilium > .operations/talos/cilium-live-values.yaml
-
-helm upgrade cilium oci://quay.io/cilium/charts/cilium \
-  --namespace kube-system --version 1.20.4 \
-  --reuse-values --values cluster/bootstrap/cilium/values.yaml \
-  --wait --timeout 10m
-```
-
-If Gateway status does not reconcile after the Helm upgrade, Cilium's
-documentation calls for restarting its operator and agent to discover
-the new CRDs and feature gate. On this single-node cluster the restart
-briefly interrupts networking; observe readiness while it rolls:
-
-```sh
-kubectl -n kube-system rollout restart deployment/cilium-operator
-kubectl -n kube-system rollout status deployment/cilium-operator --timeout=300s
-kubectl -n kube-system rollout restart daemonset/cilium
-kubectl -n kube-system rollout status daemonset/cilium --timeout=300s
-cilium status --wait
-kubectl get gatewayclass cilium
-```
-
-If Cilium or the node becomes unhealthy, stop before syncing the web
-Application. Inspect `helm -n kube-system history cilium` and the
-Cilium/Envoy events rather than reinstalling the CNI.
-
-### Register and test the site
-
-The Argo CD root App registers a manual-sync `web-smoke` child in a
-restricted `web-smoke` namespace. It owns only a ConfigMap, unprivileged
-NGINX Deployment, ClusterIP Service, Gateway and HTTPRoute. Continue
-at [the site acceptance runbook](../../apps/web-smoke/README.md).
-
-Cilium reference:
-https://docs.cilium.io/en/stable/network/servicemesh/gateway-api/gateway-api/
+Workflow, acceptance and ACME follow-up:
+[web-smoke/README.md](../../apps/web-smoke/README.md).

@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - site.yaml
   - gateway.yaml
+  - site-secure.yaml

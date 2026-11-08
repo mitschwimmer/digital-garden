@@ -18,9 +18,11 @@ spec:
         crds:
           enabled: true
           keep: true
-        # No Cilium Gateway API integration or ACME issuer at this stage.
-        # Cilium bootstrap still has gatewayAPI.enabled=false.
-        # Gateway-aware certificate reconciliation needs later review.
+        # Reconcile only after the Argo-managed v1.6.3 Gateway API CRDs
+        # are established; enabling this changes the controller deployment.
+        config:
+          gatewayAPI:
+            enabled: true
   destination:
     server: https://kubernetes.default.svc
     namespace: cert-manager

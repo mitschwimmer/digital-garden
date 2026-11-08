@@ -120,136 +120,68 @@ Secret's `tls.key` or copy it to Git. **Only then**, after checking
 OpenEBS `nvme`/mount guard, sync `kanidm-test` and verify HTTPS using
 the public CA, as documented in `../kanidm/README.md`.
 
-## Preparing Let's Encrypt HTTP-01 (not deployed yet)
+## Let's Encrypt HTTP-01 through Argo CD (staged test, 2026-11-08)
 
-**Decision, 2026-11-08:** use **HTTP-01**, not DNS-01, to avoid
-granting the cluster DNS-provider API access. The operator has explicitly
-deferred further disposable Kanidm person/data-persistence testing.
-The existing `idm.localhost` leaf and CA stay unchanged. Public ACME
-cannot issue for `localhost` names. A future real Kanidm installation
-will need a new FQDN **and a new database**; the test DB's domain is
-immutable.
+HTTP-01 is the operator's chosen ACME challenge. It requires public
+TCP **80**, a real public A/AAAA record and no DNS-provider API token.
+The existing `idm.localhost` CA and Kanidm Secret are unchanged;
+no public Kanidm route is created, and `localhost` cannot get a
+Let's Encrypt certificate.
 
-HTTP-01 verifies the response to
-`http://<REAL_FQDN>/.well-known/acme-challenge/<TOKEN>` on **public
-TCP port 80**. It still requires control of an ordinary public A/AAAA
-record, but **no DNS automation or DNS API credentials**. It does not
-support wildcard certificates. The port-80 challenge must be reachable
-for renewals too; it cannot be a one-time firewall exception.
+The first public acceptance uses **two separate static Pods**:
 
-### Prerequisites / stop conditions
+- `http://test.archaic.work/` on port 80: verify public DNS, router
+  forwarding, Cilium Gateway and HTTPRoute.
+- `https://secure-test.archaic.work/` on port 443: use a distinct
+  Pod/Service and a browser-trusted **production** Let's Encrypt
+  certificate, after staging challenge issuance.
 
-1. Select a permanent or throwaway **publicly resolvable hostname**
-   under a domain controlled by the operator, and an ACME account email.
-   Verify CAA restrictions when present. Never reuse `idm.localhost`.
-2. Establish how worldwide inbound **TCP/80** reaches the cluster's
-   Envoy gateway. The VM currently has the private LAN address
-   `192.168.1.49`. The operator reports **router TCP/80 and TCP/443
-   forwards to this address**, but an external connection has **not**
-   been validated, and public-IP, upstream firewall, ISP, and CGNAT
-   status remain unknown. Port 80 is sufficient for initial HTTP-01;
-   disable the TCP/443 forwarding rule until an intentional, reviewed
-   HTTPS Gateway exists. Do not assume a public LoadBalancer exists.
-   Test reachability **from outside the LAN** after the Gateway is live.
-3. Inspect the hostname's public **A and AAAA** records. If AAAA is
-   published, its IPv6 destination must answer the same HTTP-01
-   challenge; an incorrect IPv6 record can cause validation failure.
-4. Confirm Gateway API CRDs (at least `GatewayClass`, `Gateway`,
-   `HTTPRoute`) are installed at a version supported by the pinned
-   **Cilium v1.20.4** and **cert-manager v1.21.3**. Inspect existing
-   GatewayClass ownership; do not install another ingress/controller.
-5. Confirm the node, Cilium, cert-manager controllers and OpenEBS
-   remain healthy before a Cilium Helm change. Cilium v1.20.4 and
-   cert-manager v1.21.3 are not officially compatibility-tested against
-   Kubernetes v1.37.1. Gateway behavior is an additional acceptance gate.
+The router already forwards TCP/80 and TCP/443 to the Talos VM
+`192.168.1.49`. The operator previously used `*.archaic.work`
+for an external Caddy service; **check the current public DNS and
+mobile-network reachability**, and avoid incorrect AAAA records.
+HTTP-01 does not issue wildcard certificates: the Certificate uses the
+concrete `secure-test.archaic.work` hostname.
 
-Read-only preflight from the workstation:
+All Kubernetes resources and the pinned chart are now prepared as
+**manual-sync Argo CD Applications** (not manual `kubectl apply`
+or `helm upgrade`):
 
-```sh
-kubectl get nodes
-cilium status --wait
-helm -n kube-system get values cilium
-kubectl get crd gatewayclasses.gateway.networking.k8s.io \
-  gateways.gateway.networking.k8s.io \
-  httproutes.gateway.networking.k8s.io
-kubectl get gatewayclass,gateways -A
-kubectl -n cert-manager get deploy
-```
+1. `gateway-api-crds` fetches the upstream Gateway API v1.6.3
+   `config/crd/experimental` Kustomization. Check CRD ownership before
+   first sync; do not prune the CRDs.
+2. `cilium-platform` uses the same pinned Cilium 1.20.4 chart and
+   Git-pinned Talos-safe values, taking over the existing bootstrap
+   Helm-installed resources via a reviewed Argo CD diff.
+3. The existing `cert-manager` Application now enables
+   `config.gatewayAPI.enabled`; sync after the CRDs are present
+   so the controller discovers the Gateway API solver.
+4. `web-smoke` creates both static Pods/Services and an HTTP-only
+   `*.archaic.work` listener on port 80, admitting HTTPRoutes from
+   its own namespace. Test HTTP publicly first.
+5. `web-smoke-acme-staging` issues a certificate for
+   `secure-test.archaic.work` via the port-80 temporary HTTPRoute
+   solver. Confirm Ready; staging certs are **not trusted by browsers**.
+6. `web-smoke-acme-production` requests a separate production
+   certificate and Secret. Once Ready, synchronize
+   `web-smoke-https`, which exposes the second backend over
+   Cilium Envoy's port-443 HTTPS listener. Browser must show valid
+   TLS without a trust exception.
 
-### Platform enablement (requires separate review)
+The certificate's TLS Secret stays scoped to `web-smoke`, and
+cert-manager-generated ACME keys remain in Kubernetes Secrets.
+HTTP-01 port 80 must stay reachable for certificate renewal. This
+public website test does not extend trust to the private Kanidm test,
+nor establish backup/recovery acceptance.
 
-The bootstrap Cilium Helm release **still owns Cilium** and has
-`cluster/bootstrap/cilium/values.yaml`:
-`gatewayAPI.enabled: false`. Do **not** install a second CNI or
-simultaneously add an Argo CD Cilium Application. A change to enable
-Gateway API must be a separately reviewed **Helm release upgrade**
-using the currently installed values, the same pinned chart, rendered
-diff and tested rollback. Enabling/disrupting Cilium on the single-node
-control plane can interrupt the entire cluster.
-
-The final traffic plumbing choice is pending the public network facts.
-On a single node without a Kubernetes LoadBalancer implementation,
-Cilium's **Gateway API hostNetwork mode** is a candidate:
-`gatewayAPI.hostNetwork.enabled: true`. That binds HTTP listeners
-directly to node interfaces, requiring an externally reachable path to
-node TCP/80. For a privileged 80 listener, Cilium's Envoy also needs
-the chart's `envoy.securityContext.capabilities.keepCapNetBindService`
-and `NET_BIND_SERVICE` capability set correctly. Inspect current
-Envoy capabilities and bind conflicts before enabling it. Alternative
-LB/NodePort arrangements require their own explicit service and
-external forwarding design; do not assume them here.
-
-cert-manager also requires `config.gatewayAPI.enabled: true`
-in the **existing** Argo-managed Helm chart values. Install Gateway
-API CRDs before cert-manager starts or restart the cert-manager
-controller after enabling them. Review this chart-values change
-separately, keep the existing CRDs and local issuer intact, and verify
-`identity-test-tls` remains Ready.
-
-### First certificate: isolated staging issuance
-
-Once the prerequisites pass and the operator approves the external
-port-80 exposure:
-
-1. Create a dedicated small Gateway/ACME test namespace and a
-   GitOps-managed **Cilium Gateway with only an HTTP listener on port
-   80**. Initially allow solver `HTTPRoute` objects from **the same
-   namespace only**, and do not create application routes.
-2. Configure a manual-sync, no-prune staging `Issuer` in that same
-   namespace, pointing at
-   `https://acme-staging-v02.api.letsencrypt.org/directory`.
-   Set `spec.acme.solvers[].http01.gatewayHTTPRoute.parentRefs`
-   to the verified Gateway (namespace must match). Use
-   `serviceType: ClusterIP` for the temporary challenge Service
-   if compatible with the chosen network policies.
-3. Issue a disposable `Certificate` for the selected **real public**
-   FQDN, storing its TLS Secret exclusively in that namespace.
-   cert-manager creates a temporary `cm-acme-http-solver-*` Pod,
-   Service and HTTPRoute on `/.well-known/acme-challenge/<TOKEN>`.
-   Inspect Challenge/Order state and Gateway route acceptance; test
-   HTTP-01 retrieval from an **external** network.
-4. Confirm the certificate reaches Ready and the Secret exists.
-   Staging certificates are deliberately **not browser-trusted**.
-   Test renewal separately. Never expose the disposable Kanidm
-   application as part of this test.
-5. After staging acceptance, use a distinct **production** Issuer
-   with `https://acme-v02.api.letsencrypt.org/directory` and its own
-   ACME account Secret, with no automatic sync or prune until
-   explicitly reviewed. Plan target-namespace TLS Secret placement
-   and cross-namespace route admission separately before onboarding
-   real services.
-
-**Do not** prematurely enable public Gateway API, open the router,
-or sync any ACME resource just to prepare source. The real FQDN,
-public TCP/80 reachability and Helm owner handoff decision remain
-outstanding. Account private key Secrets stay in Kubernetes, never
-plaintext Git; off-host recovery still needs design.
+The exact sequence, Argo application names, curl commands, and
+browser acceptance gates live in
+[the web-smoke runbook](../web-smoke/README.md).
 
 References:
 - https://cert-manager.io/docs/configuration/acme/http01/
 - https://docs.cilium.io/en/stable/network/servicemesh/gateway-api/gateway-api/
 - https://letsencrypt.org/docs/challenge-types/
-- https://letsencrypt.org/docs/ipv6-support/
 
 ## What this proves—and what it does not
 

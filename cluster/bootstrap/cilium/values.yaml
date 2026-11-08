@@ -4,8 +4,10 @@
 # on the live node before onboarding any services; this pairing isn't
 # officially e2e-tested yet.
 #
-# This file is consumed by the one-time manual Helm bootstrap only.
-# Argo CD ownership requires a separately reviewed handoff.
+# Initially consumed by the bootstrap Helm release; the staged
+# cilium-platform Argo CD Application now uses this same file through
+# its multi-source Helm chart renderer. Review the adoption diff before
+# the first synchronization; do not run a competing Helm upgrade.
 
 # Talos's KubeControllerManager assigns node PodCIDRs.
 ipam:
@@ -51,18 +53,22 @@ securityContext:
       - SYS_RESOURCE
 
 # The cluster has a single node / single failure domain.
+# Restart the agent when Helm-generated Cilium configuration changes.
+# The first sync is a reviewed ownership handoff from bootstrap Helm.
+rollOutCiliumPods: true
+
 operator:
   replicas: 1
 
-# Helm still exclusively owns Cilium (including Gateway API). Host network
-# exposes Envoy directly on the Talos VM, 192.168.1.49, for router TCP/80.
-# Gateway and HTTPRoute objects are separately Argo CD-managed.
+# Argo-managed staged Gateway API: host-network Envoy on the Talos VM
+# for router TCP/80 and TCP/443. Gateway/HTTPRoute objects are separate
+# Argo CD Applications, with HTTPS gated on production certificate Ready.
 gatewayAPI:
   enabled: true
   hostNetwork:
     enabled: true
 
-# The standalone Cilium Envoy DaemonSet binds Gateway listener port 80.
+# The standalone Cilium Envoy DaemonSet binds Gateway listener ports 80 and 443.
 # Retain the chart's existing NET_ADMIN and SYS_ADMIN capabilities.
 envoy:
   enabled: true
