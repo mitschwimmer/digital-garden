@@ -25,7 +25,8 @@ spec:
       namespace: cert-manager
     - server: https://kubernetes.default.svc
       namespace: identity
-  # The Kaniop chart adds CRDs and cluster-scoped operator RBAC.
+  # Kaniop and cert-manager charts add CRDs and cluster-scoped RBAC;
+  # cert-manager also adds admission webhook configurations.
   # Keep the allowlist explicit, and do not enable broad wildcard grants.
   clusterResourceWhitelist:
     - group: ""
