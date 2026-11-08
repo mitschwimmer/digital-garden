@@ -1,5 +1,5 @@
 # New, independent permanent identity database.
-# The identity domain is immutable; confirm idm.archaic.work BEFORE first sync.
+# The identity domain is immutable; confirm auth.archaic.work BEFORE first sync.
 # No test PVC/Secret or Kanidm database is imported or repurposed.
 apiVersion: kaniop.rs/v1beta1
 kind: Kanidm
@@ -7,8 +7,8 @@ metadata:
   name: kanidm-primary
   namespace: identity
 spec:
-  domain: idm.archaic.work
-  origin: https://idm.archaic.work
+  domain: auth.archaic.work
+  origin: https://auth.archaic.work
   # Kaniop v0.21.0 embeds Kanidm client SDK v1.11.2.
   image: kanidm/server:1.11.2
   tlsSecretName: kanidm-primary-tls
