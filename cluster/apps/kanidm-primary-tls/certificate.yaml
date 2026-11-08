@@ -8,7 +8,7 @@ metadata:
 spec:
   secretName: kanidm-primary-tls
   dnsNames:
-    - idm.archaic.work
+    - auth.archaic.work
   issuerRef:
     kind: Issuer
     name: letsencrypt-kanidm-primary

@@ -24,7 +24,7 @@ spec:
     # Cilium forwards the encrypted stream directly to Kanidm: no
     # Gateway-managed certificate or TLS decryption for this hostname.
     - name: kanidm
-      hostname: idm.archaic.work
+      hostname: auth.archaic.work
       protocol: TLS
       port: 443
       tls:
