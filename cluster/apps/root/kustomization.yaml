@@ -21,3 +21,6 @@ resources:
   - web-smoke-acme-staging-application.yaml
   - web-smoke-acme-production-application.yaml
   - web-smoke-https-application.yaml
+  - kanidm-primary-tls-application.yaml
+  - kanidm-primary-application.yaml
+  - kanidm-primary-route-application.yaml
