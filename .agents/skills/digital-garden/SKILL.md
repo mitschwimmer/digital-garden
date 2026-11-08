@@ -18,13 +18,18 @@ and `/var/mnt/k8s-data`. The node is still a single failure domain.
 
 **GitOps ownership:** `garden-root` reconciles Argo CD AppProject,
 repository declarations, namespaces and *manual-sync* children.
-Their Git source declarations are now **`main`**, but the live
-`garden-root` must be changed exactly once using
-`argocd --core app set garden-root --revision main` and
-validated by its sync/health and child target revisions. Before
-that operator action, the live root may still track
-`bootstrap/talos-foundation`. See
-`cluster/bootstrap/argocd/README.md` for the migration and rollback. The Cilium v1.20.4 installation has been
+Their Git source declarations are now **`main`**, but the
+live `garden-root` needs a one-time source revision update.
+Prefer `argocd --core app set garden-root --revision main`;
+if Core CLI settings cache initialization hangs, use
+`kubectl -n argocd patch applications.argoproj.io garden-root`
+to change **only** `spec.source.targetRevision=main`.
+An interrupted Core CLI diff may report settings-cache sync timeout;
+it does not itself prove the live controller is unhealthy.
+Verify the root's sync status and **resolved commit revision**,
+then inspect child target revisions. The old live root may still
+track `bootstrap/talos-foundation` until this succeeds.
+See `cluster/bootstrap/argocd/README.md` for commands and rollback. The Cilium v1.20.4 installation has been
 adopted by the `cilium-platform` Argo Application after a reviewed
 Helm-to-Argo handoff. Its original bootstrap Helm release record
 remains; **never uninstall it**, and don't run competing `helm upgrade`
