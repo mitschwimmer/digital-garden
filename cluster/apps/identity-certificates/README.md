@@ -40,7 +40,13 @@ kubectl -n argocd get application garden-root cert-manager identity-test-tls
 helm list -A
 kubectl -n cert-manager get deployments --ignore-not-found
 kubectl get crd certificates.cert-manager.io --ignore-not-found
+kubectl -n identity get secret kanidm-test-ca kanidm-test-tls --ignore-not-found
 ```
+
+Stop and inspect ownership if those names already exist: do not let
+cert-manager silently adopt an unrelated Secret or overwrite manually
+issued certificates. Kaniop is already installed separately and must
+remain healthy throughout the test.
 
 **Stop** if cert-manager is already installed under another owner. There
 must be only one cert-manager controller/CRD owner. Inspect the pinned
@@ -100,7 +106,7 @@ verify subsequent HTTPS from the workstation:
 mkdir -p .operations/kanidm-test
 chmod 700 .operations/kanidm-test
 kubectl -n identity get secret kanidm-test-ca \
-  -o jsonpath='{.data.tls\\.crt}' | base64 --decode > .operations/kanidm-test/ca.crt
+  -o jsonpath='{.data.tls\.crt}' | base64 --decode > .operations/kanidm-test/ca.crt
 
 kubectl -n identity get certificate kanidm-test-tls -o json \
   | jq '{ready: .status.conditions, notAfter: .status.notAfter, renewalTime: .status.renewalTime}'
