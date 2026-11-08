@@ -25,6 +25,14 @@
         }} -C "$out/bin" cilium
         chmod 755 "$out/bin/cilium"
       '';
+      # Argo CD Core CLI v3.6.1 matches the bootstrapped Argo CD release.
+      # SHA-256 from the official GitHub v3.6.1 release asset digest.
+      argocdCliPinned = pkgs.runCommand "argocd-cli-3.6.1" { } ''
+        install -Dm755 ${pkgs.fetchurl {
+          url = "https://github.com/argoproj/argo-cd/releases/download/v3.6.1/argocd-linux-amd64";
+          sha256 = "46d2fc941071f0a0c36326a67a431d34b1479e1a24737f7b367abc93968beadc";
+        }} "$out/bin/argocd"
+      '';
     in {
       devShells.${system}.default = pkgs.mkShell {
         packages = (with pkgs; [
@@ -37,7 +45,7 @@
           opentofu
           sops
           virt-viewer
-        ]) ++ [ talosctlPinned ciliumCliPinned ];
+        ]) ++ [ talosctlPinned ciliumCliPinned argocdCliPinned ];
       };
     };
 }
