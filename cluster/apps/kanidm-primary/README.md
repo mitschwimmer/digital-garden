@@ -1,17 +1,21 @@
 # Permanent-domain Kanidm, staged for operator acceptance
 
 This creates a **new Kanidm database** for the proposed permanent
-identity domain **`idm.archaic.work`**. Its resources are independent
+identity domain **`auth.archaic.work`**. Its resources are independent
 of the disposable `identity/kanidm-test` domain, database, credentials,
 OpenEBS PVC and private CA. **Confirm the exact permanent domain
 before the FIRST `kanidm-primary` sync:** Kanidm identity domains
 cannot be renamed after database initialization.
 
-The operator already uses a separate `auth.archaic.work` identity
-in the Kanidm CLI cache. **Nothing here migrates, overwrites,
-redirects, or replaces that domain.** The wildcard DNS under
-`*.archaic.work` is assumed to continue resolving to the Talos
-Gateway node `192.168.1.49`; validate `idm.archaic.work` explicitly.
+The previous Kanidm installation at `auth.archaic.work` ran
+**outside Kubernetes and has been deleted**, as confirmed by the
+operator. This deployment **reuses the hostname only**; it creates
+a new identity database, administrator credentials, and TLS key.
+Old cached CLI tokens for the deleted server are not valid on the
+fresh server and must not be reused. Isolate the new client's token
+cache, as shown below. The wildcard DNS under `*.archaic.work`
+should resolve to the current Talos Gateway; verify
+`auth.archaic.work` before certificate issuance.
 
 ## Ownership and version contract
 
@@ -29,7 +33,7 @@ Gateway node `192.168.1.49`; validate `idm.archaic.work` explicitly.
   Secret; it does not create public Gateway routes.
 - `kanidm-primary-route` Argo Application owns the
   `identity/kanidm-primary` TLSRoute. It attaches to a **new**
-  `idm.archaic.work` TLS passthrough listener on the *existing*
+  `auth.archaic.work` TLS passthrough listener on the *existing*
   `web-smoke/web-smoke-https` Gateway (which remains owned by
   `web-smoke-https` and continues serving the HTTPS smoke site).
   This keeps all traffic encrypted end-to-end between browser and
@@ -82,7 +86,7 @@ fix that before ACME issuance. This step does **not** expose Kanidm.
 
 ### 2. Issue a certificate in the identity namespace
 
-Confirm `idm.archaic.work` resolves to the same public ingress as
+Confirm `auth.archaic.work` resolves to the same public ingress as
 `test.archaic.work`; check A and AAAA records and public port 80.
 Then:
 
@@ -101,7 +105,11 @@ The current `identity-test-tls` private CA stays untouched.
 
 ### 3. Start the new Kanidm instance
 
-**Confirm `idm.archaic.work` is the desired immutable domain first.**
+**Confirm no earlier `kanidm-primary` database was initialized
+under `idm.archaic.work` before the name correction.** If it was
+already synchronized, stop and inspect before attempting the change:
+the Kanidm domain is immutable. Otherwise `auth.archaic.work`
+is the explicitly selected permanent domain.
 Then:
 
 ```sh
@@ -120,7 +128,7 @@ behind Kaniop's back. Do not mount or copy the test's database or PVC.
 ### 4. Expose TLS passthrough on 443
 
 `web-smoke-https` now declares a second, exact SNI listener
-`idm.archaic.work` using `TLS` / `Passthrough`. It shares port
+`auth.archaic.work` using `TLS` / `Passthrough`. It shares port
 443 with the existing `secure-test.archaic.work` HTTPS listener.
 The hostnames do **not overlap**; a wildcard HTTPS listener here
 would risk conflicts. Check *each listener's* status.
@@ -145,27 +153,28 @@ Verify both endpoints (no `-k`, no custom CA file):
 
 ```sh
 curl --fail --show-error --verbose \
-  --resolve idm.archaic.work:443:192.168.1.49 \
-  https://idm.archaic.work/status
+  --resolve auth.archaic.work:443:192.168.1.49 \
+  https://auth.archaic.work/status
 curl --fail --show-error --verbose \
   --resolve secure-test.archaic.work:443:192.168.1.49 \
   https://secure-test.archaic.work/
 ```
 
-Repeat the `idm.archaic.work` request **without** `--resolve`
+Repeat the `auth.archaic.work` request **without** `--resolve`
 from an external network, then open
-**https://idm.archaic.work/** in a browser and inspect the publicly
+**https://auth.archaic.work/** in a browser and inspect the publicly
 trusted certificate.
 
-For CLI auth, isolate sessions from the older `auth.archaic.work`
-and disposable `idm.localhost` accounts:
+For CLI auth, isolate new tokens from stale sessions cached for the
+deleted, pre-Kubernetes `auth.archaic.work` server and from the
+disposable `idm.localhost` test:
 
 ```sh
 export KANIDM_TOKEN_CACHE_PATH="$PWD/.operations/kanidm-primary/tokens"
 mkdir -p "$PWD/.operations/kanidm-primary"
 chmod 700 "$PWD/.operations/kanidm-primary"
-kanidm login -H https://idm.archaic.work -D idm_admin@idm.archaic.work
-kanidm self whoami -H https://idm.archaic.work -D idm_admin@idm.archaic.work
+kanidm login -H https://auth.archaic.work -D idm_admin@auth.archaic.work
+kanidm self whoami -H https://auth.archaic.work -D idm_admin@auth.archaic.work
 ```
 
 Store the generated password privately and never paste it into chat.
