@@ -8,7 +8,9 @@ metadata:
 spec:
   domain: idm.localhost
   origin: https://idm.localhost:8443
-  image: kanidm/server:1.12.0
+  # Kaniop v0.21.0 embeds Kanidm client SDK v1.11.2; it rejects 1.12.x.
+  # Keep the operator's version gate enabled; test data is disposable.
+  image: kanidm/server:1.11.2
   tlsSecretName: kanidm-test-tls
   replicaGroups:
     - name: default
