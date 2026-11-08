@@ -20,6 +20,23 @@ spec:
       allowedRoutes:
         namespaces:
           from: Same
+    # Independent exact SNI host on the same Envoy 443 listener port.
+    # Cilium forwards the encrypted stream directly to Kanidm: no
+    # Gateway-managed certificate or TLS decryption for this hostname.
+    - name: kanidm
+      hostname: idm.archaic.work
+      protocol: TLS
+      port: 443
+      tls:
+        mode: Passthrough
+      allowedRoutes:
+        kinds:
+          - kind: TLSRoute
+        namespaces:
+          from: Selector
+          selector:
+            matchLabels:
+              kubernetes.io/metadata.name: identity
 ---
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute

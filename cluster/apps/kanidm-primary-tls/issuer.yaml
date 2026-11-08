@@ -1,0 +1,21 @@
+# Separate ACME account and Certificate in identity namespace.
+# The existing HTTP-01 Gateway in web-smoke accepts routes only from
+# identity and web-smoke namespaces.
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: letsencrypt-kanidm-primary
+  namespace: identity
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-kanidm-primary-account
+    solvers:
+      - http01:
+          gatewayHTTPRoute:
+            serviceType: ClusterIP
+            parentRefs:
+              - name: web-smoke
+                namespace: web-smoke
+                sectionName: http
