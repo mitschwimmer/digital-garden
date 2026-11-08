@@ -10,6 +10,16 @@ end-user/operator requirement.
 Pinned releases:
 - argo-helm chart: **`argo-cd` 10.14.0**
 - chart application: **Argo CD v3.6.1**
+- workstation `argocd` Core CLI: **v3.6.1**, pinned in `flake.nix`
+
+The development shell includes the matching Argo CD CLI. Use `--core` so
+it talks directly to the Kubernetes API: this installation has no Argo CD
+API server. From the repository root, enter `nix develop`, set
+`KUBECONFIG="$PWD/.operations/talos/kubeconfig"` and verify the client with
+`argocd version --client`. A manual child Application sync uses
+`argocd --core app sync <application-name>`; do not enable automatic sync
+or pruning to compensate for a missing CLI.
+
 
 This is a single-node, non-HA deployment on the existing Kubernetes
 v1.37.1 cluster. Upstream confirms these Helm values implement Core mode.
