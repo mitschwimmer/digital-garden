@@ -1,0 +1,38 @@
+# Talos v1.14.5 UserVolumeConfig documents for two Incus custom block volumes.
+#
+# SOURCE ONLY. DO NOT APPLY until the live disk inventory has been checked.
+# First provisioning of a whole-disk UserVolume CAN FORMAT its selected disk.
+# Reverify each /dev/disk/by-id link, size and absence of user data.
+# /dev/sda / incus_root is the running Talos system disk: NEVER target it.
+# Talos v1.14.5's disk-volume locator does NOT bind the 'system_disk' CEL
+# variable: using !system_disk causes "no such attribute(s): system_disk".
+# Exact by-id paths and size ranges exclude the root disk independently.
+#
+# IncusOS owns the parent ZFS pools; OpenTofu owns the guest block volumes.
+# Talos (not Argo CD) owns the filesystem and mounts.
+# The names map exactly to /var/mnt/k8s-nvme and /var/mnt/k8s-data.
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: k8s-nvme
+volumeType: disk
+provisioning:
+  diskSelector:
+    match: >-
+      disk.symlinks.exists(s, s == "/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_incus_k8s--nvme")
+      && !disk.readonly
+      && disk.size >= 120u * GiB && disk.size <= 136u * GiB
+filesystem:
+  type: xfs
+---
+apiVersion: v1alpha1
+kind: UserVolumeConfig
+name: k8s-data
+volumeType: disk
+provisioning:
+  diskSelector:
+    match: >-
+      disk.symlinks.exists(s, s == "/dev/disk/by-id/scsi-0QEMU_QEMU_HARDDISK_incus_k8s--data")
+      && !disk.readonly
+      && disk.size >= 900u * GiB && disk.size <= 1100u * GiB
+filesystem:
+  type: xfs

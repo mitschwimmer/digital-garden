@@ -1,0 +1,19 @@
+# Talos v1.14+ multi-document configuration patch, control-plane ONLY.
+# Do not use deprecated cluster.network, cluster.proxy or
+# cluster.allowSchedulingOnControlPlanes in the legacy v1alpha1 document.
+# Cilium is installed later; Talos must NOT install Flannel or kube-proxy.
+apiVersion: v1alpha1
+kind: KubeFlannelCNIConfig
+$patch: delete
+---
+apiVersion: v1alpha1
+kind: KubeProxyConfig
+enabled: false
+---
+# Single-node cluster: remove the generated control-plane NoSchedule taint.
+# Delete the taints map as a unit: dotted taint keys can confuse path deletion.
+# Keep the generated node labels and other KubeNodeConfig settings.
+apiVersion: v1alpha1
+kind: KubeNodeConfig
+taints:
+  $patch: delete

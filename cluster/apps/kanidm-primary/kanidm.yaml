@@ -1,0 +1,55 @@
+# New, independent permanent identity database.
+# The identity domain is immutable; confirm auth.archaic.work BEFORE first sync.
+# No test PVC/Secret or Kanidm database is imported or repurposed.
+apiVersion: kaniop.rs/v1beta1
+kind: Kanidm
+metadata:
+  name: kanidm-primary
+  namespace: identity
+spec:
+  domain: auth.archaic.work
+  origin: https://auth.archaic.work
+  # Kaniop v0.21.0 embeds Kanidm client SDK v1.11.2.
+  image: kanidm/server:1.11.2
+  tlsSecretName: kanidm-primary-tls
+  replicaGroups:
+    - name: default
+      replicas: 1
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: "2"
+          memory: 2Gi
+  storage:
+    volumeClaimTemplate:
+      metadata: {}
+      spec:
+        storageClassName: nvme
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 389
+    runAsGroup: 389
+    fsGroup: 389
+    seccompProfile:
+      type: RuntimeDefault
+  containers:
+    - name: kanidm
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+  initContainers:
+    - name: kanidm-generate-replication-config
+      securityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL

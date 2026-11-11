@@ -1,0 +1,22 @@
+# Standalone OpenEBS LocalPV Hostpath Helm chart v4.6.0.
+# Staged only: the Argo root does not yet include its child Application.
+# No replicated, LVM, ZFS, Rawfile, Loki, or web UI components.
+#
+# The chart's fallback BasePath deliberately points at a non-directory.
+# Each reviewed StorageClass sets a separate explicit BasePath.
+localpv:
+  enabled: true
+  replicas: 1
+  nodeDeployment:
+    enabled: false
+  allowInsecurePvcBasePathOverride: false
+  basePath: /dev/null
+hostpathClass:
+  enabled: false
+rbac:
+  create: true
+global:
+  analytics:
+    enabled: false
+analytics:
+  enabled: false

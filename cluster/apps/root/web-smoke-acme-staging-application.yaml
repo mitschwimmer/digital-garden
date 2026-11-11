@@ -1,0 +1,18 @@
+# MANUAL SYNC ONLY. Test issuance is untrusted staging, not for browsers.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: web-smoke-acme-staging
+  namespace: argocd
+spec:
+  project: garden
+  source:
+    repoURL: https://github.com/mitschwimmer/digital-garden.git
+    targetRevision: bootstrap/talos-foundation
+    path: cluster/apps/web-smoke-acme-staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: web-smoke
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true

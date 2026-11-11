@@ -1,0 +1,7 @@
+# Talos v1.14+ document. Keep installed Talos/extensions identical to boot ISO.
+# --install-disk /dev/sda controls the generated provisioning diskSelector.
+# Never set deprecated machine.install.* beside UnattendedInstallConfig.
+apiVersion: v1alpha1
+kind: UnattendedInstallConfig
+installer:
+  image: factory.talos.dev/metal-installer/26a7fb977530a932ea54bbbff1a50973c13b7648599ee4cb6c1a9fed62c15ea7:v1.14.5

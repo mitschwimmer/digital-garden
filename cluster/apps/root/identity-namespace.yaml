@@ -1,0 +1,8 @@
+# Create the test namespace before the operator-managed Kanidm CR is synced.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: identity
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest

@@ -1,0 +1,24 @@
+# Manual test only, not included in Kustomize/Argo resources.
+# This should succeed after admission guard injection on a mounted NVMe UserVolume.
+apiVersion: v1
+kind: Pod
+metadata:
+  name: garden-guard-nvme-probe
+  namespace: openebs
+spec:
+  restartPolicy: Never
+  automountServiceAccountToken: false
+  containers:
+    - name: inert
+      image: docker.io/library/busybox:1.37.0
+      command: ["/bin/sh", "-ec", "echo only-admission-guard-test"]
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        readOnlyRootFilesystem: true
+        allowPrivilegeEscalation: false
+  volumes:
+    - name: data
+      hostPath:
+        path: /var/mnt/k8s-nvme
+        type: Directory

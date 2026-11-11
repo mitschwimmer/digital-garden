@@ -1,0 +1,19 @@
+# REVIEW ONLY: the chart and storage classes are NOT deployed yet.
+# The BasePath must be an actual mounted Talos UserVolume, not a directory
+# in Talos EPHEMERAL. OpenEBS by itself does NOT check the mount source.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: nvme
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+    openebs.io/cas-type: local
+    cas.openebs.io/config: |
+      - name: StorageType
+        value: "hostpath"
+      - name: BasePath
+        value: "/var/mnt/k8s-nvme"
+provisioner: openebs.io/local
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: false

@@ -1,0 +1,19 @@
+# STAGED: manual sync only. Requires a healthy Kaniop operator and a
+# locally provisioned identity/kanidm-test-tls Secret; no public ingress.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kanidm-test
+  namespace: argocd
+spec:
+  project: garden
+  source:
+    repoURL: https://github.com/mitschwimmer/digital-garden.git
+    targetRevision: bootstrap/talos-foundation
+    path: cluster/apps/kanidm
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: identity
+  syncPolicy:
+    syncOptions:
+      - ServerSideApply=true
